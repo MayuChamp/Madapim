@@ -1,0 +1,185 @@
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import * as Icons from './icons';
+import { Icon, IconHome, IconUsers, IconArchive, IconSettings, IconFolder, IconFile, IconUpload, IconPlus, IconArrowLeft, IconArrowRight, IconChevron, IconPencil, IconMagic, IconMic, IconSearch, IconClose, IconCheck, IconDownload, IconSave, IconSend, IconSparkle, IconBookmark, IconDoc, IconWave, IconGrid, IconList, IconClock, IconArchiveBox, IconAlert, IconGraduationCap } from './icons';
+
+
+
+function ChecklistItem({ ok, label }) {
+  return (
+    <div style={{display:'flex',alignItems:'center',gap:8,padding:'5px 0',fontSize:13,color:'var(--ink-2)'}}>
+      <div style={{width:16,height:16,borderRadius:'50%',background:'var(--ok-soft)',color:'var(--ok)',display:'grid',placeItems:'center',flexShrink:0}}><IconCheck size={11} strokeWidth={2.5}/></div>
+      {label}
+    </div>
+  );
+}
+
+function FormatOption({ value, current, onSelect, label, desc }) {
+  const active = value===current;
+  return (
+    <button onClick={()=>onSelect(value)} style={{textAlign:'start',padding:'10px 12px',border:`1px solid ${active?'var(--brand)':'var(--border)'}`,background:active?'var(--brand-softer)':'var(--surface)',borderRadius:'var(--r-sm)',display:'flex',alignItems:'center',gap:10,transition:'all .15s',width:'100%',cursor:'pointer'}}>
+      <div style={{width:14,height:14,borderRadius:'50%',border:`1.5px solid ${active?'var(--brand)':'var(--border-strong)'}`,flexShrink:0,display:'grid',placeItems:'center'}}>{active&&<span style={{width:6,height:6,borderRadius:'50%',background:'var(--brand)'}}/>}</div>
+      <div><div style={{fontSize:13.5,color:'var(--ink-1)',fontWeight:500}}>{label}</div><div style={{fontSize:11.5,color:'var(--ink-3)'}}>{desc}</div></div>
+    </button>
+  );
+}
+
+function CheckRow({ label, defaultChecked }) {
+  const [checked, setChecked] = useStateA(!!defaultChecked);
+  return (
+    <label style={{display:'flex',alignItems:'center',gap:10,padding:'5px 0',fontSize:13,color:'var(--ink-2)',cursor:'pointer'}}>
+      <span onClick={(e)=>{e.preventDefault();setChecked(!checked);}} style={{width:16,height:16,borderRadius:4,border:`1.5px solid ${checked?'var(--brand)':'var(--border-strong)'}`,background:checked?'var(--brand)':'transparent',display:'grid',placeItems:'center',flexShrink:0}}>
+        {checked&&<IconCheck size={10} stroke="#fff" strokeWidth={3}/>}
+      </span>
+      {label}
+    </label>
+  );
+}
+
+function DocField({ label, value }) {
+  return <div><span style={{color:'#7a8295',fontSize:11}}>{label}: </span><span style={{color:'#1a1f2c',fontWeight:500}}>{value}</span></div>;
+}
+
+function A4Doc({ student, instructorAnswers, evaluationDraft }) {
+  const answers = instructorAnswers||{};
+  // Use real AI draft categories if available
+  const cats = evaluationDraft?.categories || null;
+  const resolveText = (cat) => {
+    let txt=cat.balance||''; let instr='';
+    if(cat.usesInstructorInput){const a=answers[cat.usesInstructorInput];instr=typeof a==='string'?a:(a&&a.note)||'';}
+    let dec='';
+    if(cat.gap&&cat.gap.decisionKey){const a=answers[cat.gap.decisionKey];dec=a&&a.label?`לאחר התייעצות החלטת ${a.label}${a.note?` — ${a.note}`:''}. `:(cat.gap.resolution||'');}
+    else if(cat.gap&&cat.gap.resolution){dec=cat.gap.resolution;}
+    return txt.replace(/\{\{e(\d+)\}\}/g,(_,n)=>`[ראיה ${n}]`).replace('{{instructor_input}}',instr||'[ממתין לקלט המדריך]').replace('{{decision}}',dec||'');
+  };
+  const today = new Date().toLocaleDateString('he-IL');
+  return (
+    <div style={{width:794,minHeight:1123,margin:'0 auto',background:'#fff',color:'#1a1f2c',padding:'64px 72px',boxShadow:'0 4px 32px rgba(0,0,0,0.12)',fontFamily:'var(--font-sans)',direction:'rtl'}}>
+      <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',paddingBottom:18,borderBottom:'2px solid #1e3a5f'}}>
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          <div style={{width:42,height:42,background:'#1e3a5f',color:'#fff',display:'grid',placeItems:'center',fontFamily:'var(--font-serif)',fontSize:22,fontWeight:700,borderRadius:4}}>ה</div>
+          <div><div style={{fontFamily:'var(--font-serif)',fontSize:18,fontWeight:600,lineHeight:1.1,color:'#1a1f2c'}}>המכללה האקדמית להוראה</div><div style={{fontSize:11.5,color:'#7a8295',marginTop:2,letterSpacing:'0.02em'}}>בית הספר להכשרת מורים · התנסות מעשית</div></div>
+        </div>
+        <div style={{textAlign:'start',fontSize:11,color:'#7a8295',lineHeight:1.6}}>תאריך: {today}<br/>מס׳ אסמכתא: HE-2026-1142<br/>טופס: 14-ב/הת"מ</div>
+      </div>
+      <div style={{marginTop:28}}>
+        <div style={{fontSize:11.5,color:'#7a8295',textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:6}}>הערכת התנסות מעשית · סוף שנה ב׳</div>
+        <h1 style={{fontFamily:'var(--font-serif)',fontSize:26,fontWeight:600,margin:0,letterSpacing:'-0.01em',color:'#1a1f2c'}}>הערכת סטודנט/ית: {student.name}</h1>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginTop:12,fontSize:12.5,padding:'12px 14px',background:'#fbfaf7',borderRadius:4}}>
+          <DocField label="בית ספר מאמן" value={student.school}/><DocField label="כיתה" value={student.grade}/>
+          <DocField label="מדריך/ה פדגוגי/ת" value="ד״ר ר. כהן"/><DocField label="מורה מאמנת" value="גב׳ א. ש."/>
+          <DocField label="מחוון" value="הערכת סוף שנה — 100 נק׳"/><DocField label="תאריך הערכה" value={today}/>
+        </div>
+      </div>
+      <div style={{marginTop:28}}>
+        {(cats || EVAL_CATEGORIES).map((cat,idx)=>{
+          // Support both AI draft format and mock EVAL_CATEGORIES format
+          const isAiCat = !!cats;
+          const text = isAiCat ? (cat.balance||'') : resolveText(cat);
+          const overallKey = cat.overallLevel || 'mid_high';
+          const lpLevel = isAiCat ? cat.lessonPlanLevel : cat.lessonPlan?.level;
+          const obLevel = isAiCat ? cat.observationLevel : cat.observation?.level;
+          const lvlLabel = (l) => ({high:'גבוהה',mid_high:'בינונית-גבוהה',mid:'בינונית',low_mid:'בינונית-נמוכה'}[l]||l||'—');
+          return (
+            <div key={cat.id||idx} style={{marginBottom:22}}>
+              <div style={{display:'flex',alignItems:'baseline',justifyContent:'space-between',marginBottom:8}}>
+                <div style={{display:'flex',alignItems:'baseline',gap:8}}>
+                  <span style={{fontFamily:'var(--font-serif)',fontSize:13,color:'#7a8295'}}>{idx+1}.</span>
+                  <h3 style={{fontFamily:'var(--font-serif)',fontSize:15,fontWeight:600,margin:0}}>{cat.name}</h3>
+                </div>
+                <div style={{fontSize:11.5,color:'#1e3a5f',fontWeight:500}}>{lvlLabel(overallKey)} · {cat.weight}%</div>
+              </div>
+              {(lpLevel||obLevel)&&<div style={{display:'flex',gap:16,marginBottom:6,fontSize:11,color:'#7a8295'}}>{lpLevel&&<span>📘 מערך: {lvlLabel(lpLevel)}</span>}{obLevel&&<span>🎯 צפייה: {lvlLabel(obLevel)}</span>}</div>}
+              <p style={{fontSize:12.5,lineHeight:1.75,margin:0,color:'#1a1f2c',textAlign:'justify'}}>{text}</p>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{marginTop:14,padding:'16px 18px',background:'#f3f6fa',borderInlineStart:'3px solid #1e3a5f',borderRadius:4}}>
+        <h3 style={{fontFamily:'var(--font-serif)',fontSize:15,fontWeight:600,margin:'0 0 8px'}}>סיכום והמלצות</h3>
+        <p style={{fontSize:12.5,lineHeight:1.75,margin:0,color:'#1a1f2c',textAlign:'justify'}}>{evaluationDraft?.summary || `${student.name} נמצאת בנקודה טובה בשלב ההכשרה.`}</p>
+        <div style={{marginTop:14,display:'flex',alignItems:'center',gap:18}}>
+          <div><div style={{fontSize:10.5,color:'#7a8295',textTransform:'uppercase',letterSpacing:'0.06em'}}>ציון מסכם</div><div style={{fontFamily:'var(--font-serif)',fontSize:32,fontWeight:600,color:'#1e3a5f',lineHeight:1,marginTop:2}}>{evaluationDraft?.score||'—'} <span style={{fontSize:14,color:'#7a8295',fontWeight:400}}>/ 100</span></div></div>
+          <div style={{width:1,height:40,background:'#cfc7b3'}}/>
+          <div><div style={{fontSize:10.5,color:'#7a8295',textTransform:'uppercase',letterSpacing:'0.06em'}}>הערכה כללית</div><div style={{fontFamily:'var(--font-serif)',fontSize:18,fontWeight:600,color:'#1a1f2c',marginTop:4}}>{{high:'גבוהה',mid_high:'בינונית-גבוהה',mid:'בינונית',low_mid:'בינונית-נמוכה'}[evaluationDraft?.overallLevel]||'בינונית-גבוהה'}</div></div>
+        </div>
+      </div>
+      <div style={{marginTop:40,paddingTop:18,borderTop:'1px solid #e3ddd0',display:'grid',gridTemplateColumns:'1fr 1fr',gap:28,fontSize:11.5,color:'#1a1f2c'}}>
+        <div><div style={{borderBottom:'1px solid #1a1f2c',height:30}}/><div style={{marginTop:6,color:'#7a8295'}}>חתימת המדריך/ה הפדגוגי/ת</div></div>
+        <div><div style={{borderBottom:'1px solid #1a1f2c',height:30}}/><div style={{marginTop:6,color:'#7a8295'}}>חתימת ראש החוג</div></div>
+      </div>
+      <div style={{marginTop:32,paddingTop:14,borderTop:'1px solid #ebe8e0',fontSize:10,color:'#9aa0ad',textAlign:'center',letterSpacing:'0.02em'}}>מסמך זה הופק באמצעות כלי ההערכה הפדגוגית · עמוד 1 מתוך 1</div>
+    </div>
+  );
+}
+
+function ExportScreen({ student, onBack, onFinish, instructorAnswers, evaluationDraft }) {
+  const [format, setFormat] = useStateA('pdf');
+  return (
+    <div className="fade-in" style={{display:'flex',height:'100vh',minHeight:0}}>
+      <aside style={{width:320,flexShrink:0,background:'var(--surface)',borderInlineStart:'1px solid var(--border)',display:'flex',flexDirection:'column',padding:'24px 22px',overflowY:'auto'}}>
+        <button onClick={onBack} className="btn-ghost" style={{display:'flex',alignItems:'center',gap:6,color:'var(--ink-3)',fontSize:13,marginBottom:22}}><IconArrowRight size={14}/> חזרה לעריכה</button>
+        <h2 style={{fontFamily:'var(--font-serif)',fontSize:22,fontWeight:600,margin:'0 0 4px',letterSpacing:'-0.01em'}}>סיכום וייצוא</h2>
+        <p style={{fontSize:13,color:'var(--ink-3)',margin:'0 0 24px'}}>{student.name} · הערכת התנסות סוף שנה</p>
+        <div style={{marginBottom:24}}>
+          <div style={{fontSize:12,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:10,fontWeight:600}}>בדיקה אחרונה</div>
+          <ChecklistItem ok label="7 קריטריונים נסקרו"/>
+          <ChecklistItem ok label="איזון מערך מול צפייה בכל קריטריון"/>
+          <ChecklistItem ok label="שלוש תובנות המדריך שולבו בטיוטה"/>
+          <ChecklistItem ok label="סיכום והמלצות נוצרו"/>
+        </div>
+        <div style={{marginBottom:22}}>
+          <div style={{fontSize:12,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:10,fontWeight:600}}>פורמט ייצוא</div>
+          <div style={{display:'flex',flexDirection:'column',gap:6}}>
+            <FormatOption value="pdf" current={format} onSelect={setFormat} label="PDF" desc="לחתימה ולהגשה רשמית"/>
+            <FormatOption value="docx" current={format} onSelect={setFormat} label="Word" desc="לעריכה נוספת"/>
+            <FormatOption value="link" current={format} onSelect={setFormat} label="קישור משותף" desc="לצפייה בלבד"/>
+          </div>
+        </div>
+        <div style={{marginBottom:22}}>
+          <div style={{fontSize:12,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:10,fontWeight:600}}>אפשרויות</div>
+          <CheckRow defaultChecked label="כלול חתימה דיגיטלית"/>
+          <CheckRow defaultChecked label="הצג ראיות כהפניות בסוף המסמך"/>
+          <CheckRow label="הצג ציון מספרי לכל קריטריון"/>
+          <CheckRow label="הוסף עמוד שער"/>
+        </div>
+        <div style={{marginTop:'auto',display:'flex',flexDirection:'column',gap:8}}>
+          <button className="btn btn-primary btn-lg" onClick={onFinish}><IconDownload size={15}/> ייצא כ-{format==='pdf'?'PDF':format==='docx'?'Word':'קישור'}</button>
+          <button className="btn btn-secondary"><IconSave size={14}/> שמור וסיים</button>
+        </div>
+      </aside>
+      <div className="scroll" style={{flex:1,overflowY:'auto',background:'#e7e3da',padding:'32px 0'}}>
+        <A4Doc student={student} instructorAnswers={instructorAnswers} evaluationDraft={evaluationDraft}/>
+      </div>
+    </div>
+  );
+}
+
+function AnalyzingScreen() {
+  const [progress, setProgress] = useStateA(0);
+  const [step, setStep] = useStateA(0);
+  const STEPS = ['קורא 5 מסמכים...','מזהה מוטיבים חוזרים...','משבץ את הראיות לפי קריטריונים...','משלב את התובנה שלך בטיוטה...','מנסח את הטיוטה...'];
+  useEffectA(()=>{ const i=setInterval(()=>setProgress(p=>Math.min(p+2,100)),60); const j=setInterval(()=>setStep(s=>Math.min(s+1,STEPS.length-1)),700); return()=>{clearInterval(i);clearInterval(j);}; },[]);
+  return (
+    <div className="fade-in" style={{position:'fixed',inset:0,zIndex:50,background:'var(--bg)',display:'grid',placeItems:'center'}}>
+      <div style={{width:420,maxWidth:'calc(100vw - 32px)',textAlign:'center'}}>
+        <div style={{width:64,height:64,margin:'0 auto 20px',borderRadius:16,background:'var(--brand)',color:'#fff',display:'grid',placeItems:'center',boxShadow:'0 8px 32px rgba(30,58,95,.3)'}}><IconSparkle size={28} style={{animation:'pulse 1.5s infinite'}}/></div>
+        <h2 style={{fontFamily:'var(--font-serif)',fontSize:22,fontWeight:600,margin:'0 0 8px'}}>מכין את הטיוטה</h2>
+        <p style={{fontSize:14,color:'var(--ink-2)',margin:'0 0 24px'}}>{STEPS[step]}</p>
+        <div style={{height:4,background:'var(--surface-3)',borderRadius:100,overflow:'hidden'}}><div style={{height:'100%',width:`${progress}%`,background:'linear-gradient(90deg,var(--brand),var(--brand-3))',transition:'width .3s',borderRadius:100}}/></div>
+        <div style={{marginTop:8,fontSize:12,color:'var(--ink-3)'}}>{progress}%</div>
+      </div>
+    </div>
+  );
+}
+
+function Toast({ message, onClose }) {
+  useEffectA(()=>{ const t=setTimeout(onClose,4000); return()=>clearTimeout(t); },[onClose]);
+  return (
+    <div style={{position:'fixed',bottom:24,insetInlineEnd:24,zIndex:200,background:'var(--ink-1)',color:'#fff',padding:'12px 18px',borderRadius:'var(--r-md)',display:'flex',alignItems:'center',gap:10,fontSize:13.5,boxShadow:'var(--shadow-3)',animation:'fadeIn .3s',maxWidth:360}}>
+      <IconCheck size={16} stroke="var(--ok)" strokeWidth={2.5}/><span>{message}</span>
+      <button onClick={onClose} className="btn-ghost" style={{color:'rgba(255,255,255,.5)',padding:4}}><IconClose size={14}/></button>
+    </div>
+  );
+}
+
+export {  ExportScreen, AnalyzingScreen, Toast  };
