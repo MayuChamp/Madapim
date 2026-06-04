@@ -11,7 +11,7 @@ router.post('/login', async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'email and password required' });
 
-  const user = q.userByEmail(email.toLowerCase().trim());
+  const user = await q.userByEmail(email.toLowerCase().trim());
   if (!user) return res.status(401).json({ error: 'שם משתמש או סיסמה שגויים' });
 
   const valid = await bcrypt.compare(password, user.password_hash);

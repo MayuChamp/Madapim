@@ -1,7 +1,7 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const MODEL = 'gemini-1.5-pro';
+const MODEL = 'gemini-2.5-flash';
 
 // ─── Rubric definition (כלי מדפים, 6 criteria) ───────────────────────────────
 const RUBRIC = [

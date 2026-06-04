@@ -1,54 +1,54 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import * as Icons from './icons';
-import { Icon, IconHome, IconUsers, IconArchive, IconSettings, IconFolder, IconFile, IconUpload, IconPlus, IconArrowLeft, IconArrowRight, IconChevron, IconPencil, IconMagic, IconMic, IconSearch, IconClose, IconCheck, IconDownload, IconSave, IconSend, IconSparkle, IconBookmark, IconDoc, IconWave, IconGrid, IconList, IconClock, IconArchiveBox, IconAlert, IconGraduationCap } from './icons';
-import { STUDENTS, EVAL_CATEGORIES, EVIDENCES, RUBRIC_DETAILS, ARCHIVED, SMART_QUESTIONS, STAGE_LABELS, CYCLE_STATUS } from './data';
+import { Icon, IconHome, IconUsers, IconArchive, IconSettings, IconFolder, IconFile, IconUpload, IconPlus, IconArrowLeft, IconArrowRight, IconChevron, IconPencil, IconMagic, IconMic, IconSearch, IconClose, IconCheck, IconDownload, IconSave, IconSend, IconSparkle, IconBookmark, IconDoc, IconWave, IconGrid, IconList, IconClock, IconArchiveBox, IconAlert, IconGraduationCap, IconEye, IconTrash } from './icons';
+import { STUDENTS, EVAL_CATEGORIES, STAGE_LABELS, CYCLE_STATUS, STATUS_META } from './data';
 
 
 
-function Sidebar({ activeScreen, onNav, instructorName, mobOpen, onMobClose, onLogout }) {
+function TopbarNav({ activeScreen, onNav, instructorName, onLogout }) {
   const initials = (instructorName || 'מ').slice(0, 1);
   return (
-    <>
-      {mobOpen&&<div className="mob-overlay mob-open" onClick={onMobClose}/>}
-    <aside className={`sidebar${mobOpen?' mob-open':''}`}>
-      <div className="brand-mark">
-        <div className="brand-glyph">ה</div>
-        <div className="brand-text"><b>הערכה</b><span>כלי הדרכה פדגוגית</span></div>
-      </div>
-      <div className="user-chip">
-        <div className="avatar">{initials}</div>
-        <div>
-          <div style={{color:'var(--ink-1)',fontWeight:500}}>שלום, {instructorName}</div>
-          <div style={{fontSize:11,color:'var(--ink-3)'}}>מדריכה פדגוגית</div>
+    <nav className="topnav">
+      <div className="topnav-bar">
+        <div className="brand-mark">
+          <div className="brand-glyph">ה</div>
+          <div className="brand-text"><b>הערכה</b><span>כלי הדרכה פדגוגית</span></div>
+        </div>
+        <div className="topnav-pills">
+          <button className={`topnav-pill ${activeScreen === 'dashboard' ? 'active' : ''}`} onClick={() => onNav('dashboard')}>
+            <Icons.IconUsers size={16} /> הסטודנטים שלי <span className="pill-count">6</span>
+          </button>
+          <button className={`topnav-pill ${activeScreen === 'archive' ? 'active' : ''}`} onClick={() => onNav('archive')}>
+            <Icons.IconArchiveBox size={16} /> ארכיון
+          </button>
+          <button className={`topnav-pill ${activeScreen === 'rubrics' ? 'active' : ''}`} onClick={() => onNav('rubrics')}>
+            <Icons.IconBookmark size={16} /> מחוונים
+          </button>
+        </div>
+        <div className="topnav-actions">
+          <button className="icon-btn" onClick={() => onNav('settings')} title="הגדרות"><Icons.IconSettings size={18} /></button>
+          <button className="icon-btn dot" title="התראות"><Icons.IconAlert size={18} /></button>
+          {onLogout && <button className="icon-btn" onClick={onLogout} title="התנתק"><Icons.IconArrowLeft size={18} /></button>}
+          <div className="user-pill">
+            <div className="avatar">{initials}</div>
+            <div>
+              <div className="u-name">{instructorName}</div>
+              <div className="u-role">מדריכה פדגוגית</div>
+            </div>
+          </div>
         </div>
       </div>
-      <div>
-        <div className="nav-section-label">עבודה</div>
-        <nav className="nav">
-          <button className={`nav-item ${activeScreen==='dashboard'?'active':''}`} onClick={()=>onNav('dashboard')}><IconUsers className="icon" /> הסטודנטים שלי</button>
-          <button className={`nav-item ${activeScreen==='archive'?'active':''}`} onClick={()=>onNav('archive')}><IconArchiveBox className="icon" /> ארכיון הערכות</button>
-          <button className={`nav-item ${activeScreen==='rubrics'?'active':''}`} onClick={()=>onNav('rubrics')}><IconBookmark className="icon" /> מחוונים</button>
-        </nav>
-      </div>
-      <div style={{marginTop:'auto',display:'flex',flexDirection:'column',gap:2}}>
-        <button className="nav-item"><IconSettings className="icon" /> הגדרות</button>
-        {onLogout && (
-          <button className="nav-item" onClick={onLogout} style={{color:'var(--warn)'}}>
-            <IconArrowLeft className="icon"/> יציאה
-          </button>
-        )}
-      </div>
-    </aside>
-    </>
+    </nav>
   );
 }
 
-function Dashboard({ students = STUDENTS, onOpenStudent, cardLayout, onCreateStudent, onImportCSV }) {
+function Dashboard({ students = STUDENTS, onOpenStudent, cardLayout, onCreateStudent, onImportCSV, onDeleteStudent }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [newStudent, setNewStudent] = useState({ name: '', school: '', grade: '', subjectTrack: '' });
   const [csvText, setCsvText] = useState('');
   const [importing, setImporting] = useState(false);
+  const [confirmDeleteStudent, setConfirmDeleteStudent] = useState(null);
   const counts = { pending:students.filter(s=>s.status==='pending').length, ready:students.filter(s=>s.status==='ready').length, in_progress:students.filter(s=>s.status==='in_progress').length, not_started:students.filter(s=>s.status==='not_started').length };
 
   const handleCreate = async (e) => {
@@ -99,8 +99,30 @@ function Dashboard({ students = STUDENTS, onOpenStudent, cardLayout, onCreateStu
         <StatTile n={counts.ready} label="מוכנות לייצוא" tone="ok" icon={<IconCheck size={14}/>}/>
         <StatTile n={counts.not_started} label="טרם הותחלו" tone="neutral" icon={<IconFolder size={14}/>}/>
       </div>
-      <div className="section-title"><h2>הקבוצה</h2><div style={{display:'flex',alignItems:'center',gap:12}}><span className="hint">{students.length} סטודנטים</span></div></div>
-      {cardLayout==='grid' ? <StudentsGrid students={students} onOpen={onOpenStudent}/> : <StudentsList students={students} onOpen={onOpenStudent}/>}
+      <div className="section-title" style={{marginTop:'var(--gap-5)'}}><h2>הקבוצה</h2><div style={{display:'flex',alignItems:'center',gap:12}}><span className="hint">{students.length} סטודנטים</span></div></div>
+      {cardLayout==='grid' ? <StudentsGrid students={students} onOpen={onOpenStudent} onDelete={setConfirmDeleteStudent}/> : <StudentsList students={students} onOpen={onOpenStudent} onDelete={setConfirmDeleteStudent}/>}
+
+      {/* Confirm delete modal */}
+      {confirmDeleteStudent && (
+        <div style={{position:'fixed',inset:0,zIndex:200,background:'rgba(0,0,0,0.55)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+          <div className="card fade-in" style={{width:380,padding:28,textAlign:'center'}}>
+            <div style={{width:52,height:52,borderRadius:'50%',background:'var(--warn-soft)',color:'var(--warn)',display:'grid',placeItems:'center',margin:'0 auto 16px'}}>
+              <IconTrash size={22}/>
+            </div>
+            <h2 style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:600,margin:'0 0 8px'}}>מחיקת סטודנט</h2>
+            <p style={{fontSize:14,color:'var(--ink-2)',lineHeight:1.6,margin:'0 0 24px'}}>
+              האם אתה בטוח שברצונך למחוק את <strong>{confirmDeleteStudent.name}</strong>?<br/>
+              פעולה זו תמחק את כל הנתונים, הקבצים וההערכות של הסטודנט ואינה ניתנת לביטול.
+            </p>
+            <div style={{display:'flex',gap:10,justifyContent:'center'}}>
+              <button className="btn btn-ghost" style={{minWidth:100}} onClick={()=>setConfirmDeleteStudent(null)}>ביטול</button>
+              <button className="btn" style={{minWidth:100,background:'var(--warn)',color:'#fff',border:'none'}} onClick={()=>{onDeleteStudent&&onDeleteStudent(confirmDeleteStudent);setConfirmDeleteStudent(null);}}>
+                <IconTrash size={14}/> מחק סטודנט
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add single student modal */}
       {showAddModal && (
@@ -187,8 +209,8 @@ function StatTile({ n, label, tone, icon }) {
   );
 }
 
-function StudentsGrid({ students = STUDENTS, onOpen }) {
-  return <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:'var(--gap-3)'}}>{students.map(s=><StudentCard key={s.id} s={s} onClick={()=>onOpen(s)}/>)}</div>;
+function StudentsGrid({ students = STUDENTS, onOpen, onDelete }) {
+  return <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:'var(--gap-3)'}}>{students.map(s=><StudentCard key={s.id} s={s} onClick={()=>onOpen(s)} onDelete={onDelete}/>)}</div>;
 }
 
 function TrackProgressMini({ kind, label, complete, total }) {
@@ -205,43 +227,46 @@ function TrackProgressMini({ kind, label, complete, total }) {
   );
 }
 
-function StudentCard({ s, onClick }) {
+function StudentCard({ s, onClick, onDelete }) {
   const meta = STATUS_META[s.status]; const lp = s.lessonProgress||{complete:0,total:0}; const ob = s.observationProgress||{complete:0,total:0};
   return (
-    <div className="card card-hover" onClick={onClick}>
-      <div style={{display:'flex',alignItems:'flex-start',gap:12}}>
-        <div style={{width:44,height:44,borderRadius:10,background:'var(--brand-soft)',color:'var(--brand)',display:'grid',placeItems:'center',fontFamily:'var(--font-serif)',fontSize:17,fontWeight:600,flexShrink:0}}>{s.initials}</div>
-        <div style={{flex:1,minWidth:0}}>
-          <div style={{fontFamily:'var(--font-serif)',fontSize:17,fontWeight:600,color:'var(--ink-1)',letterSpacing:'-0.01em'}}>{s.name}</div>
-          <div style={{fontSize:12.5,color:'var(--ink-3)',marginTop:2}}>{s.grade}</div>
+    <div className="card card-hover" onClick={onClick} style={{borderTop:'4px solid var(--brand)', display:'flex', flexDirection:'column'}}>
+      <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:12, marginBottom:16}}>
+        <div style={{flex:1,minWidth:0, textAlign:'center'}}>
+          <div style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:600,color:'var(--ink-1)',letterSpacing:'-0.01em'}}>{s.name}</div>
+          <div style={{fontSize:13,color:'var(--ink-3)',marginTop:2}}>{s.grade}</div>
+        </div>
+        <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:6}}>
+          <div style={{width:44,height:44,borderRadius:'50%',background:'var(--brand-soft)',color:'var(--brand)',display:'grid',placeItems:'center',fontFamily:'var(--font-serif)',fontSize:17,fontWeight:600,flexShrink:0}}>{s.initials}</div>
+          {onDelete && <button onClick={e=>{e.stopPropagation();onDelete(s);}} style={{padding:'3px 6px',borderRadius:4,border:'none',background:'transparent',cursor:'pointer',color:'var(--ink-4)',transition:'color .15s'}} title="מחק סטודנט" onMouseEnter={e=>e.currentTarget.style.color='var(--warn)'} onMouseLeave={e=>e.currentTarget.style.color='var(--ink-4)'}><IconTrash size={13}/></button>}
         </div>
       </div>
-      <div style={{marginTop:12,fontSize:12.5,color:'var(--ink-2)',display:'flex',alignItems:'center',gap:6}}>
-        <IconGraduationCap size={13} stroke="var(--ink-3)"/>
+      <div style={{fontSize:13,color:'var(--ink-2)',display:'flex',alignItems:'center',gap:6, justifyContent:'center', marginBottom:20}}>
+        <IconGraduationCap size={14} stroke="var(--ink-3)"/>
         <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{s.school}</span>
       </div>
-      <div style={{marginTop:12,display:'flex',flexDirection:'column',gap:6}}>
+      <div style={{display:'flex',flexDirection:'column',gap:12, marginBottom:20}}>
         <TrackProgressMini kind="lp" label="מערכי שיעור" complete={lp.complete} total={lp.total}/>
         <TrackProgressMini kind="ob" label="צפיות" complete={ob.complete} total={ob.total}/>
       </div>
-      <div style={{marginTop:14,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-        <span className={`badge ${meta.cls}`}>{meta.label}</span>
-        <span style={{fontSize:12,color:'var(--brand)',display:'flex',alignItems:'center',gap:4,fontWeight:500}}>פתח <IconArrowLeft size={13}/></span>
+      <div style={{marginTop:'auto',display:'flex',alignItems:'center',justifyContent:'space-between', paddingTop:16, borderTop:'1px solid var(--border)'}}>
+        <span style={{fontSize:13,color:'var(--brand)',display:'flex',alignItems:'center',gap:4,fontWeight:600}}>פתח <IconArrowLeft size={14} strokeWidth={2.5}/></span>
+        <span className={`badge ${meta.cls}`} style={{padding:'6px 12px', fontSize:12.5, borderRadius:6}}>{meta.label}</span>
       </div>
     </div>
   );
 }
 
-function StudentsList({ students = STUDENTS, onOpen }) {
+function StudentsList({ students = STUDENTS, onOpen, onDelete }) {
   return (
     <div className="card" style={{padding:0,overflow:'hidden'}}>
-      <div style={{display:'grid',gridTemplateColumns:'40px 1.4fr 1.6fr 1.6fr 1.2fr 80px',padding:'12px 18px',fontSize:11.5,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em',borderBottom:'1px solid var(--border)',background:'var(--surface-2)'}}>
-        <span/><span>סטודנט</span><span>בית ספר מאמן</span><span>התקדמות בערוצים</span><span>סטטוס</span><span/>
+      <div style={{display:'grid',gridTemplateColumns:'40px 1.4fr 1.6fr 1.6fr 1.2fr 80px 40px',padding:'12px 18px',fontSize:11.5,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em',borderBottom:'1px solid var(--border)',background:'var(--surface-2)'}}>
+        <span/><span>סטודנט</span><span>בית ספר מאמן</span><span>התקדמות בערוצים</span><span>סטטוס</span><span/><span/>
       </div>
       {students.map((s,i)=>{
         const meta=STATUS_META[s.status]; const lp=s.lessonProgress||{complete:0,total:0}; const ob=s.observationProgress||{complete:0,total:0};
         return (
-          <div key={s.id} onClick={()=>onOpen(s)} style={{display:'grid',gridTemplateColumns:'40px 1.4fr 1.6fr 1.6fr 1.2fr 80px',padding:'14px 18px',alignItems:'center',borderBottom:i<students.length-1?'1px solid var(--border)':'none',cursor:'pointer',transition:'background .12s',fontSize:14}}
+          <div key={s.id} onClick={()=>onOpen(s)} style={{display:'grid',gridTemplateColumns:'40px 1.4fr 1.6fr 1.6fr 1.2fr 80px 40px',padding:'14px 18px',alignItems:'center',borderBottom:i<students.length-1?'1px solid var(--border)':'none',cursor:'pointer',transition:'background .12s',fontSize:14}}
             onMouseEnter={e=>e.currentTarget.style.background='var(--surface-2)'} onMouseLeave={e=>e.currentTarget.style.background=''}>
             <div style={{width:32,height:32,borderRadius:8,background:'var(--brand-soft)',color:'var(--brand)',display:'grid',placeItems:'center',fontFamily:'var(--font-serif)',fontSize:14,fontWeight:600}}>{s.initials}</div>
             <div><div style={{color:'var(--ink-1)',fontWeight:500}}>{s.name}</div><div style={{color:'var(--ink-3)',fontSize:12}}>{s.grade}</div></div>
@@ -252,6 +277,9 @@ function StudentsList({ students = STUDENTS, onOpen }) {
             </div>
             <div><span className={`badge ${meta.cls}`}>{meta.label}</span></div>
             <div style={{textAlign:'start'}}><IconArrowLeft size={16} stroke="var(--ink-3)"/></div>
+            <div style={{textAlign:'center'}}>
+              {onDelete && <button onClick={e=>{e.stopPropagation();onDelete(s);}} style={{padding:'5px 6px',borderRadius:4,border:'none',background:'transparent',cursor:'pointer',color:'var(--ink-4)',transition:'color .15s'}} title="מחק סטודנט" onMouseEnter={e=>e.currentTarget.style.color='var(--warn)'} onMouseLeave={e=>e.currentTarget.style.color='var(--ink-4)'}><IconTrash size={14}/></button>}
+            </div>
           </div>
         );
       })}
@@ -292,7 +320,7 @@ function StageDots({ cycle, stageOrder, trackColor }) {
   );
 }
 
-function StageTimeline({ cycle, stageOrder, trackColor }) {
+function StageTimeline({ cycle, stageOrder, trackColor, studentId, onFileUploaded }) {
   return (
     <div style={{display:'grid',gridTemplateColumns:`repeat(${stageOrder.length},1fr)`,gap:12,marginTop:14}}>
       {stageOrder.map((stageKey,i)=>{
@@ -305,15 +333,16 @@ function StageTimeline({ cycle, stageOrder, trackColor }) {
             </div>
             {done ? (
               <>
-                <div style={{display:'flex',alignItems:'center',gap:6,marginTop:8,padding:'5px 8px',background:'var(--surface-2)',borderRadius:4,fontSize:11.5}}>
-                  <IconFile size={11} stroke="var(--ink-3)"/>
-                  <span style={{color:'var(--ink-1)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1,minWidth:0}}>{stage.file}</span>
-                  <span style={{color:'var(--ink-3)',fontSize:10.5}}>{stage.date}</span>
+                <div style={{marginTop:8}}>
+                  <ExtraMaterials extras={stage.files || []} studentId={studentId} cycleId={cycle.id} stageKey={stageKey} onFileUploaded={onFileUploaded} buttonLabel="הוספת חומר נוסף" />
                 </div>
                 {stage.summary&&<div style={{marginTop:8,fontSize:11.5,color:'var(--ink-2)',lineHeight:1.6,fontStyle:'italic'}}>״{stage.summary}״</div>}
               </>
             ) : (
-              <div style={{marginTop:8,padding:'10px 8px',background:'var(--warn-soft)',color:'var(--warn)',borderRadius:4,fontSize:11.5,textAlign:'center'}}>{stage.daysWaiting?`ממתין ${stage.daysWaiting} ימים`:'טרם הוגש'}</div>
+              <div style={{marginTop:8,padding:'10px 8px',background:'var(--surface-2)',borderRadius:4,fontSize:11.5,textAlign:'center', border: '1px dashed var(--border-strong)'}}>
+                <div style={{color:'var(--ink-3)', marginBottom: 6}}>{stage.daysWaiting?`ממתין ${stage.daysWaiting} ימים`:'טרם הוגש'}</div>
+                <ExtraMaterials extras={stage.files || []} studentId={studentId} cycleId={cycle.id} stageKey={stageKey} onFileUploaded={onFileUploaded} buttonLabel="העלאת חומר לניתוח" />
+              </div>
             )}
           </div>
         );
@@ -322,26 +351,62 @@ function StageTimeline({ cycle, stageOrder, trackColor }) {
   );
 }
 
-function CycleRow({ kind, cycle, cycleIndex, stageOrder, open, onToggle }) {
+function CycleRow({ kind, cycle, cycleIndex, stageOrder, open, onToggle, onUpload, studentId, onFileUploaded }) {
   const c = TRACK_COLORS[kind]; const status = CYCLE_STATUS[cycle.status];
+  const [isEditing, setIsEditing] = useState(false);
+  const [topicDraft, setTopicDraft] = useState(cycle.topic);
+
+  const handleSaveTopic = async () => {
+    if (topicDraft.trim() !== cycle.topic) {
+      try {
+        await window.API_updateCycleTopic(cycle.id, topicDraft.trim());
+        if (onFileUploaded) onFileUploaded(); // refresh
+      } catch (err) {
+        alert('שגיאה בעדכון השם: ' + err.message);
+        setTopicDraft(cycle.topic);
+      }
+    }
+    setIsEditing(false);
+  };
+
   return (
     <div className="card" style={{padding:0,overflow:'hidden',borderColor:open?c.fg:'var(--border)',transition:'border-color .2s'}}>
-      <button onClick={onToggle} style={{width:'100%',textAlign:'start',padding:'14px 18px',display:'grid',gridTemplateColumns:'28px 1fr auto auto auto',alignItems:'center',gap:14,background:'transparent'}}>
+      <div onClick={onToggle} style={{width:'100%',textAlign:'start',padding:'14px 18px',display:'grid',gridTemplateColumns:'28px 1fr auto auto auto',alignItems:'center',gap:14,background:'transparent',cursor:'pointer'}}>
         <div style={{width:24,height:24,borderRadius:6,background:c.bg,color:c.fg,display:'grid',placeItems:'center',fontFamily:'var(--font-serif)',fontSize:12,fontWeight:600}}>{cycleIndex}</div>
-        <div style={{minWidth:0}}>
-          <div style={{fontSize:14.5,fontWeight:500,color:'var(--ink-1)'}}>{cycle.topic}</div>
+        <div style={{minWidth:0}} onClick={e => e.stopPropagation()}>
+          {isEditing ? (
+            <input 
+              autoFocus 
+              value={topicDraft} 
+              onChange={e => setTopicDraft(e.target.value)} 
+              onBlur={handleSaveTopic}
+              onKeyDown={e => { if (e.key === 'Enter') handleSaveTopic(); if (e.key === 'Escape') { setTopicDraft(cycle.topic); setIsEditing(false); } }}
+              style={{fontSize:14.5,fontWeight:500,color:'var(--ink-1)', border:'1px solid var(--brand)', borderRadius:4, padding:'2px 6px', width:'100%', background:'var(--surface)'}} 
+            />
+          ) : (
+            <div onClick={() => setIsEditing(true)} style={{fontSize:14.5,fontWeight:500,color:'var(--ink-1)', display:'flex', alignItems:'center', gap:6, cursor:'text'}} title="לחץ לעריכת שם השיעור">
+              {cycle.topic}
+              <IconPencil size={11} stroke="var(--ink-3)" style={{opacity:0.6}}/>
+            </div>
+          )}
           <div style={{fontSize:12,color:'var(--ink-3)',marginTop:2}}>{cycle.subject||`תאריך תצפית: ${cycle.date}`}</div>
         </div>
         <StageDots cycle={cycle} stageOrder={stageOrder} trackColor={c.fg}/>
         <span className={`badge ${status.cls}`}>{status.label}</span>
         <IconChevron size={14} stroke="var(--ink-3)" style={{transform:open?'rotate(-90deg)':'rotate(0)',transition:'transform .2s'}}/>
-      </button>
-      {open&&<div style={{padding:'4px 18px 18px',borderTop:'1px solid var(--border)',background:'var(--surface-2)',animation:'fadeIn .25s'}}><StageTimeline cycle={cycle} stageOrder={stageOrder} trackColor={c.fg}/></div>}
+      </div>
+      {open&&<div style={{padding:'4px 18px 18px',borderTop:'1px solid var(--border)',background:'var(--surface-2)',animation:'fadeIn .25s'}}>
+        <StageTimeline cycle={cycle} stageOrder={stageOrder} trackColor={c.fg} studentId={studentId} onFileUploaded={onFileUploaded} />
+        <div style={{marginTop: 24, paddingTop: 16, borderTop: '1px dashed var(--border-strong)'}}>
+          <div style={{fontSize: 13.5, fontWeight: 600, color: 'var(--ink-2)', marginBottom: 12}}>חומרים נוספים למחזור זה</div>
+          <ExtraMaterials extras={cycle.extraFiles || []} studentId={studentId} cycleId={cycle.id} onFileUploaded={onFileUploaded} />
+        </div>
+      </div>}
     </div>
   );
 }
 
-function TrackSection({ kind, title, subtitle, cycles, stageOrder, openCycle, onToggle }) {
+function TrackSection({ kind, title, subtitle, cycles, stageOrder, openCycle, onToggle, onUpload, studentId, onFileUploaded }) {
   const c = TRACK_COLORS[kind]; const completeCount = cycles.filter(cy=>cy.status==='complete').length;
   return (
     <section>
@@ -356,44 +421,112 @@ function TrackSection({ kind, title, subtitle, cycles, stageOrder, openCycle, on
         <div style={{fontSize:12,color:'var(--ink-3)'}}>{completeCount} מתוך {cycles.length} מחזורים הושלמו</div>
       </div>
       <div style={{display:'flex',flexDirection:'column',gap:8}}>
-        {cycles.map((cy,i)=><CycleRow key={cy.id} kind={kind} cycle={cy} cycleIndex={i+1} stageOrder={stageOrder} open={openCycle===cy.id} onToggle={()=>onToggle(cy.id)}/>)}
+        {cycles.map((cy,i)=><CycleRow key={cy.id} kind={kind} cycle={cy} cycleIndex={i+1} stageOrder={stageOrder} open={openCycle===cy.id} onToggle={()=>onToggle(cy.id)} onUpload={(stageKey, file) => onUpload(cy.id, stageKey, file)} studentId={studentId} onFileUploaded={onFileUploaded}/>)}
       </div>
     </section>
   );
 }
 
-function Workspace({ student, onBack, onAnalyze, onFileUploaded }) {
-  const [openCycle, setOpenCycle] = useState(null);
-  const [extras, setExtras] = useState([]);
+function transformApiCycle(c) {
+  const stagesArr = Array.isArray(c.stages) ? c.stages : [];
+  const files = c.files || [];
+  const stages = {};
+  for (const s of stagesArr) {
+    const stageFiles = files.filter(fi => fi.stage_key === s.stage_key);
+    stages[s.stage_key] = { done: !!s.done, date: s.date, files: stageFiles, summary: s.summary, daysWaiting: s.days_waiting };
+  }
+  return { ...c, stages, extraFiles: files.filter(f => !f.stage_key) };
+}
+
+function ExtraMaterials({ extras, studentId, cycleId, stageKey, onFileUploaded, buttonLabel = "הוספת חומר נוסף" }) {
   const [extraDesc, setExtraDesc] = useState('');
   const [showExtraForm, setShowExtraForm] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState(null);
 
   const addExtra = async () => {
-    if (!extraDesc.trim()) return;
-    // If a file input is attached, upload it; otherwise add as description-only
-    const fileInput = document.getElementById('extra-file-input');
-    const file = fileInput && fileInput.files[0];
-    if (file) {
-      setUploading(true); setUploadError(null);
-      try {
-        const result = await window.API_uploadFile(student.id, file, null, null);
-        setExtras(prev => [...prev, { id: result.id, desc: extraDesc.trim(), file: result.original_name }]);
-        if (onFileUploaded) onFileUploaded(result);
-      } catch (err) {
-        setUploadError(err.message);
-      } finally {
-        setUploading(false);
+    const fileInput = document.getElementById(`extra-file-${cycleId || 'general'}-${stageKey || 'none'}`);
+    const files = fileInput ? Array.from(fileInput.files) : [];
+    
+    if (files.length === 0 && !extraDesc.trim()) return;
+    
+    setUploading(true); setUploadError(null);
+    try {
+      if (files.length > 0) {
+        for (const file of files) {
+          await window.API_uploadFile(studentId, file, cycleId || null, stageKey || null, extraDesc.trim());
+        }
+      } else {
+        await window.API_uploadFile(studentId, null, cycleId || null, stageKey || null, extraDesc.trim());
       }
-    } else {
-      setExtras(prev => [...prev, { id: Date.now(), desc: extraDesc.trim(), file: 'מסמך_נוסף.pdf' }]);
+      if (onFileUploaded) onFileUploaded();
+      setExtraDesc(''); setShowExtraForm(false);
+    } catch (err) {
+      setUploadError(err.message);
+    } finally {
+      setUploading(false);
     }
-    setExtraDesc(''); setShowExtraForm(false);
   };
-  const lpComplete = LESSON_PLAN_CYCLES.filter(c=>c.status==='complete').length;
-  const obComplete = OBSERVATION_CYCLES.filter(c=>c.status==='complete').length;
-  const totalDocs = LESSON_PLAN_CYCLES.reduce((acc,c)=>acc+Object.values(c.stages).filter(s=>s.done).length,0)+OBSERVATION_CYCLES.reduce((acc,c)=>acc+Object.values(c.stages).filter(s=>s.done).length,0);
+
+  const deleteExtra = async (id) => {
+    try {
+      await window.API_deleteFile(id);
+      if (onFileUploaded) onFileUploaded();
+    } catch (err) {
+      alert('שגיאה במחיקת הקובץ: ' + err.message);
+    }
+  };
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:8}}>
+      {extras.map(ex=>(
+        <div key={ex.id} className="card" style={{padding:'12px 16px',display:'flex',alignItems:'center',gap:12}}>
+          <div style={{width:30,height:36,borderRadius:3,flexShrink:0,background:'var(--accent-soft)',color:'var(--accent)',fontSize:9,fontWeight:700,display:'grid',placeItems:'center'}}>{ex.original_name ? (ex.original_name.split('.').pop() || 'DOC').toUpperCase().slice(0,3) : 'TXT'}</div>
+          <div style={{flex:1,minWidth:0}}><div style={{fontSize:14,fontWeight:500,color:'var(--ink-1)'}}>{ex.description || 'ללא תיאור'}</div><div style={{fontSize:11.5,color:'var(--ink-3)',marginTop:1}}>{ex.original_name}</div></div>
+          <button className="btn-ghost" onClick={()=>deleteExtra(ex.id)} style={{padding:4,borderRadius:4,color:'var(--ink-4)'}}><IconClose size={14}/></button>
+        </div>
+      ))}
+      {showExtraForm ? (
+        <div className="card" style={{padding:16}}>
+          <label className="label">תיאור החומר</label>
+          <input className="input" autoFocus value={extraDesc} onChange={e=>setExtraDesc(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')addExtra();}} placeholder="לדוגמה: תיק עבודות תלמידים, סרטון שיעור, תכתובת עם הורה... (רשות)"/>
+          <label className="label" style={{marginTop:10}}>קובץ (אפשר לבחור כמה קבצים יחד)</label>
+          <input id={`extra-file-${cycleId || 'general'}-${stageKey || 'none'}`} type="file" multiple accept=".docx,.doc,.pdf,.txt,.mp4,.mp3,.png,.jpg,.jpeg" className="input" style={{paddingTop:6}}/>
+          {uploadError && <div style={{fontSize:12,color:'var(--warn)',marginTop:6}}>{uploadError}</div>}
+          <div style={{display:'flex',gap:8,marginTop:12}}>
+            <button className="btn btn-primary btn-sm" onClick={addExtra} disabled={uploading}>
+              {uploading ? 'מעלה...' : <><IconUpload size={13}/> הוסף</>}
+            </button>
+            <button className="btn btn-ghost btn-sm" onClick={()=>{setShowExtraForm(false);setExtraDesc('');setUploadError(null);}}>ביטול</button>
+          </div>
+        </div>
+      ) : (
+        <button onClick={()=>setShowExtraForm(true)} style={{border:'2px dashed var(--border-strong)',background:'var(--surface)',borderRadius:'var(--r-md)',padding:'10px 14px',display:'flex',alignItems:'center',justifyContent:'center',gap:6,color:'var(--ink-2)',fontSize:12.5,fontWeight:500,transition:'all .15s',width:'100%',cursor:'pointer'}}>
+          <IconPlus size={14}/> {buttonLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function Workspace({ student, onBack, onAnalyze, onFileUploaded }) {
+  const [openCycle, setOpenCycle] = useState(null);
+
+  const handleCycleUpload = async (cycleId, stageKey, file) => {
+    try {
+      await window.API_uploadFile(student.id, file, cycleId, stageKey);
+      if (onFileUploaded) onFileUploaded();
+    } catch (err) {
+      alert('שגיאה בהעלאת הקובץ: ' + err.message);
+    }
+  };
+
+  const studentCycles = (student.cycles || []).map(transformApiCycle);
+  const lpCycles = studentCycles.filter(c => c.track_type === 'lesson_plan');
+  const obCycles = studentCycles.filter(c => c.track_type === 'observation');
+  const lpComplete = lpCycles.filter(c=>c.status==='complete').length;
+  const obComplete = obCycles.filter(c=>c.status==='complete').length;
+  const totalDocs = studentCycles.reduce((acc,c)=>acc+Object.values(c.stages).filter(s=>s.done).length,0);
   return (
     <div className="main-inner fade-in" style={{paddingTop:28}}>
       <div style={{display:'flex',alignItems:'center',gap:8,fontSize:13,marginBottom:18}}>
@@ -413,15 +546,15 @@ function Workspace({ student, onBack, onAnalyze, onFileUploaded }) {
         </div>
         <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:8}}>
           <div style={{display:'flex',gap:8}}>
-            <ProgressPill kind="lp" complete={lpComplete} total={LESSON_PLAN_CYCLES.length}/>
-            <ProgressPill kind="ob" complete={obComplete} total={OBSERVATION_CYCLES.length}/>
+            <ProgressPill kind="lp" complete={lpComplete} total={lpCycles.length}/>
+            <ProgressPill kind="ob" complete={obComplete} total={obCycles.length}/>
           </div>
         </div>
       </div>
       <div style={{display:'grid',gridTemplateColumns:'1fr 320px',gap:28,alignItems:'flex-start'}}>
         <div style={{display:'flex',flexDirection:'column',gap:28}}>
-          <TrackSection kind="lp" title="מערכי שיעור" subtitle="הגשה → הערות מד״פ → תיקון" cycles={LESSON_PLAN_CYCLES} stageOrder={['submission','instructorNotes','revision']} openCycle={openCycle?.trackType==='lp'?openCycle.cycleId:null} onToggle={(id)=>setOpenCycle(openCycle?.cycleId===id?null:{trackType:'lp',cycleId:id})}/>
-          <TrackSection kind="ob" title="צפיות בשיעורים" subtitle="צפייה → משוב → רפלקציה" cycles={OBSERVATION_CYCLES} stageOrder={['observation','feedback','reflection']} openCycle={openCycle?.trackType==='ob'?openCycle.cycleId:null} onToggle={(id)=>setOpenCycle(openCycle?.cycleId===id?null:{trackType:'ob',cycleId:id})}/>
+          <TrackSection kind="lp" title="מערכי שיעור" subtitle="הגשה → הערות מד״פ → תיקון" cycles={lpCycles} stageOrder={['submission','instructorNotes','revision']} openCycle={openCycle?.trackType==='lp'?openCycle.cycleId:null} onToggle={(id)=>setOpenCycle(openCycle?.cycleId===id?null:{trackType:'lp',cycleId:id})} onUpload={handleCycleUpload} studentId={student.id} onFileUploaded={onFileUploaded}/>
+          <TrackSection kind="ob" title="צפיות בשיעורים" subtitle="צפייה → משוב → רפלקציה" cycles={obCycles} stageOrder={['observation','feedback','reflection']} openCycle={openCycle?.trackType==='ob'?openCycle.cycleId:null} onToggle={(id)=>setOpenCycle(openCycle?.cycleId===id?null:{trackType:'ob',cycleId:id})} onUpload={handleCycleUpload} studentId={student.id} onFileUploaded={onFileUploaded}/>
           <section>
             <div style={{display:'flex',alignItems:'baseline',justifyContent:'space-between',marginBottom:14}}>
               <div style={{display:'flex',alignItems:'baseline',gap:10}}>
@@ -429,34 +562,7 @@ function Workspace({ student, onBack, onAnalyze, onFileUploaded }) {
                 <div><h2 style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:600,margin:0,color:'var(--ink-1)',letterSpacing:'-0.01em'}}>הגשות נוספות</h2><div style={{fontSize:12.5,color:'var(--ink-3)',marginTop:2}}>כל חומר אחר — תארי בעצמך מה הוא מכיל</div></div>
               </div>
             </div>
-            <div style={{display:'flex',flexDirection:'column',gap:8}}>
-              {extras.map(ex=>(
-                <div key={ex.id} className="card" style={{padding:'12px 16px',display:'flex',alignItems:'center',gap:12}}>
-                  <div style={{width:30,height:36,borderRadius:3,flexShrink:0,background:'var(--accent-soft)',color:'var(--accent)',fontSize:9,fontWeight:700,display:'grid',placeItems:'center'}}>PDF</div>
-                  <div style={{flex:1,minWidth:0}}><div style={{fontSize:14,fontWeight:500,color:'var(--ink-1)'}}>{ex.desc}</div><div style={{fontSize:11.5,color:'var(--ink-3)',marginTop:1}}>{ex.file}</div></div>
-                  <button className="btn-ghost" onClick={()=>setExtras(prev=>prev.filter(e=>e.id!==ex.id))} style={{padding:4,borderRadius:4,color:'var(--ink-4)'}}><IconClose size={14}/></button>
-                </div>
-              ))}
-              {showExtraForm ? (
-                <div className="card" style={{padding:16}}>
-                  <label className="label">תיאור החומר</label>
-                  <input className="input" autoFocus value={extraDesc} onChange={e=>setExtraDesc(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')addExtra();}} placeholder="לדוגמה: תיק עבודות תלמידים, סרטון שיעור, תכתובת עם הורה..."/>
-                  <label className="label" style={{marginTop:10}}>קובץ (DOCX / PDF, אופציונלי)</label>
-                  <input id="extra-file-input" type="file" accept=".docx,.doc,.pdf,.txt" className="input" style={{paddingTop:6}}/>
-                  {uploadError && <div style={{fontSize:12,color:'var(--warn)',marginTop:6}}>{uploadError}</div>}
-                  <div style={{display:'flex',gap:8,marginTop:12}}>
-                    <button className="btn btn-primary btn-sm" onClick={addExtra} disabled={uploading}>
-                      {uploading ? 'מעלה...' : <><IconUpload size={13}/> הוסף</>}
-                    </button>
-                    <button className="btn btn-ghost btn-sm" onClick={()=>{setShowExtraForm(false);setExtraDesc('');setUploadError(null);}}>ביטול</button>
-                  </div>
-                </div>
-              ) : (
-                <button onClick={()=>setShowExtraForm(true)} style={{border:'2px dashed var(--border-strong)',background:'var(--surface)',borderRadius:'var(--r-md)',padding:'16px 20px',display:'flex',alignItems:'center',justifyContent:'center',gap:8,color:'var(--ink-2)',fontSize:13.5,fontWeight:500,transition:'all .15s',width:'100%',cursor:'pointer'}}>
-                  <IconPlus size={15}/> הוספת חומר נוסף
-                </button>
-              )}
-            </div>
+            <ExtraMaterials extras={student.extraFiles || []} studentId={student.id} cycleId={null} onFileUploaded={onFileUploaded} />
           </section>
         </div>
         <aside style={{position:'sticky',top:28}}>
@@ -490,4 +596,4 @@ function Workspace({ student, onBack, onAnalyze, onFileUploaded }) {
   );
 }
 
-export {  Sidebar, Dashboard, Workspace, TRACK_COLORS, TrackProgressMini  };
+export {  TopbarNav, Dashboard, Workspace, TRACK_COLORS, TrackProgressMini  };

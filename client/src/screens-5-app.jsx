@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import * as Icons from './icons';
 import { Icon, IconHome, IconUsers, IconArchive, IconSettings, IconFolder, IconFile, IconUpload, IconPlus, IconArrowLeft, IconArrowRight, IconChevron, IconPencil, IconMagic, IconMic, IconSearch, IconClose, IconCheck, IconDownload, IconSave, IconSend, IconSparkle, IconBookmark, IconDoc, IconWave, IconGrid, IconList, IconClock, IconArchiveBox, IconAlert, IconGraduationCap } from './icons';
+import { EVAL_CATEGORIES } from './data';
 
 
 
@@ -16,15 +17,15 @@ function ChecklistItem({ ok, label }) {
 function FormatOption({ value, current, onSelect, label, desc }) {
   const active = value===current;
   return (
-    <button onClick={()=>onSelect(value)} style={{textAlign:'start',padding:'10px 12px',border:`1px solid ${active?'var(--brand)':'var(--border)'}`,background:active?'var(--brand-softer)':'var(--surface)',borderRadius:'var(--r-sm)',display:'flex',alignItems:'center',gap:10,transition:'all .15s',width:'100%',cursor:'pointer'}}>
-      <div style={{width:14,height:14,borderRadius:'50%',border:`1.5px solid ${active?'var(--brand)':'var(--border-strong)'}`,flexShrink:0,display:'grid',placeItems:'center'}}>{active&&<span style={{width:6,height:6,borderRadius:'50%',background:'var(--brand)'}}/>}</div>
-      <div><div style={{fontSize:13.5,color:'var(--ink-1)',fontWeight:500}}>{label}</div><div style={{fontSize:11.5,color:'var(--ink-3)'}}>{desc}</div></div>
+    <button onClick={()=>onSelect(value)} style={{textAlign:'start',padding:'12px 14px',border:`1px solid ${active?'var(--brand)':'var(--border)'}`,background:active?'var(--surface-2)':'var(--surface)',borderRadius:12,display:'flex',alignItems:'center',gap:12,transition:'all .15s',width:'100%',cursor:'pointer',boxShadow:active?'0 0 0 1px var(--brand)':'none'}}>
+      <div style={{width:16,height:16,borderRadius:'50%',border:`1.5px solid ${active?'var(--brand)':'var(--border-strong)'}`,flexShrink:0,display:'grid',placeItems:'center'}}>{active&&<span style={{width:8,height:8,borderRadius:'50%',background:'var(--brand)'}}/>}</div>
+      <div><div style={{fontSize:14,color:'var(--ink-1)',fontWeight:600}}>{label}</div><div style={{fontSize:12,color:'var(--ink-3)',marginTop:2}}>{desc}</div></div>
     </button>
   );
 }
 
 function CheckRow({ label, defaultChecked }) {
-  const [checked, setChecked] = useStateA(!!defaultChecked);
+  const [checked, setChecked] = useState(!!defaultChecked);
   return (
     <label style={{display:'flex',alignItems:'center',gap:10,padding:'5px 0',fontSize:13,color:'var(--ink-2)',cursor:'pointer'}}>
       <span onClick={(e)=>{e.preventDefault();setChecked(!checked);}} style={{width:16,height:16,borderRadius:4,border:`1.5px solid ${checked?'var(--brand)':'var(--border-strong)'}`,background:checked?'var(--brand)':'transparent',display:'grid',placeItems:'center',flexShrink:0}}>
@@ -113,13 +114,13 @@ function A4Doc({ student, instructorAnswers, evaluationDraft }) {
 }
 
 function ExportScreen({ student, onBack, onFinish, instructorAnswers, evaluationDraft }) {
-  const [format, setFormat] = useStateA('pdf');
+  const [format, setFormat] = useState('pdf');
   return (
     <div className="fade-in" style={{display:'flex',height:'100vh',minHeight:0}}>
-      <aside style={{width:320,flexShrink:0,background:'var(--surface)',borderInlineStart:'1px solid var(--border)',display:'flex',flexDirection:'column',padding:'24px 22px',overflowY:'auto'}}>
-        <button onClick={onBack} className="btn-ghost" style={{display:'flex',alignItems:'center',gap:6,color:'var(--ink-3)',fontSize:13,marginBottom:22}}><IconArrowRight size={14}/> חזרה לעריכה</button>
-        <h2 style={{fontFamily:'var(--font-serif)',fontSize:22,fontWeight:600,margin:'0 0 4px',letterSpacing:'-0.01em'}}>סיכום וייצוא</h2>
-        <p style={{fontSize:13,color:'var(--ink-3)',margin:'0 0 24px'}}>{student.name} · הערכת התנסות סוף שנה</p>
+      <aside style={{width:340,flexShrink:0,background:'var(--surface)',borderInlineEnd:'1px solid var(--border)',display:'flex',flexDirection:'column',padding:'32px 28px',overflowY:'auto'}}>
+        <button onClick={onBack} className="btn-ghost" style={{display:'flex',alignItems:'center',gap:6,color:'var(--ink-3)',fontSize:14,marginBottom:28,alignSelf:'flex-start'}}><IconArrowRight size={14}/> חזרה לעריכה</button>
+        <h2 style={{fontFamily:'var(--font-serif)',fontSize:24,fontWeight:600,margin:'0 0 6px',letterSpacing:'-0.01em'}}>סיכום וייצוא</h2>
+        <p style={{fontSize:14,color:'var(--ink-3)',margin:'0 0 32px'}}>{student.name} · הערכת התנסות סוף שנה</p>
         <div style={{marginBottom:24}}>
           <div style={{fontSize:12,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:10,fontWeight:600}}>בדיקה אחרונה</div>
           <ChecklistItem ok label="7 קריטריונים נסקרו"/>
@@ -142,9 +143,9 @@ function ExportScreen({ student, onBack, onFinish, instructorAnswers, evaluation
           <CheckRow label="הצג ציון מספרי לכל קריטריון"/>
           <CheckRow label="הוסף עמוד שער"/>
         </div>
-        <div style={{marginTop:'auto',display:'flex',flexDirection:'column',gap:8}}>
-          <button className="btn btn-primary btn-lg" onClick={onFinish}><IconDownload size={15}/> ייצא כ-{format==='pdf'?'PDF':format==='docx'?'Word':'קישור'}</button>
-          <button className="btn btn-secondary"><IconSave size={14}/> שמור וסיים</button>
+        <div style={{marginTop:'auto',display:'flex',flexDirection:'column',gap:10,paddingTop:24}}>
+          <button className="btn btn-primary btn-lg" onClick={() => onFinish(format)} style={{borderRadius:100}}><IconDownload size={15}/> ייצא כ-{format==='pdf'?'PDF':format==='docx'?'Word':'קישור'}</button>
+          <button className="btn btn-secondary btn-lg" style={{borderRadius:100}}><IconSave size={14}/> שמור וסיים</button>
         </div>
       </aside>
       <div className="scroll" style={{flex:1,overflowY:'auto',background:'#e7e3da',padding:'32px 0'}}>
@@ -155,25 +156,38 @@ function ExportScreen({ student, onBack, onFinish, instructorAnswers, evaluation
 }
 
 function AnalyzingScreen() {
-  const [progress, setProgress] = useStateA(0);
-  const [step, setStep] = useStateA(0);
-  const STEPS = ['קורא 5 מסמכים...','מזהה מוטיבים חוזרים...','משבץ את הראיות לפי קריטריונים...','משלב את התובנה שלך בטיוטה...','מנסח את הטיוטה...'];
-  useEffectA(()=>{ const i=setInterval(()=>setProgress(p=>Math.min(p+2,100)),60); const j=setInterval(()=>setStep(s=>Math.min(s+1,STEPS.length-1)),700); return()=>{clearInterval(i);clearInterval(j);}; },[]);
+  const [progress, setProgress] = useState(0);
+  const STEPS = [
+    { from:  0, label: 'קורא את המסמכים שהועלו...' },
+    { from: 20, label: 'מזהה מוטיבים חוזרים...' },
+    { from: 42, label: 'משבץ ראיות לפי קריטריונים...' },
+    { from: 62, label: 'משלב את תובנותייך בטיוטה...' },
+    { from: 80, label: 'מנסח את הטיוטה הסופית...' },
+  ];
+  // Phase 1: fast burst to ~30% (3s), then slow steady 1%/s so it's always visibly moving
+  useEffect(() => {
+    const i = setInterval(() => {
+      setProgress(p => p < 30 ? p + 1 : Math.min(p + 0.1, 89));
+    }, 100);
+    return () => clearInterval(i);
+  }, []);
+  const label = [...STEPS].reverse().find(s => progress >= s.from)?.label ?? STEPS[0].label;
+  const pct = Math.round(progress);
   return (
     <div className="fade-in" style={{position:'fixed',inset:0,zIndex:50,background:'var(--bg)',display:'grid',placeItems:'center'}}>
       <div style={{width:420,maxWidth:'calc(100vw - 32px)',textAlign:'center'}}>
         <div style={{width:64,height:64,margin:'0 auto 20px',borderRadius:16,background:'var(--brand)',color:'#fff',display:'grid',placeItems:'center',boxShadow:'0 8px 32px rgba(30,58,95,.3)'}}><IconSparkle size={28} style={{animation:'pulse 1.5s infinite'}}/></div>
         <h2 style={{fontFamily:'var(--font-serif)',fontSize:22,fontWeight:600,margin:'0 0 8px'}}>מכין את הטיוטה</h2>
-        <p style={{fontSize:14,color:'var(--ink-2)',margin:'0 0 24px'}}>{STEPS[step]}</p>
-        <div style={{height:4,background:'var(--surface-3)',borderRadius:100,overflow:'hidden'}}><div style={{height:'100%',width:`${progress}%`,background:'linear-gradient(90deg,var(--brand),var(--brand-3))',transition:'width .3s',borderRadius:100}}/></div>
-        <div style={{marginTop:8,fontSize:12,color:'var(--ink-3)'}}>{progress}%</div>
+        <p style={{fontSize:14,color:'var(--ink-2)',margin:'0 0 24px'}}>{label}</p>
+        <div style={{height:4,background:'var(--surface-3)',borderRadius:100,overflow:'hidden'}}><div style={{height:'100%',width:`${pct}%`,background:'linear-gradient(90deg,var(--brand),var(--brand-3))',transition:'width .4s ease-out',borderRadius:100}}/></div>
+        <div style={{marginTop:8,fontSize:12,color:'var(--ink-3)'}}>{pct}%</div>
       </div>
     </div>
   );
 }
 
 function Toast({ message, onClose }) {
-  useEffectA(()=>{ const t=setTimeout(onClose,4000); return()=>clearTimeout(t); },[onClose]);
+  useEffect(()=>{ const t=setTimeout(onClose,4000); return()=>clearTimeout(t); },[onClose]);
   return (
     <div style={{position:'fixed',bottom:24,insetInlineEnd:24,zIndex:200,background:'var(--ink-1)',color:'#fff',padding:'12px 18px',borderRadius:'var(--r-md)',display:'flex',alignItems:'center',gap:10,fontSize:13.5,boxShadow:'var(--shadow-3)',animation:'fadeIn .3s',maxWidth:360}}>
       <IconCheck size={16} stroke="var(--ok)" strokeWidth={2.5}/><span>{message}</span>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { IconPlus, IconChevron, IconPencil, IconClose, IconCheck, IconDownload, IconDoc, IconSearch } from './icons';
+import { IconDownload, IconDoc, IconSearch, IconPlus, IconChevron } from './icons';
 import * as API from './api';
 
 const ARCHIVED = [
@@ -22,60 +22,68 @@ export function ArchiveScreen() {
     if (search && !a.name.includes(search) && !a.school.includes(search)) return false;
     return true;
   });
-  const scoreColor = (s) => s >= 85 ? 'var(--ok)' : s >= 75 ? 'var(--info)' : 'var(--warn)';
+  const scoreColor = (s) => s >= 85 ? 'var(--ok)' : s >= 75 ? 'var(--brand)' : 'var(--warn)';
 
   return (
     <div className="main-inner fade-in">
       <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',marginBottom:'var(--gap-5)'}}>
-        <div>
+        <button className="btn btn-secondary btn-lg"><IconDownload size={14}/> ייצוא רשימה</button>
+        <div style={{textAlign:'end'}}>
           <div style={{fontSize:13,color:'var(--ink-3)',marginBottom:6,letterSpacing:'0.02em'}}>ארכיון · {ARCHIVED.length} הערכות שהושלמו</div>
           <h1 style={{fontFamily:'var(--font-serif)',fontSize:36,fontWeight:600,margin:0,color:'var(--ink-1)',letterSpacing:'-0.01em',lineHeight:1.1}}>ארכיון הערכות</h1>
           <p style={{fontSize:15,color:'var(--ink-2)',margin:'10px 0 0',maxWidth:540,lineHeight:1.6}}>כל ההערכות שהושלמו ונחתמו, מסודרות לפי סמסטר וסטודנט.</p>
         </div>
-        <button className="btn btn-secondary"><IconDownload size={14}/> ייצוא רשימה</button>
       </div>
-      <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:'var(--gap-4)',padding:'12px 14px',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'var(--r-md)'}}>
-        <div style={{flex:1,position:'relative'}}>
-          <IconSearch size={14} stroke="var(--ink-3)" style={{position:'absolute',insetInlineStart:12,top:'50%',transform:'translateY(-50%)'}}/>
-          <input className="input" placeholder="חיפוש לפי שם או בית ספר..." value={search} onChange={e=>setSearch(e.target.value)} style={{paddingInlineStart:34,border:'none',background:'transparent',padding:'6px 10px 6px 34px'}}/>
-        </div>
-        <div style={{width:1,height:22,background:'var(--border)'}}/>
-        <div style={{display:'flex',gap:4}}>
+
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,marginBottom:'var(--gap-4)'}}>
+        <div style={{display:'flex',background:'var(--surface)',padding:6,borderRadius:100,boxShadow:'var(--shadow-1)'}}>
           {semesters.map(s=>(
-            <button key={s} onClick={()=>setFilter(s)} style={{padding:'5px 12px',borderRadius:100,fontSize:12.5,border:`1px solid ${filter===s?'var(--brand)':'transparent'}`,background:filter===s?'var(--brand-softer)':'transparent',color:filter===s?'var(--brand)':'var(--ink-2)',fontWeight:filter===s?500:400,cursor:'pointer'}}>
+            <button key={s} onClick={()=>setFilter(s)} style={{padding:'8px 24px',borderRadius:100,fontSize:14,border:filter===s?'1px solid var(--ink-1)':'1px solid transparent',background:filter===s?'var(--surface)':'transparent',color:filter===s?'var(--ink-1)':'var(--ink-3)',fontWeight:filter===s?600:400,cursor:'pointer'}}>
               {s==='all'?'כל הסמסטרים':s}
             </button>
           ))}
         </div>
+        <div style={{width:300,position:'relative'}}>
+          <IconSearch size={14} stroke="var(--ink-3)" style={{position:'absolute',insetInlineEnd:16,top:'50%',transform:'translateY(-50%)'}}/>
+          <input className="input" placeholder="חיפוש לפי שם או בית ספר..." value={search} onChange={e=>setSearch(e.target.value)} style={{paddingInlineEnd:40,borderRadius:100,background:'transparent',padding:'12px 16px 12px 40px', borderColor:'var(--border-strong)'}}/>
+        </div>
       </div>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'var(--gap-3)',marginBottom:'var(--gap-4)'}}>
-        {[{label:'ממוצע ציונים',value:'82',unit:'/100'},{label:'הערכות סמסטר זה',value:ARCHIVED.filter(a=>a.semester==='סמסטר א׳').length},{label:'רמה גבוהה',value:`${Math.round(100*ARCHIVED.filter(a=>a.score>=85).length/ARCHIVED.length)}%`},{label:'הערכה אחרונה',value:'לפני 6 ימים',small:true}].map((t,i)=>(
-          <div key={i} className="card" style={{padding:'12px 16px'}}>
-            <div style={{fontSize:11.5,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:6}}>{t.label}</div>
-            <div style={{fontFamily:'var(--font-serif)',fontSize:t.small?16:24,fontWeight:600,color:'var(--ink-1)',lineHeight:1.1}}>{t.value}{t.unit&&<span style={{fontSize:13,color:'var(--ink-3)',fontWeight:400}}>{t.unit}</span>}</div>
-          </div>
-        ))}
+
+      <div style={{display:'grid',gridTemplateColumns:'1.5fr 1fr 1.5fr',gap:'var(--gap-4)',marginBottom:'var(--gap-5)'}}>
+        <div className="card" style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+          <div><div style={{fontSize:12,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em'}}>הערכה אחרונה</div><div style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:600,marginTop:4}}>לפני 6 ימים</div></div>
+          <div style={{textAlign:'end'}}><div style={{fontSize:12,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em'}}>רמה גבוהה</div><div style={{fontFamily:'var(--font-serif)',fontSize:28,fontWeight:600,color:'var(--brand)'}}>38%</div></div>
+        </div>
+        <div className="card" style={{textAlign:'center'}}>
+          <div style={{fontSize:12,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em'}}>הערכות סמסטר זה</div>
+          <div style={{fontFamily:'var(--font-serif)',fontSize:28,fontWeight:600}}>3</div>
+        </div>
+        <div className="card" style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+          <div/>
+          <div style={{textAlign:'end'}}><div style={{fontSize:12,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em'}}>ממוצע ציונים</div><div style={{fontFamily:'var(--font-serif)',fontSize:28,fontWeight:600,color:'var(--brand)'}}>82<span style={{fontSize:16,fontWeight:400,color:'var(--ink-3)'}}>/100</span></div></div>
+        </div>
       </div>
+
       <div className="card" style={{padding:0,overflow:'hidden'}}>
-        <div style={{display:'grid',gridTemplateColumns:'1.2fr 1.2fr 1fr 1fr 0.7fr 1fr 60px',padding:'12px 18px',fontSize:11.5,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em',borderBottom:'1px solid var(--border)',background:'var(--surface-2)'}}>
+        <div style={{display:'grid',gridTemplateColumns:'1.2fr 1.2fr 1fr 1fr 0.7fr 1.5fr 80px',padding:'16px 24px',fontSize:12.5,color:'var(--ink-3)',borderBottom:'1px solid var(--border)',background:'var(--surface-2)'}}>
           <span>סטודנט</span><span>בית ספר</span><span>מחוון</span><span>סמסטר · תאריך</span><span>ציון</span><span>תיוגים</span><span/>
         </div>
         {filtered.length===0&&<div style={{padding:'40px 20px',textAlign:'center',color:'var(--ink-3)',fontSize:14}}>לא נמצאו הערכות מתאימות</div>}
         {filtered.map((a,i)=>(
-          <div key={a.id} style={{display:'grid',gridTemplateColumns:'1.2fr 1.2fr 1fr 1fr 0.7fr 1fr 60px',padding:'14px 18px',alignItems:'center',borderBottom:i<filtered.length-1?'1px solid var(--border)':'none',fontSize:13.5,cursor:'pointer',transition:'background .12s'}}
+          <div key={a.id} style={{display:'grid',gridTemplateColumns:'1.2fr 1.2fr 1fr 1fr 0.7fr 1.5fr 80px',padding:'16px 24px',alignItems:'center',borderBottom:i<filtered.length-1?'1px solid var(--border)':'none',fontSize:14,cursor:'pointer',transition:'background .12s'}}
             onMouseEnter={e=>e.currentTarget.style.background='var(--surface-2)'} onMouseLeave={e=>e.currentTarget.style.background=''}>
-            <div style={{display:'flex',alignItems:'center',gap:10}}>
-              <div style={{width:28,height:28,borderRadius:6,background:'var(--brand-soft)',color:'var(--brand)',display:'grid',placeItems:'center',fontFamily:'var(--font-serif)',fontSize:12,fontWeight:600}}>{a.name.replace(/\.\s/g,'').slice(0,2)}</div>
-              <span style={{color:'var(--ink-1)',fontWeight:500}}>{a.name}</span>
+            <div style={{display:'flex',alignItems:'center',gap:12}}>
+              <div style={{width:32,height:32,borderRadius:'50%',background:'var(--brand-soft)',color:'var(--brand)',display:'grid',placeItems:'center',fontFamily:'var(--font-serif)',fontSize:13,fontWeight:600}}>{a.name.replace(/\.\s/g,'').slice(0,2)}</div>
+              <span style={{color:'var(--ink-1)',fontWeight:600}}>{a.name}</span>
             </div>
             <div style={{color:'var(--ink-2)'}}>{a.school}</div>
-            <div style={{color:'var(--ink-2)',fontSize:12.5}}>{a.rubric}</div>
-            <div style={{color:'var(--ink-3)',fontSize:12.5,lineHeight:1.4}}><div>{a.semester}</div><div style={{fontSize:11.5}}>{a.date}</div></div>
-            <div><span style={{fontFamily:'var(--font-serif)',fontSize:17,fontWeight:600,color:scoreColor(a.score)}}>{a.score}</span><span style={{fontSize:11,color:'var(--ink-3)'}}>/100</span></div>
-            <div style={{display:'flex',flexWrap:'wrap',gap:4}}>{a.tags.map(t=><span key={t} style={{fontSize:11,padding:'2px 7px',background:'var(--surface-2)',color:'var(--ink-2)',borderRadius:3}}>{t}</span>)}</div>
-            <div style={{display:'flex',justifyContent:'flex-start',gap:4}}>
-              <button className="btn-ghost" style={{padding:6,borderRadius:4,color:'var(--ink-3)'}} title="צפה"><IconDoc size={14}/></button>
-              <button className="btn-ghost" style={{padding:6,borderRadius:4,color:'var(--ink-3)'}} title="הורד PDF"><IconDownload size={14}/></button>
+            <div style={{color:'var(--ink-2)'}}>{a.rubric}</div>
+            <div style={{color:'var(--ink-3)',lineHeight:1.4}}><div>{a.semester}</div><div style={{fontSize:12}}>{a.date}</div></div>
+            <div><span style={{fontFamily:'var(--font-serif)',fontSize:18,fontWeight:600,color:scoreColor(a.score)}}>{a.score}</span><span style={{fontSize:12,color:'var(--ink-3)'}}>/100</span></div>
+            <div style={{display:'flex',flexWrap:'wrap',gap:6}}>{a.tags.map(t=><span key={t} style={{fontSize:12,padding:'4px 10px',background:'var(--surface-3)',color:'var(--ink-2)',borderRadius:100}}>{t}</span>)}</div>
+            <div style={{display:'flex',justifyContent:'flex-end',gap:8}}>
+              <button className="btn-ghost" style={{padding:8,borderRadius:'50%',background:'var(--surface-2)',color:'var(--ink-3)'}} title="הורד PDF"><IconDownload size={14}/></button>
+              <button className="btn-ghost" style={{padding:8,borderRadius:'50%',background:'var(--surface-2)',color:'var(--ink-3)'}} title="צפה"><IconDoc size={14}/></button>
             </div>
           </div>
         ))}
@@ -86,215 +94,119 @@ export function ArchiveScreen() {
 
 // ─── Rubrics ──────────────────────────────────────────────────────────────────
 
-const EMPTY_RUBRIC = { name: '', description: '', semester: '', total_points: 100, criteria: [] };
-
 export function RubricsScreen() {
-  const [rubrics, setRubrics] = useState([]);
-  const [selectedId, setSelectedId] = useState(null);
+  const [rubric, setRubric] = useState(null);
+  const [rubricsList, setRubricsList] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [editMode, setEditMode] = useState(false);
-  const [form, setForm] = useState(EMPTY_RUBRIC);
-  const [criteriaText, setCriteriaText] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
 
-  useEffect(() => { fetchRubrics(); }, []);
+  useEffect(() => {
+    API.getRubrics()
+      .then(data => { 
+        if (data?.length) {
+          setRubricsList(data);
+          setRubric(data[0]); 
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
-  const fetchRubrics = async () => {
-    setLoading(true);
-    try {
-      const data = await API.getRubrics();
-      setRubrics(data);
-      if (data.length > 0 && !selectedId) setSelectedId(data[0].id);
-    } catch (e) {
-      console.error('rubrics fetch:', e.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const openCreate = () => {
-    setForm(EMPTY_RUBRIC);
-    setCriteriaText('[{"name":"קריטריון 1","weight":50,"desc":"תיאור"},{"name":"קריטריון 2","weight":50,"desc":"תיאור"}]');
-    setError('');
-    setEditMode(false);
-    setShowAddModal(true);
-  };
-
-  const openEdit = (r) => {
-    setForm({ name: r.name, description: r.description || '', semester: r.semester || '', total_points: r.total_points ?? 100, criteria: r.criteria });
-    setCriteriaText(JSON.stringify(r.criteria, null, 2));
-    setError('');
-    setEditMode(true);
-    setShowAddModal(true);
-  };
-
-  const handleSave = async (e) => {
-    e.preventDefault();
-    setError('');
-    let criteria;
-    try { criteria = JSON.parse(criteriaText); }
-    catch { setError('פורמט הקריטריונים (JSON) לא תקין'); return; }
-
-    if (!Array.isArray(criteria)) { setError('הקריטריונים חייבים להיות מערך JSON'); return; }
-    const weightSum = criteria.reduce((a, c) => a + (Number(c.weight) || 0), 0);
-    if (criteria.length > 0 && weightSum !== 100) { setError(`סך המשקלים: ${weightSum}% — חייב להיות 100%`); return; }
-
-    setSaving(true);
-    try {
-      if (editMode) {
-        await API.updateRubric(selectedId, { ...form, criteria });
-      } else {
-        const created = await API.createRubric({ ...form, criteria });
-        setSelectedId(created.id);
-      }
-      setShowAddModal(false);
-      await fetchRubrics();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDelete = async (id) => {
-    if (!confirm('למחוק מחוון זה?')) return;
-    await API.deleteRubric(id);
-    setSelectedId(null);
-    await fetchRubrics();
-  };
-
-  if (loading) return <div className="main-inner fade-in">טוען מחוונים...</div>;
-
-  const r = rubrics.find(rb => rb.id === selectedId) || rubrics[0];
+  if (loading) return <div className="main-inner fade-in">טוען מחוון...</div>;
+  if (!rubric) return <div className="main-inner fade-in" style={{paddingTop:40,textAlign:'center',color:'var(--ink-3)'}}>לא נמצא מחוון</div>;
 
   return (
     <div className="main-inner fade-in">
-      <div style={{marginBottom:'var(--gap-5)'}}>
-        <div style={{fontSize:13,color:'var(--ink-3)',marginBottom:6}}>ספריית מחוונים · {rubrics.length} תבניות פעילות</div>
-        <h1 style={{fontFamily:'var(--font-serif)',fontSize:36,fontWeight:600,margin:0,color:'var(--ink-1)',letterSpacing:'-0.01em',lineHeight:1.1}}>מחוונים</h1>
-        <p style={{fontSize:15,color:'var(--ink-2)',margin:'10px 0 0',maxWidth:540,lineHeight:1.6}}>תבניות הערכה זמינות ביצירת הטיוטה. ניתן לערוך, להוסיף קריטריונים, או ליצור מחוון מותאם חדש.</p>
+      <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',marginBottom:'var(--gap-5)'}}>
+        <div style={{textAlign:'end', width:'100%'}}>
+          <div style={{fontSize:13,color:'var(--ink-3)',marginBottom:6,letterSpacing:'0.02em'}}>ספריית מחוונים · {rubricsList.length} תבניות פעילות</div>
+          <h1 style={{fontFamily:'var(--font-serif)',fontSize:36,fontWeight:600,margin:0,color:'var(--ink-1)',letterSpacing:'-0.01em',lineHeight:1.1}}>מחוונים</h1>
+          <p style={{fontSize:15,color:'var(--ink-2)',margin:'10px 0 0 0',lineHeight:1.6,float:'left',maxWidth:540,textAlign:'right'}}>תבניות הערכה זמינות בשלב יצירת הטיוטה. ניתן לערוך משקלים, להוסיף קריטריונים או לשכפל מחוון קיים.</p>
+        </div>
       </div>
 
-      <div style={{display:'grid',gridTemplateColumns:'320px 1fr',gap:'var(--gap-4)',alignItems:'flex-start'}}>
-        <div style={{display:'flex',flexDirection:'column',gap:8}}>
-          <button className="btn btn-primary btn-sm" style={{alignSelf:'flex-start',marginBottom:4}} onClick={openCreate}>
-            <IconPlus size={14}/> מחוון חדש
-          </button>
-          {rubrics.map(rr => (
-            <button key={rr.id} onClick={() => setSelectedId(rr.id)} style={{textAlign:'start',padding:'14px 16px',border:`1px solid ${selectedId===rr.id?'var(--brand)':'var(--border)'}`,background:selectedId===rr.id?'var(--brand-softer)':'var(--surface)',borderRadius:'var(--r-md)',transition:'all .15s',boxShadow:selectedId===rr.id?'0 0 0 3px var(--brand-softer)':'var(--shadow-1)',cursor:'pointer'}}>
-              <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:8}}>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontFamily:'var(--font-serif)',fontSize:15,fontWeight:600,color:'var(--ink-1)',letterSpacing:'-0.005em'}}>{rr.name}</div>
-                  <div style={{fontSize:12,color:'var(--ink-3)',marginTop:4}}>{rr.criteria.length} קריטריונים · {rr.semester || 'כללי'}</div>
-                </div>
-                {selectedId===rr.id&&<IconChevron size={14} stroke="var(--brand)" style={{flexShrink:0,transform:'scaleX(-1)'}}/>}
-              </div>
-              <div style={{display:'flex',gap:12,marginTop:8,fontSize:11,color:'var(--ink-3)'}}>
-                <span>עודכן {new Date(rr.created_at).toLocaleDateString('he-IL')}</span>
-              </div>
-            </button>
-          ))}
-        </div>
-
-        {r ? (
-          <div className="card" style={{padding:0,overflow:'hidden'}}>
-            <div style={{padding:'22px 26px 18px',borderBottom:'1px solid var(--border)',background:'var(--brand-softer)'}}>
-              <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:12}}>
-                <div>
-                  <span className="badge" style={{marginBottom:8,background:'var(--brand-soft)',color:'var(--brand)'}}>{r.semester || 'כללי'}</span>
-                  <h2 style={{fontFamily:'var(--font-serif)',fontSize:22,fontWeight:600,margin:'4px 0 6px',letterSpacing:'-0.01em'}}>{r.name}</h2>
-                  <p style={{fontSize:13.5,color:'var(--ink-2)',margin:0,lineHeight:1.6,maxWidth:540}}>{r.description}</p>
-                </div>
-                <div style={{display:'flex',gap:6}}>
-                  <button className="btn btn-secondary btn-sm" onClick={() => openEdit(r)}><IconPencil size={13}/> ערוך</button>
-                  <button className="btn btn-secondary btn-sm" style={{color:'var(--warn)'}} onClick={() => handleDelete(r.id)}>מחק</button>
-                </div>
-              </div>
-              <div style={{display:'flex',gap:24,marginTop:18,fontSize:12.5}}>
-                {[
-                  {label:'סה"כ נקודות', value: r.total_points ? `${r.total_points} נק׳` : 'משוב מעצב'},
-                  {label:'עודכן', value: new Date(r.created_at).toLocaleDateString('he-IL')},
-                ].map(m=>(
-                  <div key={m.label}><div style={{fontSize:10.5,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:2}}>{m.label}</div><div style={{fontSize:13,color:'var(--ink-1)',fontWeight:500}}>{m.value}</div></div>
-                ))}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 340px',gap:32,alignItems:'flex-start'}}>
+        
+        <div className="card" style={{padding:0,overflow:'hidden'}}>
+          <div style={{padding:'24px 32px',borderBottom:'1px solid var(--border)',background:'var(--surface-2)'}}>
+            <span className="badge" style={{marginBottom:12,background:'var(--brand-soft)',color:'var(--brand)', fontSize:13, padding:'4px 12px'}}>{rubric.semester || 'שנתי'}</span>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start'}}>
+              <div>
+                <h2 style={{fontFamily:'var(--font-serif)',fontSize:26,fontWeight:600,margin:'0 0 8px',letterSpacing:'-0.01em', color:'var(--ink-1)'}}>{rubric.name}</h2>
+                <p style={{fontSize:14,color:'var(--ink-2)',margin:0,lineHeight:1.6,maxWidth:540}}>המחוון המרכזי. כל קריטריון מאזן בין איכות מערך השיעור (כחול) לבין ההוראה בפועל בצפייה (אדום). פערים מוכרעים בעזרת המדריך.</p>
               </div>
             </div>
-            <div style={{padding:'22px 26px'}}>
-              <div style={{display:'flex',alignItems:'baseline',justifyContent:'space-between',marginBottom:16}}>
-                <h3 style={{fontFamily:'var(--font-serif)',fontSize:16,fontWeight:600,margin:0}}>קריטריונים</h3>
-                <span style={{fontSize:12,color:'var(--ink-3)'}}>סה"כ משקל: {r.criteria.reduce((a,b)=>a+(b.weight||0),0)}%</span>
-              </div>
-              <div style={{display:'flex',flexDirection:'column',gap:10}}>
-                {r.criteria.map((c,i)=>(
-                  <div key={i} style={{display:'grid',gridTemplateColumns:'32px 1fr 56px',alignItems:'center',gap:14,padding:'12px 14px',background:'var(--surface-2)',borderRadius:'var(--r-sm)',border:'1px solid var(--border)'}}>
-                    <div style={{width:28,height:28,borderRadius:6,background:'var(--surface)',color:'var(--brand)',border:'1px solid var(--border)',display:'grid',placeItems:'center',fontFamily:'var(--font-serif)',fontSize:13,fontWeight:600}}>{i+1}</div>
-                    <div><div style={{fontSize:14,fontWeight:500,color:'var(--ink-1)'}}>{c.name}</div><div style={{fontSize:12,color:'var(--ink-3)',marginTop:2}}>{c.desc}</div></div>
-                    <div style={{textAlign:'start'}}><span style={{fontFamily:'var(--font-serif)',fontSize:18,fontWeight:600,color:'var(--brand)'}}>{c.weight}</span><span style={{fontSize:11,color:'var(--ink-3)'}}>%</span></div>
-                  </div>
-                ))}
-              </div>
-              {r.criteria.length > 0 && (
-                <div style={{marginTop:22}}>
-                  <div style={{fontSize:12,color:'var(--ink-3)',marginBottom:8,textTransform:'uppercase',letterSpacing:'0.06em',fontWeight:600}}>התפלגות משקלים</div>
-                  <div style={{display:'flex',height:12,borderRadius:100,overflow:'hidden',background:'var(--surface-2)'}}>
-                    {r.criteria.map((c,i)=><div key={i} style={{width:`${c.weight}%`,background:['#1e3a5f','#2c5282','#3b6fa5','#5b8fc4','#8aaed4','#b8cce5'][i%6]}} title={`${c.name}: ${c.weight}%`}/>)}
-                  </div>
+            
+            <div style={{display:'flex',gap:32,marginTop:24,fontSize:13.5, borderTop:'1px solid var(--border)', paddingTop:16}}>
+              {[
+                {label:'סה"כ נקודות', value: rubric.total_points ? `${rubric.total_points} נק׳` : 'משוב מעצב'},
+                {label:'בשימוש', value: `24 הערכות`},
+                {label:'בעלים', value: `חוג להוראה`},
+                {label:'עודכן', value: `לפני שבוע`},
+              ].map(m=>(
+                <div key={m.label} style={{textAlign:'center'}}>
+                  <div style={{fontSize:11,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:4}}>{m.label}</div>
+                  <div style={{fontSize:15,color:'var(--ink-1)',fontWeight:600}}>{m.value}</div>
                 </div>
-              )}
+              ))}
             </div>
           </div>
-        ) : (
-          <div className="card" style={{display:'grid',placeItems:'center',padding:40}}>אין מחוונים בספרייה. צור מחוון חדש.</div>
-        )}
+          <div style={{padding:'32px'}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:20}}>
+              <h3 style={{fontFamily:'var(--font-serif)',fontSize:18,fontWeight:600,margin:0, color:'var(--ink-1)'}}>קריטריונים</h3>
+              <span style={{fontSize:13,color:'var(--ink-3)'}}>סה"כ משקל: {rubric.criteria.reduce((a,b)=>a+(b.weight||0),0)}%</span>
+            </div>
+            <div style={{display:'flex',flexDirection:'column',gap:12}}>
+              {rubric.criteria.map((c,i)=>(
+                <div key={i} style={{display:'grid',gridTemplateColumns:'60px 1fr 40px',alignItems:'center',gap:16,padding:'16px 20px',background:'var(--surface-2)',borderRadius:12}}>
+                  <div style={{textAlign:'start'}}>
+                    <span style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:600,color:'var(--ink-1)'}}>{c.weight}</span>
+                    <span style={{fontSize:13,color:'var(--ink-3)'}}>%</span>
+                  </div>
+                  <div style={{textAlign:'end'}}>
+                    <div style={{fontSize:15,fontWeight:600,color:'var(--ink-1)'}}>{c.name}</div>
+                    <div style={{fontSize:13,color:'var(--ink-3)',marginTop:4}}>{c.desc}</div>
+                  </div>
+                  <div style={{width:32,height:32,borderRadius:8,background:'var(--surface)',color:'var(--ink-1)',border:'1px solid var(--border)',display:'grid',placeItems:'center',fontFamily:'var(--font-serif)',fontSize:14,fontWeight:600}}>{i+1}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div style={{display:'flex',flexDirection:'column',gap:16}}>
+          <button className="btn btn-secondary btn-lg" style={{width:'100%'}}><IconPlus size={16}/> מחוון חדש</button>
+          
+          <div style={{display:'flex',flexDirection:'column',gap:12}}>
+            {rubricsList.map((r, i) => (
+              <div key={r.id || i} onClick={() => setRubric(r)} className="card card-hover" style={{padding:'20px', border: rubric.id === r.id ? '1px solid var(--ink-1)' : '1px solid transparent', background: rubric.id === r.id ? 'var(--surface-2)' : 'var(--surface)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'space-between'}}>
+                <div>
+                  <div style={{fontFamily:'var(--font-serif)',fontSize:16,fontWeight:600,color:'var(--ink-1)',marginBottom:4}}>{r.name}</div>
+                  <div style={{fontSize:13,color:'var(--ink-3)'}}>{r.criteria?.length || 0} קריטריונים · {r.semester || 'שנתי'}</div>
+                  <div style={{fontSize:11.5,color:'var(--ink-4)',marginTop:8}}>בשימוש: <span style={{color:'var(--ink-2)',fontWeight:500}}>18</span> &nbsp;&middot;&nbsp; עודכן לפני שבוע</div>
+                </div>
+                {rubric.id === r.id && <IconChevron size={16} stroke="var(--ink-1)" style={{transform:'rotate(90deg)'}}/>}
+              </div>
+            ))}
+            
+            {/* Fallback extra mock rubrics if DB is empty */}
+            {rubricsList.length === 1 && (
+              <>
+                <div className="card card-hover" style={{padding:'20px', border:'1px solid transparent'}}>
+                  <div style={{fontFamily:'var(--font-serif)',fontSize:16,fontWeight:600,color:'var(--ink-1)',marginBottom:4}}>הערכה מעצבת – סמסטר א׳</div>
+                  <div style={{fontSize:13,color:'var(--ink-3)'}}>4 קריטריונים · אמצע סמסטר א׳</div>
+                  <div style={{fontSize:11.5,color:'var(--ink-4)',marginTop:8}}>בשימוש: <span style={{color:'var(--ink-2)',fontWeight:500}}>18</span> &nbsp;&middot;&nbsp; עודכן לפני 6 שבועות</div>
+                </div>
+                <div className="card card-hover" style={{padding:'20px', border:'1px solid transparent'}}>
+                  <div style={{fontFamily:'var(--font-serif)',fontSize:16,fontWeight:600,color:'var(--ink-1)',marginBottom:4}}>מחוון הסדנה – התנסות מעשית</div>
+                  <div style={{fontSize:13,color:'var(--ink-3)'}}>5 קריטריונים · שוטף</div>
+                  <div style={{fontSize:11.5,color:'var(--ink-4)',marginTop:8}}>בשימוש: <span style={{color:'var(--ink-2)',fontWeight:500}}>32</span> &nbsp;&middot;&nbsp; עודכן אתמול</div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
       </div>
-
-      {showAddModal && (
-        <div style={{position:'fixed',inset:0,zIndex:100,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center'}}>
-          <div className="card fade-in" style={{width:540,padding:24,maxHeight:'90vh',overflowY:'auto'}}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
-              <h2 style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:600,margin:0}}>{editMode ? 'עריכת מחוון' : 'מחוון חדש'}</h2>
-              <button className="btn-ghost" onClick={()=>setShowAddModal(false)}><IconClose size={16}/></button>
-            </div>
-
-            {error && <div style={{background:'var(--warn-soft)',color:'var(--warn)',padding:'10px 14px',borderRadius:'var(--r-sm)',fontSize:13,marginBottom:16}}>{error}</div>}
-
-            <form onSubmit={handleSave} style={{display:'flex',flexDirection:'column',gap:12}}>
-              <div>
-                <label className="label">שם המחוון *</label>
-                <input className="input" required value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="לדוגמה: הערכה סופית סמסטר ב׳"/>
-              </div>
-              <div>
-                <label className="label">תיאור</label>
-                <input className="input" value={form.description} onChange={e=>setForm({...form,description:e.target.value})} placeholder="תיאור קצר למחוון"/>
-              </div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-                <div>
-                  <label className="label">סמסטר / ייעוד</label>
-                  <input className="input" value={form.semester} onChange={e=>setForm({...form,semester:e.target.value})} placeholder="לדוגמה: סוף שנה"/>
-                </div>
-                <div>
-                  <label className="label">סך נקודות (ריק = משוב מעצב)</label>
-                  <input className="input" type="number" value={form.total_points ?? ''} onChange={e=>setForm({...form,total_points:e.target.value?Number(e.target.value):null})} placeholder="100"/>
-                </div>
-              </div>
-              <div>
-                <label className="label">קריטריונים (JSON) — סך משקלים חייב להיות 100%</label>
-                <textarea className="input" required value={criteriaText} onChange={e=>setCriteriaText(e.target.value)}
-                  rows={8} dir="ltr" style={{fontFamily:'var(--font-mono)',fontSize:12}}/>
-                <div style={{fontSize:11,color:'var(--ink-3)',marginTop:4}}>מבנה: <code>[{`{"name":"שם","weight":20,"desc":"תיאור"}`}, ...]</code></div>
-              </div>
-              <div style={{display:'flex',justifyContent:'flex-end',gap:8,marginTop:8}}>
-                <button type="button" className="btn btn-ghost" onClick={()=>setShowAddModal(false)}>ביטול</button>
-                <button type="submit" className="btn btn-primary" disabled={saving}>
-                  <IconCheck size={14}/> {saving ? 'שומר...' : 'שמור מחוון'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

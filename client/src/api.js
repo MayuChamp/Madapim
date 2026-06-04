@@ -46,6 +46,22 @@ export async function getMe() {
   return apiFetch('/auth/me');
 }
 
+export async function updateProfile(name, email) {
+  const data = await apiFetch('/auth/profile', {
+    method: 'PUT',
+    body: JSON.stringify({ name, email }),
+  });
+  if (data.token) setToken(data.token);
+  return data.user;
+}
+
+export async function changePassword(currentPassword, newPassword) {
+  return apiFetch('/auth/password', {
+    method: 'PUT',
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+}
+
 export function logout() {
   setToken(null);
 }
@@ -63,6 +79,10 @@ export async function getStudent(id) {
   return apiFetch(`/students/${id}`);
 }
 
+export async function deleteStudent(id) {
+  return apiFetch(`/students/${id}`, { method: 'DELETE' });
+}
+
 export async function createStudent({ name, school, grade, subjectTrack }) {
   return apiFetch('/students', {
     method: 'POST',
@@ -77,14 +97,22 @@ export async function importStudentsCSV(csvText) {
   });
 }
 
+export async function updateCycleTopic(cycleId, topic) {
+  return apiFetch(`/students/cycles/${cycleId}/topic`, {
+    method: 'PUT',
+    body: JSON.stringify({ topic }),
+  });
+}
+
 // ─── Files ────────────────────────────────────────────────────────────────────
-export async function uploadFile(studentId, file, cycleId, stageKey) {
+export async function uploadFile(studentId, file, cycleId, stageKey, description) {
   const token = getToken();
   const form = new FormData();
-  form.append('file', file);
+  if (file) form.append('file', file);
   form.append('student_id', studentId);
   if (cycleId)  form.append('cycle_id', cycleId);
   if (stageKey) form.append('stage_key', stageKey);
+  if (description) form.append('description', description);
 
   const res = await fetch(`${BASE}/files/upload`, {
     method: 'POST',
@@ -96,6 +124,10 @@ export async function uploadFile(studentId, file, cycleId, stageKey) {
     throw new Error(body.error || `HTTP ${res.status}`);
   }
   return res.json();
+}
+
+export async function deleteFile(fileId) {
+  return apiFetch(`/files/${fileId}`, { method: 'DELETE' });
 }
 
 export async function getFiles(studentId) {
@@ -121,9 +153,9 @@ export async function saveEvaluation(evalId, updates) {
   });
 }
 
-export async function exportPdf(evalId) {
+export async function exportPdf(evalId, format = 'pdf') {
   const token = getToken();
-  const res = await fetch(`${BASE}/evaluations/${evalId}/export`, {
+  const res = await fetch(`${BASE}/evaluations/${evalId}/export?format=${format}`, {
     method: 'POST',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
@@ -132,8 +164,10 @@ export async function exportPdf(evalId) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `evaluation-${evalId}.pdf`;
+  a.download = `evaluation-${evalId}.${format === 'pdf' ? 'pdf' : 'doc'}`;
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
 

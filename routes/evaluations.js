@@ -4,31 +4,22 @@ const { q } = require('../db');
 const { analyzePortfolio, generateSmartQuestions } = require('../services/ai');
 
 // POST /api/evaluations/analyze
-// Runs Claude analysis on all uploaded files for a student
 router.post('/analyze', async (req, res) => {
   const { student_id, instructor_answers } = req.body;
   if (!student_id) return res.status(400).json({ error: 'student_id required' });
 
-  const student = q.student(student_id);
+  const student = await q.student(student_id);
   if (!student) return res.status(404).json({ error: 'Student not found' });
 
-  const files = q.studentFiles(student_id);
+  const files = await q.studentFiles(student_id);
 
   try {
     const draft = await analyzePortfolio(student.name, files, instructor_answers || {});
-    const ev = q.upsertEvaluation(student_id, draft, draft.score || null);
-
-    // Generate smart questions based on gaps
+    const ev = await q.upsertEvaluation(student_id, draft, draft.score || null);
     const smartQuestions = await generateSmartQuestions(draft, student.name);
+    await q.updateStudentStatus(student_id, 'in_progress');
 
-    // Update student status
-    q.updateStudentStatus(student_id, 'in_progress');
-
-    res.json({
-      evaluation_id: ev.id,
-      draft,
-      smart_questions: smartQuestions,
-    });
+    res.json({ evaluation_id: ev.id, draft, smart_questions: smartQuestions });
   } catch (err) {
     console.error('Analysis error:', err);
     res.status(500).json({ error: err.message || 'שגיאה בניתוח ה-AI' });
@@ -36,43 +27,45 @@ router.post('/analyze', async (req, res) => {
 });
 
 // GET /api/evaluations/:studentId
-router.get('/:studentId', (req, res) => {
-  const ev = q.evaluation(req.params.studentId);
+router.get('/:studentId', async (req, res) => {
+  const ev = await q.evaluation(req.params.studentId);
   if (!ev) return res.status(404).json({ error: 'No evaluation found' });
   res.json({
     ...ev,
-    draft_json: JSON.parse(ev.draft_json || '{}'),
-    instructor_answers: JSON.parse(ev.instructor_answers || '{}'),
+    draft_json:         ev.draft_json         || {},
+    instructor_answers: ev.instructor_answers || {},
   });
 });
 
-// PUT /api/evaluations/:id — save edits or instructor answers
-router.put('/:id', (req, res) => {
-  const { draft_json, instructor_answers, score, status } = req.body;
-  const updates = {};
-  if (draft_json !== undefined)         updates.draft_json = JSON.stringify(draft_json);
-  if (instructor_answers !== undefined) updates.instructor_answers = JSON.stringify(instructor_answers);
-  if (score !== undefined)              updates.score = score;
-  if (status !== undefined)             updates.status = status;
+// PUT /api/evaluations/:id
+router.put('/:id', async (req, res) => {
+  try {
+    const { draft_json, instructor_answers, score, status } = req.body;
+    const updates = {};
+    if (draft_json !== undefined)         updates.draft_json         = draft_json;
+    if (instructor_answers !== undefined) updates.instructor_answers = instructor_answers;
+    if (score !== undefined)              updates.score              = score;
+    if (status !== undefined)             updates.status             = status;
 
-  q.updateEvaluation(req.params.id, updates);
-  const ev = require('../db').db.prepare('SELECT * FROM evaluations WHERE id = ?').get(req.params.id);
-  res.json({
-    ...ev,
-    draft_json: JSON.parse(ev.draft_json || '{}'),
-    instructor_answers: JSON.parse(ev.instructor_answers || '{}'),
-  });
+    await q.updateEvaluation(req.params.id, updates);
+    const ev = await q.getEvaluation(req.params.id);
+    res.json({
+      ...ev,
+      draft_json:         ev.draft_json         || {},
+      instructor_answers: ev.instructor_answers || {},
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // POST /api/evaluations/:id/export — generate PDF
 router.post('/:id/export', async (req, res) => {
-  const ev = require('../db').db.prepare('SELECT * FROM evaluations WHERE id = ?').get(req.params.id);
+  const ev = await q.getEvaluation(req.params.id);
   if (!ev) return res.status(404).json({ error: 'Evaluation not found' });
 
-  const student = q.student(ev.student_id);
-  const draft = JSON.parse(ev.draft_json || '{}');
-
-  // Build HTML for the A4 doc
+  const student = await q.student(ev.student_id);
+  const draft = ev.draft_json || {};
   const html = buildExportHtml(student, draft, ev);
 
   try {
@@ -85,12 +78,11 @@ router.post('/:id/export', async (req, res) => {
 
     res.set({
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="evaluation-${student.name.replace(/\s/g,'_')}.pdf"`,
+      'Content-Disposition': `attachment; filename="evaluation-${student.name.replace(/\s/g, '_')}.pdf"`,
     });
     res.send(pdf);
   } catch (err) {
     console.error('PDF export error:', err.message);
-    // Fallback: return HTML
     res.set('Content-Type', 'text/html');
     res.send(html);
   }

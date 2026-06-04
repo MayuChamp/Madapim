@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { TweaksPanel, TweakSection, TweakRadio, TweakToggle, TweakColor, TweakSelect, useTweaks } from './tweaks-panel';
-import { Sidebar, Dashboard, Workspace } from './screens-1-2';
+import { TopbarNav, Dashboard, Workspace } from './screens-1-2';
 import { HumanNodeModal, SplitEditor } from './screens-3-4';
 import { ArchiveScreen, RubricsScreen } from './screens-archive-rubrics';
+import { SettingsScreen } from './screens-settings';
 import { ExportScreen, AnalyzingScreen, Toast } from './screens-5-app';
 import { STUDENTS, EVAL_CATEGORIES, SMART_QUESTIONS } from './data';
 import { IconMenu } from './icons';
@@ -26,18 +27,7 @@ function draftToCategories(draftCats) {
 }
 
 // ─── Tweaks config ─────────────────────────────────────────────────────────────
-const TWEAK_DEFAULTS = { density: 'comfortable', cardLayout: 'grid', dark: false, accent: '#1e3a5f', fontPair: 'frank-heebo' };
-const FONT_PAIRS = {
-  'frank-heebo':    { label: 'Frank Ruhl + Heebo',    sans: "'Heebo',system-ui,sans-serif",      serif: "'Frank Ruhl Libre',serif" },
-  'noto-assistant': { label: 'Noto Serif + Assistant', sans: "'Assistant',system-ui,sans-serif",  serif: "'Noto Serif Hebrew',serif" },
-  'rubik-shippori': { label: 'Rubik + Shippori',       sans: "'Rubik',system-ui,sans-serif",      serif: "'David Libre','Noto Serif Hebrew',serif" },
-};
-const ACCENT_PALETTES = [
-  ['#1e3a5f', '#2c5282', '#3b6fa5', '#e8eef5', '#f3f6fa'],
-  ['#2c4a3e', '#3a5d4f', '#5d8270', '#e6eee9', '#eef4f0'],
-  ['#5b3d6e', '#724e89', '#9678a8', '#ede6f0', '#f3eef5'],
-  ['#8b3a1a', '#a04b29', '#bb6843', '#f4e3da', '#f8ece2'],
-];
+const TWEAK_DEFAULTS = { density: 'comfortable', theme: 'honey', dark: false };
 
 function App() {
   const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
@@ -51,6 +41,7 @@ function App() {
   const [evaluationId, setEvaluationId] = useState(null);
   const [, setAnalyzeError] = useState(null);
   const [toast, setToast] = useState(null);
+  const [studentFiles, setStudentFiles] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
@@ -76,21 +67,34 @@ function App() {
   useEffect(() => {
     document.documentElement.setAttribute('data-density', tweaks.density);
     document.documentElement.setAttribute('data-dark', String(!!tweaks.dark));
-    const palette = ACCENT_PALETTES.find(p => p[0] === tweaks.accent) || ACCENT_PALETTES[0];
-    document.documentElement.style.setProperty('--brand', palette[0]);
-    document.documentElement.style.setProperty('--brand-2', palette[1]);
-    document.documentElement.style.setProperty('--brand-3', palette[2]);
-    document.documentElement.style.setProperty('--brand-soft', palette[3]);
-    document.documentElement.style.setProperty('--brand-softer', palette[4]);
-    const fp = FONT_PAIRS[tweaks.fontPair] || FONT_PAIRS['frank-heebo'];
-    document.documentElement.style.setProperty('--font-sans', fp.sans);
-    document.documentElement.style.setProperty('--font-serif', fp.serif);
-  }, [tweaks.density, tweaks.dark, tweaks.accent, tweaks.fontPair]);
+    document.documentElement.setAttribute('data-theme', tweaks.theme);
+    
+    // Clean up old overridden properties to let the CSS theme take over
+    document.documentElement.style.removeProperty('--brand');
+    document.documentElement.style.removeProperty('--brand-2');
+    document.documentElement.style.removeProperty('--brand-3');
+    document.documentElement.style.removeProperty('--brand-soft');
+    document.documentElement.style.removeProperty('--brand-softer');
+    document.documentElement.style.removeProperty('--font-sans');
+    document.documentElement.style.removeProperty('--font-serif');
+  }, [tweaks.density, tweaks.dark, tweaks.theme]);
+
+  // Expose upload helper to Workspace (which calls window.API_uploadFile)
+  window.API_uploadFile = API.uploadFile;
+  window.API_deleteFile = API.deleteFile;
+  window.API_updateCycleTopic = API.updateCycleTopic;
 
   const refreshStudents = () =>
     API.getStudents().then(data => { if (data?.length) setStudents(data); }).catch(() => {});
 
-  const openStudent = (s) => { setStudent(s); setScreen('workspace'); };
+  const openStudent = async (s) => {
+    setStudent(s);
+    setScreen('workspace');
+    try {
+      const full = await API.getStudent(s.id);
+      setStudent(full);
+    } catch {}
+  };
 
   const onAnalyze = () => { setAnalyzeError(null); setModalOpen(true); };
 
@@ -104,6 +108,8 @@ function App() {
       setEvaluationId(result.evaluation_id);
       setEvaluationDraft(result.draft);
       if (result.smart_questions?.length) setSmartQuestions(result.smart_questions);
+      const files = await API.getFiles(student.id).catch(() => []);
+      setStudentFiles(files.filter(f => f.has_text));
       refreshStudents();
       setScreen('editor');
     } catch (err) {
@@ -118,12 +124,21 @@ function App() {
 
   const onExport = () => setScreen('export');
 
-  const onFinishExport = async () => {
+  const onFinishExport = async (format = 'pdf') => {
+    if (format === 'link') {
+      setToast('קישור לשיתוף: ' + window.location.origin + '/eval/' + evaluationId);
+      return;
+    }
     if (evaluationId) {
-      try { await API.exportPdf(evaluationId); } catch (e) { console.warn('PDF:', e.message); }
+      try {
+        await API.exportPdf(evaluationId, format);
+      } catch (e) {
+        setToast(`שגיאה בייצוא: ${e.message}`);
+        return;
+      }
     }
     setToast('ההערכה יוצאה בהצלחה · נשמרה לארכיון');
-    setTimeout(() => { setScreen('dashboard'); setStudent(null); setEvaluationDraft(null); setEvaluationId(null); }, 600);
+    setTimeout(() => { setScreen('dashboard'); setStudent(null); setEvaluationDraft(null); setEvaluationId(null); setStudentFiles([]); }, 600);
   };
 
   const handleLogout = () => { API.logout(); setUser(null); setScreen('dashboard'); };
@@ -131,7 +146,7 @@ function App() {
   const editorCategories = evaluationDraft ? draftToCategories(evaluationDraft.categories) : EVAL_CATEGORIES;
   const editorSummary    = evaluationDraft ? { text: evaluationDraft.summary, score: evaluationDraft.score } : null;
 
-  const showSidebar = ['dashboard', 'workspace', 'archive', 'rubrics'].includes(screen);
+  const showSidebar = ['dashboard', 'workspace', 'archive', 'rubrics', 'settings'].includes(screen);
   const tabBtnStyle = (active) => ({
     padding: '6px 8px', fontSize: 11,
     border: `1px solid ${active ? '#1e3a5f' : 'rgba(0,0,0,.1)'}`,
@@ -147,21 +162,12 @@ function App() {
   return (
     <div className={showSidebar ? 'app' : ''} style={!showSidebar ? { height: '100vh', overflow: 'hidden' } : {}}>
       {showSidebar && (
-        <Sidebar
+        <TopbarNav
           activeScreen={screen}
           onNav={(s) => { setStudent(null); setScreen(s); setSidebarOpen(false); }}
           instructorName={user.name || user.email.split('@')[0]}
-          mobOpen={sidebarOpen}
-          onMobClose={() => setSidebarOpen(false)}
           onLogout={handleLogout}
         />
-      )}
-      {showSidebar && (
-        <button className="mob-menu-btn" aria-label="פתח תפריט"
-          style={{ position: 'fixed', top: 14, right: 14, zIndex: 30 }}
-          onClick={() => setSidebarOpen(true)}>
-          <IconMenu size={20} />
-        </button>
       )}
 
       <main className="main" style={!showSidebar ? { height: '100vh', overflow: 'hidden' } : {}}>
@@ -188,10 +194,20 @@ function App() {
                 setToast('שגיאה בייבוא: ' + err.message);
               }
             }}
+            onDeleteStudent={async (s) => {
+              try {
+                await API.deleteStudent(s.id);
+                await refreshStudents();
+                setToast(`הסטודנט ${s.name} נמחק בהצלחה`);
+              } catch (err) {
+                setToast('שגיאה במחיקת הסטודנט: ' + err.message);
+              }
+            }}
           />
         )}
         {screen === 'archive'   && <ArchiveScreen />}
         {screen === 'rubrics'   && <RubricsScreen />}
+        {screen === 'settings'  && <SettingsScreen user={user} onLogout={handleLogout} onUserUpdate={setUser} />}
         {screen === 'workspace' && student && (
           <Workspace
             student={student}
@@ -209,6 +225,7 @@ function App() {
             evalCategories={editorCategories}
             evalSummary={editorSummary}
             evaluationId={evaluationId}
+            evidenceFiles={studentFiles}
             onBack={() => setScreen('workspace')}
             onExport={onExport}
             onSave={evaluationId ? (draft) => API.saveEvaluation(evaluationId, { draft_json: draft }) : null}
@@ -236,11 +253,9 @@ function App() {
       <TweaksPanel title="Tweaks">
         <TweakSection label="צפיפות" />
         <TweakRadio label="צפיפות" value={tweaks.density} options={[{ value: 'compact', label: 'דחוס' }, { value: 'comfortable', label: 'נוח' }]} onChange={(v) => setTweak('density', v)} />
-        <TweakRadio label="תצוגת סטודנטים" value={tweaks.cardLayout} options={[{ value: 'grid', label: 'כרטיסיות' }, { value: 'list', label: 'רשימה' }]} onChange={(v) => setTweak('cardLayout', v)} />
         <TweakToggle label="מצב כהה" value={!!tweaks.dark} onChange={(v) => setTweak('dark', v)} />
-        <TweakSection label="עיצוב" />
-        <TweakColor label="צבע אקצנט" value={tweaks.accent} options={ACCENT_PALETTES.map(p => p[0])} onChange={(v) => setTweak('accent', v)} />
-        <TweakSelect label="גופן" value={tweaks.fontPair} options={Object.keys(FONT_PAIRS).map(k => ({ value: k, label: FONT_PAIRS[k].label }))} onChange={(v) => setTweak('fontPair', v)} />
+        <TweakSection label="ערכת נושא" />
+        <TweakRadio label="ערכת נושא" value={tweaks.theme} options={[{ value: 'honey', label: 'Honey' }, { value: 'mist', label: 'Mist' }, { value: 'clay', label: 'Clay' }]} onChange={(v) => setTweak('theme', v)} />
         <TweakSection label="ניווט" />
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, padding: '4px 0' }}>
           <button onClick={() => setScreen('dashboard')}                                                  style={tabBtnStyle(screen === 'dashboard')}>1 · דף הבית</button>

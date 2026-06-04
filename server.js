@@ -53,10 +53,18 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: err.message || 'Internal server error' });
 });
 
-app.listen(PORT, () => {
-  console.log(`\n✓ כלי הערכה פדגוגית running at http://localhost:${PORT}`);
-  console.log(`  API: http://localhost:${PORT}/api`);
-  if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'your_key_here') {
-    console.log(`\n  ⚠️  GEMINI_API_KEY not set — AI analysis will fail.`);
-  }
-});
+// ─── Start (async so DB init can run first) ───────────────────────────────────
+const { initDB } = require('./db');
+
+async function start() {
+  await initDB();
+  app.listen(PORT, () => {
+    console.log(`\n✓ כלי הערכה פדגוגית running at http://localhost:${PORT}`);
+    console.log(`  API: http://localhost:${PORT}/api`);
+    if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'your_key_here') {
+      console.log(`\n  ⚠️  GEMINI_API_KEY not set — AI analysis will fail.`);
+    }
+  });
+}
+
+start().catch(err => { console.error('Startup error:', err); process.exit(1); });

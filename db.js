@@ -1,324 +1,315 @@
-const Database = require('better-sqlite3');
-const path = require('path');
+require('dotenv').config();
+const { createClient } = require('@supabase/supabase-js');
 
-const DB_PATH = path.join(__dirname, 'madapim.db');
-const db = new Database(DB_PATH);
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
-// Enable WAL mode for better concurrency
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
+const BUCKET = 'student-files';
 
-// ─── Schema ───────────────────────────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id           TEXT PRIMARY KEY,
-    email        TEXT NOT NULL UNIQUE,
-    password_hash TEXT NOT NULL,
-    name         TEXT,
-    role         TEXT DEFAULT 'instructor',
-    created_at   TEXT DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS rubrics (
-    id           TEXT PRIMARY KEY,
-    name         TEXT NOT NULL,
-    description  TEXT,
-    semester     TEXT,
-    total_points INTEGER,
-    criteria     TEXT DEFAULT '[]',
-    instructor_id TEXT,
-    created_at   TEXT DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS students (
-    id            TEXT PRIMARY KEY,
-    name          TEXT NOT NULL,
-    school        TEXT,
-    grade         TEXT,
-    subject_track TEXT,
-    status        TEXT DEFAULT 'not_started',
-    initials      TEXT,
-    created_at    TEXT DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS cycles (
-    id         TEXT PRIMARY KEY,
-    student_id TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-    track_type TEXT NOT NULL CHECK(track_type IN ('lesson_plan','observation')),
-    topic      TEXT,
-    subject    TEXT,
-    date       TEXT,
-    status     TEXT DEFAULT 'not_started',
-    position   INTEGER DEFAULT 0
-  );
-
-  CREATE TABLE IF NOT EXISTS stages (
-    id         TEXT PRIMARY KEY,
-    cycle_id   TEXT NOT NULL REFERENCES cycles(id) ON DELETE CASCADE,
-    stage_key  TEXT NOT NULL,
-    done       INTEGER DEFAULT 0,
-    date       TEXT,
-    summary    TEXT,
-    days_waiting INTEGER
-  );
-
-  CREATE TABLE IF NOT EXISTS files (
-    id            TEXT PRIMARY KEY,
-    student_id    TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-    cycle_id      TEXT REFERENCES cycles(id),
-    stage_key     TEXT,
-    original_name TEXT,
-    stored_path   TEXT,
-    parsed_text   TEXT,
-    file_type     TEXT,
-    uploaded_at   TEXT DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS evaluations (
-    id                  TEXT PRIMARY KEY,
-    student_id          TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-    rubric_id           TEXT DEFAULT 'r1',
-    status              TEXT DEFAULT 'draft',
-    instructor_answers  TEXT DEFAULT '{}',
-    draft_json          TEXT DEFAULT '{}',
-    score               INTEGER,
-    created_at          TEXT DEFAULT (datetime('now')),
-    updated_at          TEXT DEFAULT (datetime('now'))
-  );
-`);
+function progressFor(cycles, trackType) {
+  const subset = (cycles || []).filter(c => c.track_type === trackType);
+  return { complete: subset.filter(c => c.status === 'complete').length, total: subset.length };
+}
 
 // ─── Seed ─────────────────────────────────────────────────────────────────────
 
-function seed() {
-  // Seed default pilot user (password: pilot2026)
-  const existingUser = db.prepare('SELECT COUNT(*) as n FROM users').get();
-  if (existingUser.n === 0) {
-    const bcrypt = require('bcryptjs');
-    db.prepare(`INSERT INTO users (id, email, password_hash, name) VALUES (?,?,?,?)`)
-      .run('u1', 'yearad@dyellin.ac.il', bcrypt.hashSync('pilot2026', 10), 'ראש הקבוצה');
+async function seed() {
+  const bcrypt = require('bcryptjs');
+
+  const { data: users } = await supabase.from('users').select('id').limit(1);
+  if (!users || users.length === 0) {
+    await supabase.from('users').insert({
+      id: 'u1',
+      email: 'yearad@dyellin.ac.il',
+      password_hash: bcrypt.hashSync('pilot2026', 10),
+      name: 'ראש הקבוצה',
+    });
     console.log('✓ Pilot user created: yearad@dyellin.ac.il / pilot2026');
   }
 
-  // Seed default rubric — מחוון כלי מדפים
-  const existingRubrics = db.prepare('SELECT COUNT(*) as n FROM rubrics').get();
-  if (existingRubrics.n === 0) {
-    db.prepare(`INSERT INTO rubrics (id,name,description,semester,total_points,criteria,instructor_id) VALUES (?,?,?,?,?,?,?)`)
-      .run(
-        'r1',
-        'מחוון כלי מדפים',
-        'מחוון להערכת סטודנטים מורים — הכנה לקראת הוראה, יישום ותצפית.',
-        'שנתי',
-        100,
-        JSON.stringify([
-          {name:'שליטה בתחום הדעת',        weight:15, desc:'ידע נדרש מספק; למידה מתמדת של היסטוריה כהכנה להוראה'},
-          {name:'תפיסה מקצועית',            weight:15, desc:'הסבר מטרות ההוראה; קווים מנחים לניהול הכיתה'},
-          {name:'שליטה במיומנויות הוראה',  weight:30, desc:'בניית שיעור: שאלת מוקד, פעולת דריכה, מקורות, ביצועי הבנה, ניהול דיון; שיפור לאור משוב'},
-          {name:'עמידה בדרישות הקורס',     weight:20, desc:'לפחות 5 מערכי שיעור עם תיקונים; רפלקציה לאחר שיחת משוב'},
-          {name:'תקשורת עם תלמידים',        weight:10, desc:'יחס מכבד וקשוב; זיהוי צרכים שונים; מעורבות ואחריות (מתצפית בלבד)'},
-          {name:'משוב',                      weight:10, desc:'פתיחות למשוב; התבוננות עצמית כנה; הסקת מסקנות (מתצפית בלבד)'},
-        ]),
-        'u1'
-      );
+  const { data: rubrics } = await supabase.from('rubrics').select('id').limit(1);
+  if (!rubrics || rubrics.length === 0) {
+    await supabase.from('rubrics').insert({
+      id: 'r1',
+      name: 'מחוון כלי מדפים',
+      description: 'מחוון להערכת סטודנטים מורים — הכנה לקראת הוראה, יישום ותצפית.',
+      semester: 'שנתי',
+      total_points: 100,
+      criteria: [
+        { name: 'שליטה בתחום הדעת',        weight: 15, desc: 'ידע נדרש מספק; למידה מתמדת של היסטוריה כהכנה להוראה' },
+        { name: 'תפיסה מקצועית',            weight: 15, desc: 'הסבר מטרות ההוראה; קווים מנחים לניהול הכיתה' },
+        { name: 'שליטה במיומנויות הוראה',  weight: 30, desc: 'בניית שיעור: שאלת מוקד, פעולת דריכה, מקורות, ביצועי הבנה, ניהול דיון; שיפור לאור משוב' },
+        { name: 'עמידה בדרישות הקורס',     weight: 20, desc: 'לפחות 5 מערכי שיעור עם תיקונים; רפלקציה לאחר שיחת משוב' },
+        { name: 'תקשורת עם תלמידים',        weight: 10, desc: 'יחס מכבד וקשוב; זיהוי צרכים שונים; מעורבות ואחריות (מתצפית בלבד)' },
+        { name: 'משוב',                      weight: 10, desc: 'פתיחות למשוב; התבוננות עצמית כנה; הסקת מסקנות (מתצפית בלבד)' },
+      ],
+      instructor_id: 'u1',
+    });
     console.log('✓ Rubric seeded: מחוון כלי מדפים');
   }
 
-  const existing = db.prepare('SELECT COUNT(*) as n FROM students').get();
-  if (existing.n > 0) return;
+  const { data: existing } = await supabase.from('students').select('id').limit(1);
+  if (existing && existing.length > 0) return;
 
-  const insertStudent = db.prepare(`
-    INSERT INTO students (id, name, school, grade, subject_track, status, initials)
-    VALUES (@id, @name, @school, @grade, @subject_track, @status, @initials)
-  `);
-
-  const insertCycle = db.prepare(`
-    INSERT INTO cycles (id, student_id, track_type, topic, subject, date, status, position)
-    VALUES (@id, @student_id, @track_type, @topic, @subject, @date, @status, @position)
-  `);
-
-  const insertStage = db.prepare(`
-    INSERT INTO stages (id, cycle_id, stage_key, done, date, summary, days_waiting)
-    VALUES (@id, @cycle_id, @stage_key, @done, @date, @summary, @days_waiting)
-  `);
-
-  const students = [
+  await supabase.from('students').insert([
     { id: 's1', name: 'מ. לוי',    school: 'בית ספר יסודי מאמן · מתמטי', grade: 'כיתה ד׳', subject_track: 'מתמטיקה',    status: 'pending',      initials: 'מל' },
     { id: 's2', name: 'נ. כהן',    school: 'בית ספר ניסויי · יסוד',      grade: 'כיתה ב׳', subject_track: 'אנגלית',       status: 'ready',        initials: 'נכ' },
     { id: 's3', name: 'ש. בן-דוד', school: 'בית ספר ממ"ד שדות',           grade: 'כיתה ה׳', subject_track: 'מדעים',        status: 'pending',      initials: 'שב' },
     { id: 's4', name: 'ת. אבני',   school: 'בית ספר דמוקרטי האלה',       grade: 'כיתה ג׳', subject_track: 'חינוך מיוחד', status: 'in_progress',  initials: 'תא' },
     { id: 's5', name: 'א. שמיר',   school: 'בית ספר מאמן · רב-תרבותי',   grade: 'כיתה ד׳', subject_track: 'רב-תחומי',    status: 'not_started',  initials: 'אש' },
     { id: 's6', name: 'ר. פרץ',    school: 'בית ספר יסודי הרצוג',        grade: 'כיתה ו׳', subject_track: 'לשון ומקרא',  status: 'pending',      initials: 'רפ' },
-  ];
+  ]);
 
-  // Lesson plan cycles for s1
-  const lpCycles = [
-    { id:'lp1', student_id:'s1', track_type:'lesson_plan', topic:'חלוקה ארוכה — שיעור פתיחה', subject:'מתמטיקה', date:null, status:'complete', position:1 },
-    { id:'lp2', student_id:'s1', track_type:'lesson_plan', topic:'הרצל וחזון מדינת היהודים', subject:'מולדת',    date:null, status:'complete', position:2 },
-    { id:'lp3', student_id:'s1', track_type:'lesson_plan', topic:'שירת מולדת — אנליזה',        subject:'ספרות',   date:null, status:'awaiting_revision', position:3 },
-    { id:'lp4', student_id:'s1', track_type:'lesson_plan', topic:'מבנה הסיפור — היכרות',       subject:'ספרות',   date:null, status:'in_review', position:4 },
-  ];
+  await supabase.from('cycles').insert([
+    { id: 'lp1', student_id: 's1', track_type: 'lesson_plan', topic: 'חלוקה ארוכה — שיעור פתיחה', subject: 'מתמטיקה', date: null, status: 'complete',           position: 1 },
+    { id: 'lp2', student_id: 's1', track_type: 'lesson_plan', topic: 'הרצל וחזון מדינת היהודים',   subject: 'מולדת',   date: null, status: 'complete',           position: 2 },
+    { id: 'lp3', student_id: 's1', track_type: 'lesson_plan', topic: 'שירת מולדת — אנליזה',         subject: 'ספרות',   date: null, status: 'awaiting_revision', position: 3 },
+    { id: 'lp4', student_id: 's1', track_type: 'lesson_plan', topic: 'מבנה הסיפור — היכרות',        subject: 'ספרות',   date: null, status: 'in_review',         position: 4 },
+    { id: 'ob1', student_id: 's1', track_type: 'observation', topic: 'תצפית 1 — שיעור פתיחת שנה', subject: null, date: '12.10', status: 'complete', position: 1 },
+    { id: 'ob2', student_id: 's1', track_type: 'observation', topic: 'תצפית 2 — מתמטיקה כיתה ד׳', subject: null, date: '04.11', status: 'complete', position: 2 },
+    { id: 'ob3', student_id: 's1', track_type: 'observation', topic: 'תצפית 3 — שיעור הרצל',       subject: null, date: '04.12', status: 'complete', position: 3 },
+  ]);
 
-  // Observation cycles for s1
-  const obCycles = [
-    { id:'ob1', student_id:'s1', track_type:'observation', topic:'תצפית 1 — שיעור פתיחת שנה', subject:null, date:'12.10', status:'complete', position:1 },
-    { id:'ob2', student_id:'s1', track_type:'observation', topic:'תצפית 2 — מתמטיקה כיתה ד׳', subject:null, date:'04.11', status:'complete', position:2 },
-    { id:'ob3', student_id:'s1', track_type:'observation', topic:'תצפית 3 — שיעור הרצל',       subject:null, date:'04.12', status:'complete', position:3 },
-  ];
-
-  const stages = [
-    // lp1
-    { id:'st1',  cycle_id:'lp1', stage_key:'submission',      done:1, date:'04.11', summary:null, days_waiting:null },
-    { id:'st2',  cycle_id:'lp1', stage_key:'instructorNotes', done:1, date:'07.11', summary:'להעמיק שלבי האלגוריתם, להוסיף דוגמה הפוכה', days_waiting:null },
-    { id:'st3',  cycle_id:'lp1', stage_key:'revision',        done:1, date:'14.11', summary:null, days_waiting:null },
-    // lp2
-    { id:'st4',  cycle_id:'lp2', stage_key:'submission',      done:1, date:'20.11', summary:null, days_waiting:null },
-    { id:'st5',  cycle_id:'lp2', stage_key:'instructorNotes', done:1, date:'23.11', summary:'מצוין — להוסיף שאלת פתיחה אקטיבית', days_waiting:null },
-    { id:'st6',  cycle_id:'lp2', stage_key:'revision',        done:1, date:'27.11', summary:null, days_waiting:null },
-    // lp3
-    { id:'st7',  cycle_id:'lp3', stage_key:'submission',      done:1, date:'10.12', summary:null, days_waiting:null },
-    { id:'st8',  cycle_id:'lp3', stage_key:'instructorNotes', done:1, date:'14.12', summary:'לחזק את הקישור לטקסט המקור', days_waiting:null },
-    { id:'st9',  cycle_id:'lp3', stage_key:'revision',        done:0, date:null,    summary:null, days_waiting:9 },
-    // lp4
-    { id:'st10', cycle_id:'lp4', stage_key:'submission',      done:1, date:'08.01', summary:null, days_waiting:null },
-    { id:'st11', cycle_id:'lp4', stage_key:'instructorNotes', done:0, date:null,    summary:null, days_waiting:3 },
-    { id:'st12', cycle_id:'lp4', stage_key:'revision',        done:0, date:null,    summary:null, days_waiting:null },
-    // ob1
-    { id:'st13', cycle_id:'ob1', stage_key:'observation', done:1, date:'12.10', summary:'התרשמות ראשונית: לומדת מהר, ראוי לעקוב אחר תכנון', days_waiting:null },
-    { id:'st14', cycle_id:'ob1', stage_key:'feedback',    done:1, date:'14.10', summary:null, days_waiting:null },
-    { id:'st15', cycle_id:'ob1', stage_key:'reflection',  done:1, date:'18.10', summary:null, days_waiting:null },
-    // ob2
-    { id:'st16', cycle_id:'ob2', stage_key:'observation', done:1, date:'04.11', summary:'ניהול כיתה רגוע, יש לחזק העברה בין שלבים', days_waiting:null },
-    { id:'st17', cycle_id:'ob2', stage_key:'feedback',    done:1, date:'07.11', summary:null, days_waiting:null },
-    { id:'st18', cycle_id:'ob2', stage_key:'reflection',  done:1, date:'11.11', summary:null, days_waiting:null },
-    // ob3
-    { id:'st19', cycle_id:'ob3', stage_key:'observation', done:1, date:'04.12', summary:'נוכחות כיתתית מצוינת. אלתור מרשים אחרי תקלת מקרן', days_waiting:null },
-    { id:'st20', cycle_id:'ob3', stage_key:'feedback',    done:1, date:'06.12', summary:null, days_waiting:null },
-    { id:'st21', cycle_id:'ob3', stage_key:'reflection',  done:1, date:'12.12', summary:null, days_waiting:null },
-  ];
-
-  const txn = db.transaction(() => {
-    for (const s of students) insertStudent.run(s);
-    for (const c of [...lpCycles, ...obCycles]) insertCycle.run(c);
-    for (const st of stages) insertStage.run(st);
-  });
-  txn();
+  await supabase.from('stages').insert([
+    { id: 'st1',  cycle_id: 'lp1', stage_key: 'submission',      done: 1, date: '04.11', summary: null, days_waiting: null, position: 1 },
+    { id: 'st2',  cycle_id: 'lp1', stage_key: 'instructorNotes', done: 1, date: '07.11', summary: 'להעמיק שלבי האלגוריתם, להוסיף דוגמה הפוכה', days_waiting: null, position: 2 },
+    { id: 'st3',  cycle_id: 'lp1', stage_key: 'revision',        done: 1, date: '14.11', summary: null, days_waiting: null, position: 3 },
+    { id: 'st4',  cycle_id: 'lp2', stage_key: 'submission',      done: 1, date: '20.11', summary: null, days_waiting: null, position: 1 },
+    { id: 'st5',  cycle_id: 'lp2', stage_key: 'instructorNotes', done: 1, date: '23.11', summary: 'מצוין — להוסיף שאלת פתיחה אקטיבית', days_waiting: null, position: 2 },
+    { id: 'st6',  cycle_id: 'lp2', stage_key: 'revision',        done: 1, date: '27.11', summary: null, days_waiting: null, position: 3 },
+    { id: 'st7',  cycle_id: 'lp3', stage_key: 'submission',      done: 1, date: '10.12', summary: null, days_waiting: null, position: 1 },
+    { id: 'st8',  cycle_id: 'lp3', stage_key: 'instructorNotes', done: 1, date: '14.12', summary: 'לחזק את הקישור לטקסט המקור', days_waiting: null, position: 2 },
+    { id: 'st9',  cycle_id: 'lp3', stage_key: 'revision',        done: 0, date: null,    summary: null, days_waiting: 9,    position: 3 },
+    { id: 'st10', cycle_id: 'lp4', stage_key: 'submission',      done: 1, date: '08.01', summary: null, days_waiting: null, position: 1 },
+    { id: 'st11', cycle_id: 'lp4', stage_key: 'instructorNotes', done: 0, date: null,    summary: null, days_waiting: 3,    position: 2 },
+    { id: 'st12', cycle_id: 'lp4', stage_key: 'revision',        done: 0, date: null,    summary: null, days_waiting: null, position: 3 },
+    { id: 'st13', cycle_id: 'ob1', stage_key: 'observation', done: 1, date: '12.10', summary: 'התרשמות ראשונית: לומדת מהר, ראוי לעקוב אחר תכנון', days_waiting: null, position: 1 },
+    { id: 'st14', cycle_id: 'ob1', stage_key: 'feedback',    done: 1, date: '14.10', summary: null, days_waiting: null, position: 2 },
+    { id: 'st15', cycle_id: 'ob1', stage_key: 'reflection',  done: 1, date: '18.10', summary: null, days_waiting: null, position: 3 },
+    { id: 'st16', cycle_id: 'ob2', stage_key: 'observation', done: 1, date: '04.11', summary: 'ניהול כיתה רגוע, יש לחזק העברה בין שלבים', days_waiting: null, position: 1 },
+    { id: 'st17', cycle_id: 'ob2', stage_key: 'feedback',    done: 1, date: '07.11', summary: null, days_waiting: null, position: 2 },
+    { id: 'st18', cycle_id: 'ob2', stage_key: 'reflection',  done: 1, date: '11.11', summary: null, days_waiting: null, position: 3 },
+    { id: 'st19', cycle_id: 'ob3', stage_key: 'observation', done: 1, date: '04.12', summary: 'נוכחות כיתתית מצוינת. אלתור מרשים אחרי תקלת מקרן', days_waiting: null, position: 1 },
+    { id: 'st20', cycle_id: 'ob3', stage_key: 'feedback',    done: 1, date: '06.12', summary: null, days_waiting: null, position: 2 },
+    { id: 'st21', cycle_id: 'ob3', stage_key: 'reflection',  done: 1, date: '12.12', summary: null, days_waiting: null, position: 3 },
+  ]);
 
   console.log('✓ Database seeded with anonymised students');
 }
 
-seed();
+// ─── Init ─────────────────────────────────────────────────────────────────────
 
-// ─── Query helpers ─────────────────────────────────────────────────────────────
+async function initDB() {
+  await supabase.storage.createBucket(BUCKET, { public: false }).catch(() => {});
+  await seed();
+}
+
+// ─── Query helpers (all async) ────────────────────────────────────────────────
 
 const q = {
-  allStudents: () => db.prepare('SELECT * FROM students ORDER BY created_at').all(),
+  allStudents: async () => {
+    const { data: students, error } = await supabase
+      .from('students').select('*').order('created_at');
+    if (error) throw error;
+    if (!students || students.length === 0) return [];
 
-  student: (id) => db.prepare('SELECT * FROM students WHERE id = ?').get(id),
+    const ids = students.map(s => s.id);
+    const [{ data: cycles }, { data: files }] = await Promise.all([
+      supabase.from('cycles').select('id, student_id, track_type, status').in('student_id', ids),
+      supabase.from('files').select('id, student_id, cycle_id').in('student_id', ids).not('cycle_id', 'is', null),
+    ]);
 
-  studentWithCycles: (id) => {
-    const student = db.prepare('SELECT * FROM students WHERE id = ?').get(id);
+    return students.map(s => ({
+      ...s,
+      lessonProgress:      progressFor((cycles || []).filter(c => c.student_id === s.id), 'lesson_plan'),
+      observationProgress: progressFor((cycles || []).filter(c => c.student_id === s.id), 'observation'),
+      docs: (files || []).filter(f => f.student_id === s.id).length,
+    }));
+  },
+
+  student: async (id) => {
+    const { data } = await supabase.from('students').select('*').eq('id', id).single();
+    return data || null;
+  },
+
+  studentWithCycles: async (id) => {
+    const { data: student } = await supabase.from('students').select('*').eq('id', id).single();
     if (!student) return null;
-    const cycles = db.prepare('SELECT * FROM cycles WHERE student_id = ? ORDER BY position').all(id);
-    for (const c of cycles) {
-      c.stages = db.prepare('SELECT * FROM stages WHERE cycle_id = ? ORDER BY rowid').all(c.id);
-      c.files  = db.prepare('SELECT id, original_name, file_type, uploaded_at FROM files WHERE cycle_id = ?').all(c.id);
+
+    let { data: cycles } = await supabase
+      .from('cycles').select('*').eq('student_id', id).order('position');
+
+    if (!cycles || cycles.length === 0) {
+      await q.seedDefaultCyclesForStudent(id, student.subject_track);
+      ({ data: cycles } = await supabase
+        .from('cycles').select('*').eq('student_id', id).order('position'));
     }
-    student.cycles = cycles;
-    student.lessonProgress = progressFor(cycles, 'lesson_plan');
+
+    const cycleIds = (cycles || []).map(c => c.id);
+    const [{ data: stages }, { data: cycleFiles }, { data: extraFiles }] = await Promise.all([
+      supabase.from('stages').select('*').in('cycle_id', cycleIds).order('position'),
+      supabase.from('files')
+        .select('id, original_name, stage_key, file_type, description, uploaded_at, cycle_id')
+        .eq('student_id', id).not('cycle_id', 'is', null),
+      supabase.from('files')
+        .select('id, original_name, file_type, description, uploaded_at')
+        .eq('student_id', id).is('cycle_id', null),
+    ]);
+
+    const stagesByC = {};
+    const filesByC  = {};
+    for (const s of (stages || []))     { if (!stagesByC[s.cycle_id]) stagesByC[s.cycle_id] = []; stagesByC[s.cycle_id].push(s); }
+    for (const f of (cycleFiles || [])) { if (!filesByC[f.cycle_id])  filesByC[f.cycle_id]  = []; filesByC[f.cycle_id].push(f); }
+
+    for (const c of (cycles || [])) {
+      c.stages = stagesByC[c.id] || [];
+      c.files  = filesByC[c.id]  || [];
+    }
+
+    student.cycles              = cycles || [];
+    student.lessonProgress      = progressFor(cycles, 'lesson_plan');
     student.observationProgress = progressFor(cycles, 'observation');
+    student.extraFiles          = extraFiles || [];
     return student;
   },
 
-  evaluation: (studentId) =>
-    db.prepare('SELECT * FROM evaluations WHERE student_id = ? ORDER BY created_at DESC LIMIT 1').get(studentId),
+  evaluation: async (studentId) => {
+    const { data } = await supabase
+      .from('evaluations').select('*').eq('student_id', studentId)
+      .order('created_at', { ascending: false }).limit(1).maybeSingle();
+    return data || null;
+  },
 
-  createEvaluation: (studentId) => {
+  getEvaluation: async (id) => {
+    const { data } = await supabase.from('evaluations').select('*').eq('id', id).single();
+    return data || null;
+  },
+
+  createEvaluation: async (studentId) => {
     const id = 'ev_' + Date.now();
-    db.prepare(`
-      INSERT INTO evaluations (id, student_id) VALUES (?, ?)
-    `).run(id, studentId);
-    return db.prepare('SELECT * FROM evaluations WHERE id = ?').get(id);
+    const { data, error } = await supabase
+      .from('evaluations').insert({ id, student_id: studentId }).select().single();
+    if (error) throw error;
+    return data;
   },
 
-  updateEvaluation: (id, fields) => {
-    const sets = Object.keys(fields).map(k => `${k} = @${k}`).join(', ');
-    db.prepare(`UPDATE evaluations SET ${sets}, updated_at = datetime('now') WHERE id = @id`)
-      .run({ id, ...fields });
+  updateEvaluation: async (id, fields) => {
+    const { error } = await supabase
+      .from('evaluations').update({ ...fields, updated_at: new Date().toISOString() }).eq('id', id);
+    if (error) throw error;
   },
 
-  upsertEvaluation: (studentId, draftJson, score) => {
-    let ev = db.prepare('SELECT * FROM evaluations WHERE student_id = ?').get(studentId);
-    if (!ev) {
-      ev = q.createEvaluation(studentId);
+  upsertEvaluation: async (studentId, draftJson, score) => {
+    let ev = await q.evaluation(studentId);
+    if (!ev) ev = await q.createEvaluation(studentId);
+    await q.updateEvaluation(ev.id, { draft_json: draftJson, score, status: 'draft' });
+    return q.getEvaluation(ev.id);
+  },
+
+  saveFile: async (file) => {
+    const { error } = await supabase.from('files').insert(file);
+    if (error) throw error;
+  },
+
+  deleteFile: async (id) => {
+    const { data: file } = await supabase.from('files').select('stored_path').eq('id', id).single();
+    if (file?.stored_path) {
+      await supabase.storage.from(BUCKET).remove([file.stored_path]);
     }
-    q.updateEvaluation(ev.id, { draft_json: JSON.stringify(draftJson), score, status: 'draft' });
-    return db.prepare('SELECT * FROM evaluations WHERE id = ?').get(ev.id);
+    await supabase.from('files').delete().eq('id', id);
   },
 
-  saveFile: (file) => {
-    db.prepare(`
-      INSERT INTO files (id, student_id, cycle_id, stage_key, original_name, stored_path, parsed_text, file_type)
-      VALUES (@id, @student_id, @cycle_id, @stage_key, @original_name, @stored_path, @parsed_text, @file_type)
-    `).run(file);
+  studentFiles: async (studentId) => {
+    const { data } = await supabase.from('files').select('*').eq('student_id', studentId);
+    return data || [];
   },
 
-  studentFiles: (studentId) =>
-    db.prepare('SELECT * FROM files WHERE student_id = ?').all(studentId),
-
-  updateStudentStatus: (id, status) =>
-    db.prepare('UPDATE students SET status = ? WHERE id = ?').run(status, id),
-
-  updateStageFile: (cycleId, stageKey, fileId, date, summary) =>
-    db.prepare(`
-      UPDATE stages SET done = 1, date = ?, summary = ? WHERE cycle_id = ? AND stage_key = ?
-    `).run(date || new Date().toLocaleDateString('he-IL').replace(/\//g,'.'), summary || null, cycleId, stageKey),
-
-  userByEmail: (email) => db.prepare('SELECT * FROM users WHERE email = ?').get(email),
-
-  allRubrics: () => db.prepare('SELECT * FROM rubrics ORDER BY created_at DESC').all().map(r => ({
-    ...r, criteria: JSON.parse(r.criteria || '[]')
-  })),
-
-  rubric: (id) => {
-    const r = db.prepare('SELECT * FROM rubrics WHERE id = ?').get(id);
-    if (!r) return null;
-    return { ...r, criteria: JSON.parse(r.criteria || '[]') };
+  updateStudentStatus: async (id, status) => {
+    await supabase.from('students').update({ status }).eq('id', id);
   },
 
-  createRubric: ({ name, description, semester, total_points, criteria, instructor_id }) => {
+  updateCycleTopic: async (cycleId, topic) => {
+    await supabase.from('cycles').update({ topic }).eq('id', cycleId);
+  },
+
+  updateStageFile: async (cycleId, stageKey) => {
+    const date = new Date().toLocaleDateString('he-IL').replace(/\//g, '.');
+    await supabase.from('stages').update({ done: 1, date }).eq('cycle_id', cycleId).eq('stage_key', stageKey);
+  },
+
+  userByEmail: async (email) => {
+    const { data } = await supabase.from('users').select('*').eq('email', email).single();
+    return data || null;
+  },
+
+  allRubrics: async () => {
+    const { data } = await supabase.from('rubrics').select('*').order('created_at', { ascending: false });
+    return data || [];
+  },
+
+  rubric: async (id) => {
+    const { data } = await supabase.from('rubrics').select('*').eq('id', id).single();
+    return data || null;
+  },
+
+  createRubric: async ({ name, description, semester, total_points, criteria, instructor_id }) => {
     const id = 'r_' + Date.now();
-    db.prepare(`INSERT INTO rubrics (id,name,description,semester,total_points,criteria,instructor_id) VALUES (?,?,?,?,?,?,?)`)
-      .run(id, name, description || '', semester || '', total_points ?? null, JSON.stringify(criteria || []), instructor_id || null);
-    return q.rubric(id);
+    const { data, error } = await supabase.from('rubrics')
+      .insert({ id, name, description: description || '', semester: semester || '', total_points: total_points ?? null, criteria: criteria || [], instructor_id: instructor_id || null })
+      .select().single();
+    if (error) throw error;
+    return data;
   },
 
-  updateRubric: (id, { name, description, semester, total_points, criteria }) => {
-    const sets = [];
-    const vals = [];
-    if (name !== undefined)        { sets.push('name = ?');        vals.push(name); }
-    if (description !== undefined) { sets.push('description = ?'); vals.push(description); }
-    if (semester !== undefined)    { sets.push('semester = ?');    vals.push(semester); }
-    if (total_points !== undefined){ sets.push('total_points = ?');vals.push(total_points); }
-    if (criteria !== undefined)    { sets.push('criteria = ?');    vals.push(JSON.stringify(criteria)); }
-    if (sets.length === 0) return;
-    db.prepare(`UPDATE rubrics SET ${sets.join(', ')} WHERE id = ?`).run(...vals, id);
+  updateRubric: async (id, { name, description, semester, total_points, criteria }) => {
+    const updates = {};
+    if (name !== undefined)         updates.name         = name;
+    if (description !== undefined)  updates.description  = description;
+    if (semester !== undefined)     updates.semester     = semester;
+    if (total_points !== undefined) updates.total_points = total_points;
+    if (criteria !== undefined)     updates.criteria     = criteria;
+    if (Object.keys(updates).length === 0) return;
+    await supabase.from('rubrics').update(updates).eq('id', id);
   },
 
-  deleteRubric: (id) => db.prepare('DELETE FROM rubrics WHERE id = ?').run(id),
+  deleteRubric: async (id) => {
+    await supabase.from('rubrics').delete().eq('id', id);
+  },
 
-  bulkInsertStudents: (students) => {
-    const insert = db.prepare(`
-      INSERT OR IGNORE INTO students (id, name, school, grade, subject_track, status, initials)
-      VALUES (@id, @name, @school, @grade, @subject_track, @status, @initials)
-    `);
-    const txn = db.transaction((rows) => { for (const r of rows) insert.run(r); });
-    txn(students);
+  seedDefaultCyclesForStudent: async (studentId, subjectTrack) => {
+    const cycles = [];
+    const stages = [];
+
+    for (let i = 1; i <= 5; i++) {
+      const cId = `lp_${studentId}_${i}`;
+      cycles.push({ id: cId, student_id: studentId, track_type: 'lesson_plan', topic: `מערך שיעור ${i}`, subject: subjectTrack || '', date: null, status: 'not_started', position: i });
+      stages.push({ id: `st_${cId}_1`, cycle_id: cId, stage_key: 'submission',      done: 0, position: 1 });
+      stages.push({ id: `st_${cId}_2`, cycle_id: cId, stage_key: 'instructorNotes', done: 0, position: 2 });
+      stages.push({ id: `st_${cId}_3`, cycle_id: cId, stage_key: 'revision',        done: 0, position: 3 });
+    }
+
+    for (let i = 1; i <= 3; i++) {
+      const cId = `ob_${studentId}_${i}`;
+      cycles.push({ id: cId, student_id: studentId, track_type: 'observation', topic: `תצפית ${i}`, subject: '', date: null, status: 'not_started', position: i });
+      stages.push({ id: `st_${cId}_1`, cycle_id: cId, stage_key: 'observation', done: 0, position: 1 });
+      stages.push({ id: `st_${cId}_2`, cycle_id: cId, stage_key: 'feedback',    done: 0, position: 2 });
+      stages.push({ id: `st_${cId}_3`, cycle_id: cId, stage_key: 'reflection',  done: 0, position: 3 });
+    }
+
+    await supabase.from('cycles').insert(cycles);
+    await supabase.from('stages').insert(stages);
+  },
+
+  bulkInsertStudents: async (students) => {
+    await supabase.from('students').insert(students);
+    for (const s of students) {
+      await q.seedDefaultCyclesForStudent(s.id, s.subject_track);
+    }
   },
 };
 
-function progressFor(cycles, trackType) {
-  const subset = cycles.filter(c => c.track_type === trackType);
-  return { complete: subset.filter(c => c.status === 'complete').length, total: subset.length };
-}
-
-module.exports = { db, q };
+module.exports = { supabase, q, initDB, BUCKET };

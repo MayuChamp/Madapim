@@ -1,18 +1,19 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import * as Icons from './icons';
-import { Icon, IconHome, IconUsers, IconArchive, IconSettings, IconFolder, IconFile, IconUpload, IconPlus, IconArrowLeft, IconArrowRight, IconChevron, IconPencil, IconMagic, IconMic, IconSearch, IconClose, IconCheck, IconDownload, IconSave, IconSend, IconSparkle, IconBookmark, IconDoc, IconWave, IconGrid, IconList, IconClock, IconArchiveBox, IconAlert, IconGraduationCap } from './icons';
+import { Icon, IconHome, IconUsers, IconArchive, IconSettings, IconFolder, IconFile, IconUpload, IconPlus, IconArrowLeft, IconArrowRight, IconChevron, IconPencil, IconMagic, IconMic, IconSearch, IconClose, IconCheck, IconDownload, IconSave, IconSend, IconSparkle, IconBookmark, IconDoc, IconWave, IconGrid, IconList, IconClock, IconArchiveBox, IconAlert, IconGraduationCap, IconEye } from './icons';
+import { SMART_QUESTIONS, EVAL_CATEGORIES, EVIDENCES, LEVELS, QA_SUGGESTIONS } from './data';
 
 
 
 function HumanNodeModal({ open, onComplete, onSkip, questions }) {
   const SMART_QUESTIONS_ACTIVE = questions && questions.length > 0 ? questions : SMART_QUESTIONS;
-  const [step, setStep] = useState34(0);
-  const [answers, setAnswers] = useState34({});
-  const [recording, setRecording] = useState34(false);
-  const [recordTime, setRecordTime] = useState34(0);
-  const intervalRef = useRef34(null);
-  useEffect34(()=>{ if(open){setStep(0);setAnswers({});setRecording(false);setRecordTime(0);} },[open]);
-  useEffect34(()=>{ if(recording){intervalRef.current=setInterval(()=>setRecordTime(t=>t+1),1000);}else{clearInterval(intervalRef.current);} return()=>clearInterval(intervalRef.current); },[recording]);
+  const [step, setStep] = useState(0);
+  const [answers, setAnswers] = useState({});
+  const [recording, setRecording] = useState(false);
+  const [recordTime, setRecordTime] = useState(0);
+  const intervalRef = useRef(null);
+  useEffect(()=>{ if(open){setStep(0);setAnswers({});setRecording(false);setRecordTime(0);} },[open]);
+  useEffect(()=>{ if(recording){intervalRef.current=setInterval(()=>setRecordTime(t=>t+1),1000);}else{clearInterval(intervalRef.current);} return()=>clearInterval(intervalRef.current); },[recording]);
   if (!open) return null;
   const Q = SMART_QUESTIONS_ACTIVE[step]; const isLast = step===SMART_QUESTIONS_ACTIVE.length-1;
   const rawVal = answers[Q.id]; const isDecision = Q.type==='decision';
@@ -172,10 +173,10 @@ function CategoryCard({ cat, index, aiTone, instructorAnswers, activeEvidence, o
   const hasSplit = cat.lessonPlan||cat.observation;
   const isEmpty = !cat.lessonPlan&&!cat.observation&&cat.gap&&cat.gap.decisionKey&&!answered;
   return (
-    <div className="card" style={{marginBottom:16,borderColor:isActive?'var(--brand)':'var(--border)',boxShadow:isActive?'0 0 0 3px var(--brand-softer)':'var(--shadow-1)',transition:'all .2s',position:'relative'}} onClick={onSelect}>
-      <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:14,gap:12}}>
-        <div style={{display:'flex',alignItems:'center',gap:12}}>
-          <div style={{width:28,height:28,borderRadius:6,background:'var(--brand-soft)',color:'var(--brand)',display:'grid',placeItems:'center',fontFamily:'var(--font-serif)',fontSize:13,fontWeight:600}}>{index+1}</div>
+    <div className="card" style={{marginBottom:16,borderColor:isActive?'var(--brand)':'var(--border)',boxShadow:isActive?'0 0 0 3px var(--brand-softer)':undefined,transition:'all .2s',position:'relative'}} onClick={onSelect}>
+      <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:16,gap:12}}>
+        <div style={{display:'flex',alignItems:'center',gap:16}}>
+          <div style={{width:32,height:32,borderRadius:'50%',background:'var(--surface-3)',color:'var(--ink-1)',display:'grid',placeItems:'center',fontFamily:'var(--font-serif)',fontSize:14,fontWeight:600}}>{index+1}</div>
           <div>
             <h3 style={{fontFamily:'var(--font-serif)',fontSize:17,fontWeight:600,margin:0,letterSpacing:'-0.005em'}}>{cat.name}</h3>
             <div style={{fontSize:11.5,color:'var(--ink-3)',marginTop:2}}>משקל: {cat.weight}% מהציון הסופי</div>
@@ -217,22 +218,22 @@ function SummaryCard({ summary }) {
   const text = summary?.text || 'הסטודנטית נמצאת בנקודה טובה בשלב ההכשרה. הכוחות הבולטים: רפלקציה עמוקה, תושייה בכיתה והיכרות תוכנית מבוססת. תחומי הצמיחה: העמקת התכנון לפני השיעור. ההמלצה: מעבר עם ליווי ממוקד.';
   const score = summary?.score || '—';
   return (
-    <div className="card" style={{background:'var(--brand-softer)',borderColor:'var(--brand-soft)'}}>
-      <h3 style={{fontFamily:'var(--font-serif)',fontSize:17,fontWeight:600,margin:'0 0 10px'}}>סיכום והמלצות</h3>
-      <p style={{fontSize:14.5,lineHeight:1.85,color:'var(--ink-1)',margin:0}}>{text}</p>
-      <div style={{marginTop:16,padding:'12px 14px',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'var(--r-sm)',display:'flex',alignItems:'center',gap:14}}>
-        <div><div style={{fontSize:11.5,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em'}}>ציון מסכם מוצע</div><div style={{fontFamily:'var(--font-serif)',fontSize:26,fontWeight:600,color:'var(--brand)',lineHeight:1.1,marginTop:2}}>{score} <span style={{fontSize:14,color:'var(--ink-3)',fontWeight:400}}>/ 100</span></div></div>
-        <div style={{width:1,height:36,background:'var(--border)'}}/>
-        <div style={{fontSize:12.5,color:'var(--ink-2)',lineHeight:1.5}}>התפלגות לפי קריטריונים זמינה במסך הייצוא.<br/>ניתן לשנות ידנית את הציון המסכם.</div>
+    <div className="card" style={{background:'var(--surface-2)',borderColor:'var(--border)'}}>
+      <h3 style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:600,margin:'0 0 12px',color:'var(--ink-1)'}}>סיכום והמלצות</h3>
+      <p style={{fontSize:15,lineHeight:1.85,color:'var(--ink-1)',margin:0}}>{text}</p>
+      <div style={{marginTop:20,padding:'16px 20px',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:12,display:'flex',alignItems:'center',gap:20}}>
+        <div><div style={{fontSize:12,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em'}}>ציון מסכם מוצע</div><div style={{fontFamily:'var(--font-serif)',fontSize:32,fontWeight:600,color:'var(--brand)',lineHeight:1.1,marginTop:4}}>{score} <span style={{fontSize:16,color:'var(--ink-3)',fontWeight:400}}>/ 100</span></div></div>
+        <div style={{width:1,height:48,background:'var(--border)'}}/>
+        <div style={{fontSize:13.5,color:'var(--ink-2)',lineHeight:1.5}}>התפלגות לפי קריטריונים זמינה במסך הייצוא.<br/>ניתן לשנות ידנית את הציון המסכם.</div>
       </div>
     </div>
   );
 }
 
 function ChatBox({ messages, thinking, value, onChange, onSend, student }) {
-  const scrollRef = useRef34(null);
-  const [expanded, setExpanded] = useState34(false);
-  useEffect34(()=>{ if(scrollRef.current)scrollRef.current.scrollTop=scrollRef.current.scrollHeight; },[messages,thinking]);
+  const scrollRef = useRef(null);
+  const [expanded, setExpanded] = useState(false);
+  useEffect(()=>{ if(scrollRef.current)scrollRef.current.scrollTop=scrollRef.current.scrollHeight; },[messages,thinking]);
   return (
     <div style={{borderTop:'1px solid var(--border)',background:'var(--surface)',flexShrink:0}}>
       {(messages.length>0||expanded)&&(
@@ -273,17 +274,51 @@ function DraftHeader({ student, answersCount }) {
   );
 }
 
-function SplitEditor({ student, instructorAnswers, aiTone, onBack, onExport, evalCategories, evalSummary, evaluationId, onSave }) {
+function SplitEditor({ student, instructorAnswers, aiTone, onBack, onExport, evalCategories, evalSummary, evaluationId, onSave, evidenceFiles }) {
   const activeCategories = evalCategories || EVAL_CATEGORIES;
-  const [activeEvidence, setActiveEvidence] = useState34('e1');
-  const [activeCat, setActiveCat] = useState34((evalCategories||EVAL_CATEGORIES)[0].id);
-  const [editing, setEditing] = useState34(null);
-  const [chatMessages, setChatMessages] = useState34([]);
-  const [chatInput, setChatInput] = useState34('');
-  const [chatThinking, setChatThinking] = useState34(false);
-  const [refining, setRefining] = useState34(null);
-  const evidence = EVIDENCES[activeEvidence];
+
+  // Build live evidences from actual uploaded files, or fall back to mock data
+  const liveEvidences = React.useMemo(() => {
+    if (!evidenceFiles || evidenceFiles.length === 0) return EVIDENCES;
+    const result = {};
+    evidenceFiles.forEach((f, i) => {
+      const eid = `file_${f.id}`;
+      const isObs = f.cycle_id?.startsWith('ob') || ['observation','feedback','reflection'].includes(f.stage_key);
+      const track = isObs ? 'observation' : 'lesson_plan';
+      const label = (f.original_name || `מסמך ${i+1}`).replace(/\.[^.]+$/, '').slice(0, 28);
+      const doc = f.text_preview
+        ? f.text_preview.split('\n').reduce((acc, line, idx) => {
+            const t = line.trim();
+            if (!t) { acc.push({ text: '' }); return acc; }
+            acc.push({ text: t, heading: idx === 0 });
+            return acc;
+          }, [])
+        : [{ text: 'תוכן לא זמין', heading: false }];
+      result[eid] = { id: eid, label, track, cycle: f.cycle_id || '', fileName: f.original_name || '', doc };
+    });
+    return result;
+  }, [evidenceFiles]);
+
+  const defaultEvidenceId = Object.keys(liveEvidences)[0] || 'e1';
+  const [activeEvidence, setActiveEvidence] = useState(defaultEvidenceId);
+  const [activeCat, setActiveCat] = useState((evalCategories||EVAL_CATEGORIES)[0].id);
+  const [editing, setEditing] = useState(null);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatThinking, setChatThinking] = useState(false);
+  const [refining, setRefining] = useState(null);
+  const [saveStatus, setSaveStatus] = useState('idle'); // idle | saving | saved
+  const evidence = liveEvidences[activeEvidence] || Object.values(liveEvidences)[0];
   const handleRefine = (catId) => { setRefining(catId); setTimeout(()=>setRefining(null),1400); };
+  const handleSave = async () => {
+    if (!onSave) return;
+    setSaveStatus('saving');
+    try {
+      await onSave({ categories: activeCategories, summary: evalSummary?.text, score: evalSummary?.score });
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2500);
+    } catch { setSaveStatus('idle'); }
+  };
   const sendChat = (msg) => {
     if(!msg.trim())return;
     setChatMessages(prev=>[...prev,{role:'user',text:msg}]); setChatInput(''); setChatThinking(true);
@@ -295,30 +330,32 @@ function SplitEditor({ student, instructorAnswers, aiTone, onBack, onExport, eva
   };
   return (
     <div className="fade-in" style={{display:'flex',flexDirection:'column',height:'100vh'}}>
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'14px 28px',background:'var(--surface)',borderBottom:'1px solid var(--border)'}}>
-        <div style={{display:'flex',alignItems:'center',gap:14}}>
-          <button onClick={onBack} className="btn btn-ghost btn-sm"><IconArrowRight size={14}/> חזרה</button>
-          <div style={{width:1,height:22,background:'var(--border)'}}/>
-          <div><div style={{fontFamily:'var(--font-serif)',fontSize:18,fontWeight:600}}>טיוטת הערכה · {student.name}</div><div style={{fontSize:12,color:'var(--ink-3)'}}>מחוון: הערכת סוף שנה · 7 קריטריונים · מאזן מערך/צפייה</div></div>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'14px 28px',background:'var(--surface)',borderBottom:'1px solid var(--border)',zIndex:10}}>
+        <div style={{display:'flex',alignItems:'center',gap:16}}>
+          <button onClick={onBack} className="btn btn-ghost btn-sm" style={{borderRadius:100,padding:'6px 12px'}}><IconArrowRight size={14}/> חזרה</button>
+          <div style={{width:1,height:24,background:'var(--border)'}}/>
+          <div><div style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:600}}>טיוטת הערכה · {student.name}</div><div style={{fontSize:13,color:'var(--ink-3)',marginTop:2}}>מחוון: הערכת סוף שנה · 7 קריטריונים · מאזן מערך/צפייה</div></div>
         </div>
         <div style={{display:'flex',alignItems:'center',gap:10}}>
-          <span className="badge badge-info">טיוטה</span>
-          <button className="btn btn-secondary btn-sm"><IconSave size={14}/> שמירה</button>
-          <button className="btn btn-primary btn-sm" onClick={onExport}>ייצוא <IconArrowLeft size={14}/></button>
+          <span className="badge badge-info" style={{borderRadius:100,padding:'4px 12px',fontSize:13}}>טיוטה</span>
+          <button onClick={handleSave} disabled={saveStatus==='saving'} className="btn btn-secondary btn-sm" style={{borderRadius:100,padding:'6px 16px',minWidth:90}}>
+            {saveStatus==='saving'?<><IconSparkle size={13} style={{animation:'pulse 1s infinite'}}/> שומר...</>:saveStatus==='saved'?<><IconCheck size={13} stroke="var(--ok)"/> נשמר!</>:<><IconSave size={14}/> שמירה</>}
+          </button>
+          <button className="btn btn-primary btn-sm" onClick={onExport} style={{borderRadius:100,padding:'6px 16px',background:'var(--brand)'}}>ייצוא <IconArrowLeft size={14}/></button>
         </div>
       </div>
-      <div style={{display:'grid',gridTemplateColumns:'40% 60%',flex:1,minHeight:0}}>
+      <div style={{display:'grid',gridTemplateColumns:'36% 64%',flex:1,minHeight:0}}>
         <div style={{borderInlineStart:'1px solid var(--border)',background:'var(--surface-2)',display:'flex',flexDirection:'column',minHeight:0}}>
           <div style={{display:'flex',overflowX:'auto',borderBottom:'1px solid var(--border)',background:'var(--surface)',padding:'0 8px',flexShrink:0}}>
-            {Object.values(EVIDENCES).map(ev=>{
+            {Object.values(liveEvidences).map(ev=>{
               const tc=ev.track==='lesson_plan'?'#1e3a5f':ev.track==='observation'?'#2f7a4e':'var(--brand)';
               const TrackIc=ev.track==='lesson_plan'?IconDoc:ev.track==='observation'?IconEye:null;
               const isActive=activeEvidence===ev.id;
               return <button key={ev.id} onClick={()=>setActiveEvidence(ev.id)} style={{padding:'12px 14px',fontSize:12.5,color:isActive?tc:'var(--ink-3)',fontWeight:isActive?600:400,whiteSpace:'nowrap',display:'flex',alignItems:'center',gap:6,cursor:'pointer',background:'transparent',border:'none',borderBottom:`2px solid ${isActive?tc:'transparent'}`}}>{TrackIc&&<TrackIc size={12}/>}{ev.label}</button>;
             })}
           </div>
-          <div className="scroll" style={{flex:1,overflowY:'auto',padding:24}}>
-            <div style={{background:'var(--surface)',borderRadius:'var(--r-md)',border:'1px solid var(--border)',padding:'28px 30px',boxShadow:'var(--shadow-1)'}}>
+          <div className="scroll" style={{flex:1,overflowY:'auto',padding:24,background:'var(--surface-2)'}}>
+            <div className="card" style={{padding:'32px'}}>
               <div style={{fontSize:11.5,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:6}}>{evidence.label} · {evidence.fileName}</div>
               {evidence.doc.map((line,i)=>{
                 if(line.heading)return <h3 key={i} style={{fontFamily:'var(--font-serif)',fontSize:19,fontWeight:600,margin:'4px 0 12px',color:'var(--ink-1)'}}>{line.text}</h3>;
