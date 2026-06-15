@@ -6,6 +6,9 @@ const jwt = require('jsonwebtoken');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+if (!process.env.JWT_SECRET) {
+  console.warn('\n  ⚠️  JWT_SECRET env var not set — using insecure default. Set it before deploying.\n');
+}
 const JWT_SECRET = process.env.JWT_SECRET || 'madapim-pilot-secret-2026';
 
 // ─── Middleware ───────────────────────────────────────────────────────────────

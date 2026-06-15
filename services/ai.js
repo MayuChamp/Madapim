@@ -35,8 +35,12 @@ function buildDocContext(files) {
 }
 
 // ─── Main analysis ────────────────────────────────────────────────────────────
-async function analyzePortfolio(studentName, files, instructorAnswers = {}) {
+async function analyzePortfolio(studentName, files, instructorAnswers = {}, gender = 'female') {
   const docContext = buildDocContext(files);
+  const isMale = gender === 'male';
+  const studentTitle = isMale ? 'הסטודנט' : 'הסטודנטית';
+  const pronoun = isMale ? 'הוא' : 'היא';
+  const possessive = isMale ? 'שלו' : 'שלה';
 
   const answersText = Object.keys(instructorAnswers).length > 0
     ? '\n## תובנות המדריך הפדגוגי\n' +
@@ -52,9 +56,10 @@ async function analyzePortfolio(studentName, files, instructorAnswers = {}) {
     `${i + 1}. ${c.name} (${c.weight}%) — ערוצים: ${c.channels.join(', ') || 'קלט מדריך בלבד'}`
   ).join('\n');
 
-  const prompt = `אתה מערכת הערכה פדגוגית לסטודנטים מורים. נתח את תיק ההתנסות של הסטודנטית והפק טיוטת הערכה מקצועית בעברית.
+  const prompt = `אתה מערכת הערכה פדגוגית לסטודנטים מורים. נתח את תיק ההתנסות של ${studentTitle} והפק טיוטת הערכה מקצועית בעברית.
+השתמש בלשון ${isMale ? 'זכר' : 'נקבה'} בכל הניסוח (${pronoun}, ${possessive} וכו׳).
 
-## שם הסטודנטית
+## שם ${studentTitle}
 ${studentName}
 
 ## מחוון ההערכה (מחוון כלי מדפים)
@@ -66,9 +71,9 @@ ${docContext}
 
 ## הוראות
 עבור כל קריטריון במחוון ספק:
-1. רמה למערך שיעור (📘): אחת מ: ${LEVELS.join(' / ')} — או null אם אין מסמכים רלוונטיים
-2. רמה לצפייה (🎯): אחת מ: ${LEVELS.join(' / ')} — או null
-3. רמה כוללת: אחד מ: high / mid_high / mid / low_mid
+1. רמה למערך שיעור (📘): אחד מהקודים האנגליים הבאים בדיוק: high / mid_high / mid / low_mid — או null אם אין מסמכים רלוונטיים
+2. רמה לצפייה (🎯): אחד מהקודים האנגליים הבאים בדיוק: high / mid_high / mid / low_mid — או null
+3. רמה כוללת: אחד מהקודים האנגליים הבאים בדיוק: high / mid_high / mid / low_mid
 4. פסקת איזון: 2–3 משפטים המשלבים את שני הערוצים על בסיס הראיות
 5. האם יש פער בין הערוצים (hasGap): true/false
 6. סיכום הפער אם קיים: משפט אחד
@@ -87,9 +92,9 @@ ${docContext}
       "name": "...",
       "weight": 15,
       "overallLevel": "<high|mid_high|mid|low_mid>",
-      "lessonPlanLevel": "<high|mid_high|mid|low_mid>",
+      "lessonPlanLevel": "<high|mid_high|mid|low_mid|null>",
       "lessonPlanNote": "...",
-      "observationLevel": "<high|mid_high|mid|low_mid>",
+      "observationLevel": "<high|mid_high|mid|low_mid|null>",
       "observationNote": "...",
       "balance": "<פסקת איזון>",
       "hasGap": <true|false>,
@@ -116,7 +121,7 @@ ${docContext}
 }
 
 // ─── Smart gap questions ──────────────────────────────────────────────────────
-async function generateSmartQuestions(analysisResult, studentName) {
+async function generateSmartQuestions(analysisResult, studentName, gender = 'female') {
   const gaps    = (analysisResult.categories || []).filter(c => c.hasGap);
   const missing = (analysisResult.categories || []).filter(
     c => !c.overallLevel || (!c.lessonPlanLevel && !c.observationLevel)
@@ -124,7 +129,10 @@ async function generateSmartQuestions(analysisResult, studentName) {
 
   if (gaps.length === 0 && missing.length === 0) return [];
 
-  const prompt = `בהתבסס על ניתוח התיק של ${studentName} זוהו:
+  const isMale = gender === 'male';
+  const studentTitle = isMale ? 'הסטודנט' : 'הסטודנטית';
+
+  const prompt = `בהתבסס על ניתוח התיק של ${studentTitle} ${studentName} זוהו:
 ${gaps.map(c => `- פער ב${c.name}: ${c.gapSummary || ''}`).join('\n')}
 ${missing.map(c => `- חסר תיעוד: ${c.name}`).join('\n')}
 

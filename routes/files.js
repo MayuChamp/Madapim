@@ -22,7 +22,7 @@ const upload = multer({
 // POST /api/files/upload
 router.post('/upload', upload.single('file'), async (req, res) => {
   try {
-    const { student_id, cycle_id, stage_key, description } = req.body;
+    const { student_id, cycle_id, stage_key, description, material_date } = req.body;
     if (!student_id) return res.status(400).json({ error: 'student_id required' });
 
     const isFileless = !req.file;
@@ -64,6 +64,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       parsed_text,
       file_type,
       description: description || null,
+      material_date: material_date || null,
     };
 
     await q.saveFile(fileRecord);
@@ -111,7 +112,9 @@ router.get('/:studentId', async (req, res) => {
     cycle_id: f.cycle_id,
     stage_key: f.stage_key,
     uploaded_at: f.uploaded_at,
+    material_date: f.material_date || null,
     has_text: (f.parsed_text || '').length > 20,
+    text_preview: (f.parsed_text || '').slice(0, 1500) || null,
   })));
 });
 

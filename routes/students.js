@@ -37,16 +37,28 @@ router.put('/cycles/:cycleId/topic', async (req, res) => {
 // POST /api/students
 router.post('/', async (req, res) => {
   try {
-    const { name, school, grade, subject_track } = req.body;
+    const { name, school, grade, subject_track, gender } = req.body;
     if (!name) return res.status(400).json({ error: 'name required' });
 
     const id = 's_' + Date.now();
     const initials = name.replace(/[^א-ת]/g, '').slice(0, 2) || name.slice(0, 2);
+    const resolvedGender = gender === 'male' ? 'male' : 'female';
 
-    await supabase.from('students').insert({ id, name, school: school || '', grade: grade || '', subject_track: subject_track || '', initials });
+    await supabase.from('students').insert({ id, name, school: school || '', grade: grade || '', subject_track: subject_track || '', initials, gender: resolvedGender });
     await q.seedDefaultCyclesForStudent(id, subject_track);
 
     res.json(await q.student(id));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// DELETE /api/students/:id
+router.delete('/:id', async (req, res) => {
+  if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+  try {
+    await q.deleteStudent(req.params.id);
+    res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -66,6 +78,7 @@ router.post('/import', async (req, res) => {
     const schoolCol = header.findIndex(h => /בית.?ספר/.test(h) || /school/i.test(h));
     const gradeCol  = header.findIndex(h => /כיתה/.test(h)    || /grade/i.test(h));
     const trackCol  = header.findIndex(h => /מסלול/.test(h)   || /track/i.test(h) || /subject/i.test(h));
+    const genderCol = header.findIndex(h => /מגדר/.test(h)    || /gender/i.test(h));
 
     if (nameCol === -1) return res.status(400).json({ error: 'CSV must have a "שם" column' });
 
@@ -78,6 +91,8 @@ router.post('/import', async (req, res) => {
       if (!name) { skipped.push(i + 1); continue; }
 
       const initials = name.replace(/[^א-תa-zA-Z]/g, '').slice(0, 2) || name.slice(0, 2);
+      const rawGender = genderCol >= 0 ? (cols[genderCol] || '') : '';
+      const gender = rawGender === 'male' || rawGender === 'זכר' ? 'male' : 'female';
       rows.push({
         id: 's_' + Date.now() + '_' + i,
         name,
@@ -86,6 +101,7 @@ router.post('/import', async (req, res) => {
         subject_track: trackCol  >= 0 ? (cols[trackCol]  || '') : '',
         status: 'not_started',
         initials,
+        gender,
       });
     }
 

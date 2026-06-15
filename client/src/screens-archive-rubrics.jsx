@@ -1,92 +1,296 @@
 import { useState, useEffect } from 'react';
-import { IconDownload, IconDoc, IconSearch, IconPlus, IconChevron } from './icons';
+import { IconDownload, IconDoc, IconSearch, IconPlus, IconChevron, IconPencil, IconClose, IconCheck, IconTrash } from './icons';
 import * as API from './api';
 
-const ARCHIVED = [
-  {id:'a1',name:'מ. לוי',school:'יסודי מאמן',semester:'סמסטר א׳',date:'15.02.26',score:84,level:'בינונית-גבוהה',rubric:'הערכה מעצבת',evaluator:'ענת ב.',tags:['רפלקציה חזקה','תכנון לעיבוי']},
-  {id:'a2',name:'נ. כהן',school:'ניסויי יסוד',semester:'סמסטר א׳',date:'12.02.26',score:91,level:'גבוהה',rubric:'הערכה מעצבת',evaluator:'ענת ב.',tags:['מצוינות','הובלה']},
-  {id:'a3',name:'ת. אבני',school:'דמוקרטי האלה',semester:'סמסטר א׳',date:'09.02.26',score:78,level:'בינונית',rubric:'הערכה מעצבת',evaluator:'ענת ב.',tags:['שיתוף פעולה']},
-  {id:'a4',name:'מ. לוי',school:'יסודי מאמן',semester:'שנה א׳ — סוף',date:'28.06.25',score:81,level:'בינונית-גבוהה',rubric:'הערכת סוף שנה',evaluator:'ענת ב.',tags:['התפתחות חיובית']},
-  {id:'a5',name:'נ. כהן',school:'ניסויי יסוד',semester:'שנה א׳ — סוף',date:'26.06.25',score:88,level:'בינונית-גבוהה',rubric:'הערכת סוף שנה',evaluator:'ענת ב.',tags:['ידע תוכני']},
-  {id:'a6',name:'ש. בן-דוד',school:'ממ"ד שדות',semester:'שנה א׳ — סוף',date:'22.06.25',score:73,level:'בינונית',rubric:'הערכת סוף שנה',evaluator:'ענת ב.',tags:['ניהול כיתה']},
-  {id:'a7',name:'ר. פרץ',school:'יסודי הרצוג',semester:'שנה א׳ — סוף',date:'20.06.25',score:85,level:'בינונית-גבוהה',rubric:'הערכת סוף שנה',evaluator:'ענת ב.',tags:['רפלקציה']},
-  {id:'a8',name:'ת. אבני',school:'דמוקרטי האלה',semester:'שנה א׳ — סוף',date:'18.06.25',score:76,level:'בינונית',rubric:'הערכת סוף שנה',evaluator:'ענת ב.',tags:['תכנון']},
-];
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function levelLabel(l) {
+  const map = { high: 'גבוהה', mid_high: 'בינונית-גבוהה', mid: 'בינונית', low_mid: 'בינונית-נמוכה' };
+  return map[l] || l || '—';
+}
+
+function formatDate(iso) {
+  if (!iso) return '—';
+  try {
+    const d = new Date(iso);
+    return `${d.getDate().toString().padStart(2,'0')}.${(d.getMonth()+1).toString().padStart(2,'0')}.${String(d.getFullYear()).slice(2)}`;
+  } catch { return '—'; }
+}
+
+// ─── Archive ──────────────────────────────────────────────────────────────────
 
 export function ArchiveScreen() {
-  const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
-  const semesters = ['all', ...new Set(ARCHIVED.map(a => a.semester))];
-  const filtered = ARCHIVED.filter(a => {
-    if (filter !== 'all' && a.semester !== filter) return false;
-    if (search && !a.name.includes(search) && !a.school.includes(search)) return false;
-    return true;
+  const [evaluations, setEvaluations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [viewEval, setViewEval] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    API.getEvaluations()
+      .then(data => setEvaluations(data || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleDelete = async (ev) => {
+    setDeleting(true);
+    try {
+      await API.deleteEvaluation(ev.id);
+      setEvaluations(prev => prev.filter(e => e.id !== ev.id));
+      setConfirmDelete(null);
+      if (viewEval?.id === ev.id) setViewEval(null);
+    } catch {}
+    setDeleting(false);
+  };
+
+  const filtered = evaluations.filter(ev => {
+    if (!search) return true;
+    const name = ev.student?.name || '';
+    const school = ev.student?.school || '';
+    return name.includes(search) || school.includes(search);
   });
+
   const scoreColor = (s) => s >= 85 ? 'var(--ok)' : s >= 75 ? 'var(--brand)' : 'var(--warn)';
+  const scores = evaluations.filter(e => e.score != null).map(e => e.score);
+  const avgScore = scores.length ? Math.round(scores.reduce((a,b) => a+b, 0) / scores.length) : null;
+
+  if (loading) return <div className="main-inner fade-in">טוען ארכיון...</div>;
 
   return (
     <div className="main-inner fade-in">
       <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',marginBottom:'var(--gap-5)'}}>
-        <button className="btn btn-secondary btn-lg"><IconDownload size={14}/> ייצוא רשימה</button>
+        <button className="btn btn-secondary btn-lg" onClick={()=>{
+          const rows = [['שם','בית ספר','כיתה','סטטוס','ציון','רמה כללית','תאריך עדכון']];
+          evaluations.forEach(ev=>{
+            rows.push([
+              ev.student?.name||'',
+              ev.student?.school||'',
+              ev.student?.grade||'',
+              ev.status==='finalized'?'מסויים':'טיוטה',
+              ev.score!=null?ev.score:'',
+              levelLabel(ev.draft_json?.overallLevel)||'',
+              formatDate(ev.updated_at),
+            ]);
+          });
+          const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+          const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
+          const url=URL.createObjectURL(blob);
+          const a=document.createElement('a');
+          a.href=url; a.download='ארכיון-הערכות.csv';
+          document.body.appendChild(a); a.click();
+          document.body.removeChild(a); URL.revokeObjectURL(url);
+        }}><IconDownload size={14}/> ייצוא רשימה</button>
         <div style={{textAlign:'end'}}>
-          <div style={{fontSize:13,color:'var(--ink-3)',marginBottom:6,letterSpacing:'0.02em'}}>ארכיון · {ARCHIVED.length} הערכות שהושלמו</div>
+          <div style={{fontSize:13,color:'var(--ink-3)',marginBottom:6,letterSpacing:'0.02em'}}>ארכיון · {evaluations.length} הערכות</div>
           <h1 style={{fontFamily:'var(--font-serif)',fontSize:36,fontWeight:600,margin:0,color:'var(--ink-1)',letterSpacing:'-0.01em',lineHeight:1.1}}>ארכיון הערכות</h1>
-          <p style={{fontSize:15,color:'var(--ink-2)',margin:'10px 0 0',maxWidth:540,lineHeight:1.6}}>כל ההערכות שהושלמו ונחתמו, מסודרות לפי סמסטר וסטודנט.</p>
+          <p style={{fontSize:15,color:'var(--ink-2)',margin:'10px 0 0',maxWidth:540,lineHeight:1.6}}>כל ההערכות שנוצרו, מסודרות לפי תאריך עדכון.</p>
         </div>
       </div>
 
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,marginBottom:'var(--gap-4)'}}>
-        <div style={{display:'flex',background:'var(--surface)',padding:6,borderRadius:100,boxShadow:'var(--shadow-1)'}}>
-          {semesters.map(s=>(
-            <button key={s} onClick={()=>setFilter(s)} style={{padding:'8px 24px',borderRadius:100,fontSize:14,border:filter===s?'1px solid var(--ink-1)':'1px solid transparent',background:filter===s?'var(--surface)':'transparent',color:filter===s?'var(--ink-1)':'var(--ink-3)',fontWeight:filter===s?600:400,cursor:'pointer'}}>
-              {s==='all'?'כל הסמסטרים':s}
-            </button>
-          ))}
-        </div>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'flex-end',marginBottom:'var(--gap-4)'}}>
         <div style={{width:300,position:'relative'}}>
           <IconSearch size={14} stroke="var(--ink-3)" style={{position:'absolute',insetInlineEnd:16,top:'50%',transform:'translateY(-50%)'}}/>
-          <input className="input" placeholder="חיפוש לפי שם או בית ספר..." value={search} onChange={e=>setSearch(e.target.value)} style={{paddingInlineEnd:40,borderRadius:100,background:'transparent',padding:'12px 16px 12px 40px', borderColor:'var(--border-strong)'}}/>
+          <input className="input" placeholder="חיפוש לפי שם או בית ספר..." value={search} onChange={e=>setSearch(e.target.value)} style={{borderRadius:100,background:'transparent',padding:'12px 16px 12px 40px',borderColor:'var(--border-strong)'}}/>
         </div>
       </div>
 
       <div style={{display:'grid',gridTemplateColumns:'1.5fr 1fr 1.5fr',gap:'var(--gap-4)',marginBottom:'var(--gap-5)'}}>
-        <div className="card" style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-          <div><div style={{fontSize:12,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em'}}>הערכה אחרונה</div><div style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:600,marginTop:4}}>לפני 6 ימים</div></div>
-          <div style={{textAlign:'end'}}><div style={{fontSize:12,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em'}}>רמה גבוהה</div><div style={{fontFamily:'var(--font-serif)',fontSize:28,fontWeight:600,color:'var(--brand)'}}>38%</div></div>
+        <div className="card" style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <div><div style={{fontSize:12,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em'}}>הערכה אחרונה</div><div style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:600,marginTop:4}}>{evaluations[0] ? formatDate(evaluations[0].updated_at) : '—'}</div></div>
+          <div style={{textAlign:'end'}}><div style={{fontSize:12,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em'}}>מסוימות</div><div style={{fontFamily:'var(--font-serif)',fontSize:28,fontWeight:600,color:'var(--brand)'}}>{evaluations.filter(e=>e.status==='finalized').length}</div></div>
         </div>
         <div className="card" style={{textAlign:'center'}}>
-          <div style={{fontSize:12,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em'}}>הערכות סמסטר זה</div>
-          <div style={{fontFamily:'var(--font-serif)',fontSize:28,fontWeight:600}}>3</div>
+          <div style={{fontSize:12,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em'}}>סה"כ הערכות</div>
+          <div style={{fontFamily:'var(--font-serif)',fontSize:28,fontWeight:600}}>{evaluations.length}</div>
         </div>
-        <div className="card" style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-          <div/>
-          <div style={{textAlign:'end'}}><div style={{fontSize:12,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em'}}>ממוצע ציונים</div><div style={{fontFamily:'var(--font-serif)',fontSize:28,fontWeight:600,color:'var(--brand)'}}>82<span style={{fontSize:16,fontWeight:400,color:'var(--ink-3)'}}>/100</span></div></div>
+        <div className="card" style={{display:'flex',justifyContent:'flex-end',alignItems:'center'}}>
+          <div style={{textAlign:'end'}}><div style={{fontSize:12,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em'}}>ממוצע ציונים</div><div style={{fontFamily:'var(--font-serif)',fontSize:28,fontWeight:600,color:'var(--brand)'}}>{avgScore!=null?<>{avgScore}<span style={{fontSize:16,fontWeight:400,color:'var(--ink-3)'}}>/100</span></>:'—'}</div></div>
         </div>
       </div>
 
       <div className="card" style={{padding:0,overflow:'hidden'}}>
-        <div style={{display:'grid',gridTemplateColumns:'1.2fr 1.2fr 1fr 1fr 0.7fr 1.5fr 80px',padding:'16px 24px',fontSize:12.5,color:'var(--ink-3)',borderBottom:'1px solid var(--border)',background:'var(--surface-2)'}}>
-          <span>סטודנט</span><span>בית ספר</span><span>מחוון</span><span>סמסטר · תאריך</span><span>ציון</span><span>תיוגים</span><span/>
+        <div style={{display:'grid',gridTemplateColumns:'1.4fr 1.2fr 1fr 0.9fr 0.7fr 1fr 60px',padding:'16px 24px',fontSize:12.5,color:'var(--ink-3)',borderBottom:'1px solid var(--border)',background:'var(--surface-2)'}}>
+          <span>סטודנט</span><span>בית ספר</span><span>סטטוס</span><span>תאריך עדכון</span><span>ציון</span><span>רמה</span><span/>
         </div>
-        {filtered.length===0&&<div style={{padding:'40px 20px',textAlign:'center',color:'var(--ink-3)',fontSize:14}}>לא נמצאו הערכות מתאימות</div>}
-        {filtered.map((a,i)=>(
-          <div key={a.id} style={{display:'grid',gridTemplateColumns:'1.2fr 1.2fr 1fr 1fr 0.7fr 1.5fr 80px',padding:'16px 24px',alignItems:'center',borderBottom:i<filtered.length-1?'1px solid var(--border)':'none',fontSize:14,cursor:'pointer',transition:'background .12s'}}
-            onMouseEnter={e=>e.currentTarget.style.background='var(--surface-2)'} onMouseLeave={e=>e.currentTarget.style.background=''}>
-            <div style={{display:'flex',alignItems:'center',gap:12}}>
-              <div style={{width:32,height:32,borderRadius:'50%',background:'var(--brand-soft)',color:'var(--brand)',display:'grid',placeItems:'center',fontFamily:'var(--font-serif)',fontSize:13,fontWeight:600}}>{a.name.replace(/\.\s/g,'').slice(0,2)}</div>
-              <span style={{color:'var(--ink-1)',fontWeight:600}}>{a.name}</span>
+        {evaluations.length===0 && (
+          <div style={{padding:'48px 20px',textAlign:'center',color:'var(--ink-3)',fontSize:14}}>אין הערכות בארכיון עדיין</div>
+        )}
+        {filtered.length===0 && evaluations.length>0 && (
+          <div style={{padding:'40px 20px',textAlign:'center',color:'var(--ink-3)',fontSize:14}}>לא נמצאו הערכות מתאימות</div>
+        )}
+        {filtered.map((ev,i) => {
+          const name = ev.student?.name || '—';
+          const school = ev.student?.school || '—';
+          const score = ev.score;
+          const overallLevel = ev.draft_json?.overallLevel;
+          const initials = name.replace(/\.\s/g,'').replace(/[^א-תa-zA-Z]/g,'').slice(0,2) || name.slice(0,2);
+          return (
+            <div key={ev.id} onClick={()=>setViewEval(ev)} style={{display:'grid',gridTemplateColumns:'1.4fr 1.2fr 1fr 0.9fr 0.7fr 1fr 60px',padding:'16px 24px',alignItems:'center',borderBottom:i<filtered.length-1?'1px solid var(--border)':'none',fontSize:14,cursor:'pointer',transition:'background .12s'}}
+              onMouseEnter={e=>e.currentTarget.style.background='var(--surface-2)'} onMouseLeave={e=>e.currentTarget.style.background=''}>
+              <div style={{display:'flex',alignItems:'center',gap:12}}>
+                <div style={{width:32,height:32,borderRadius:'50%',background:'var(--brand-soft)',color:'var(--brand)',display:'grid',placeItems:'center',fontFamily:'var(--font-serif)',fontSize:13,fontWeight:600,flexShrink:0}}>{initials}</div>
+                <span style={{color:'var(--ink-1)',fontWeight:600}}>{name}</span>
+              </div>
+              <div style={{color:'var(--ink-2)'}}>{school}</div>
+              <div><span className={`badge ${ev.status==='finalized'?'badge-ok':''}`}>{ev.status==='finalized'?'מסויים':'טיוטה'}</span></div>
+              <div style={{color:'var(--ink-3)',fontSize:13}}>{formatDate(ev.updated_at)}</div>
+              <div>{score!=null?<><span style={{fontFamily:'var(--font-serif)',fontSize:18,fontWeight:600,color:scoreColor(score)}}>{score}</span><span style={{fontSize:12,color:'var(--ink-3)'}}>/100</span></>:<span style={{color:'var(--ink-4)'}}>—</span>}</div>
+              <div style={{fontSize:13,color:'var(--ink-2)'}}>{levelLabel(overallLevel)}</div>
+              <div style={{display:'flex',justifyContent:'flex-end',gap:4}}>
+                <button className="btn-ghost" onClick={e=>{e.stopPropagation();setViewEval(ev);}} style={{padding:8,borderRadius:'50%',background:'var(--surface-2)',color:'var(--ink-3)'}} title="צפה בהערכה"><IconDoc size={14}/></button>
+                <button className="btn-ghost" onClick={e=>{e.stopPropagation();setConfirmDelete(ev);}} style={{padding:8,borderRadius:'50%',background:'var(--surface-2)',color:'var(--ink-3)'}} title="מחק הערכה" onMouseEnter={e=>e.currentTarget.style.color='var(--warn)'} onMouseLeave={e=>e.currentTarget.style.color='var(--ink-3)'}><IconTrash size={14}/></button>
+              </div>
             </div>
-            <div style={{color:'var(--ink-2)'}}>{a.school}</div>
-            <div style={{color:'var(--ink-2)'}}>{a.rubric}</div>
-            <div style={{color:'var(--ink-3)',lineHeight:1.4}}><div>{a.semester}</div><div style={{fontSize:12}}>{a.date}</div></div>
-            <div><span style={{fontFamily:'var(--font-serif)',fontSize:18,fontWeight:600,color:scoreColor(a.score)}}>{a.score}</span><span style={{fontSize:12,color:'var(--ink-3)'}}>/100</span></div>
-            <div style={{display:'flex',flexWrap:'wrap',gap:6}}>{a.tags.map(t=><span key={t} style={{fontSize:12,padding:'4px 10px',background:'var(--surface-3)',color:'var(--ink-2)',borderRadius:100}}>{t}</span>)}</div>
-            <div style={{display:'flex',justifyContent:'flex-end',gap:8}}>
-              <button className="btn-ghost" style={{padding:8,borderRadius:'50%',background:'var(--surface-2)',color:'var(--ink-3)'}} title="הורד PDF"><IconDownload size={14}/></button>
-              <button className="btn-ghost" style={{padding:8,borderRadius:'50%',background:'var(--surface-2)',color:'var(--ink-3)'}} title="צפה"><IconDoc size={14}/></button>
+          );
+        })}
+      </div>
+
+      {viewEval && (
+        <EvalViewModal
+          ev={viewEval}
+          onClose={()=>setViewEval(null)}
+          onDelete={()=>setConfirmDelete(viewEval)}
+        />
+      )}
+
+      {confirmDelete && (
+        <div style={{position:'fixed',inset:0,zIndex:400,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'center',justifyContent:'center',padding:24}} onClick={e=>{if(e.target===e.currentTarget)setConfirmDelete(null);}}>
+          <div className="card fade-in" style={{width:'min(420px,100%)',padding:'28px 32px',textAlign:'center'}}>
+            <div style={{width:48,height:48,borderRadius:'50%',background:'var(--warn-soft,#fff3f0)',display:'grid',placeItems:'center',margin:'0 auto 16px'}}><IconTrash size={20} stroke="var(--warn)"/></div>
+            <h3 style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:600,margin:'0 0 8px',color:'var(--ink-1)'}}>מחיקת הערכה</h3>
+            <p style={{fontSize:14,color:'var(--ink-2)',lineHeight:1.6,margin:'0 0 24px'}}>האם למחוק את ההערכה של <strong>{confirmDelete.student?.name || '—'}</strong>? פעולה זו אינה ניתנת לביטול.</p>
+            <div style={{display:'flex',gap:10,justifyContent:'center'}}>
+              <button className="btn btn-ghost" onClick={()=>setConfirmDelete(null)} disabled={deleting}>ביטול</button>
+              <button className="btn btn-primary" style={{background:'var(--warn)',borderColor:'var(--warn)'}} onClick={()=>handleDelete(confirmDelete)} disabled={deleting}>
+                {deleting ? 'מוחק...' : 'מחק'}
+              </button>
             </div>
           </div>
-        ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EvalViewModal({ ev, onClose, onDelete }) {
+  const student = ev.student || {};
+  const draft = ev.draft_json || {};
+  const cats = draft.categories || [];
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exporting, setExporting] = useState(null);
+
+  const handleExport = async (format) => {
+    setExporting(format);
+    setExportOpen(false);
+    try { await API.exportPdf(ev.id, format); } catch {}
+    setExporting(null);
+  };
+
+  return (
+    <div style={{position:'fixed',inset:0,zIndex:300,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'center',justifyContent:'center',padding:24}} onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div className="card fade-in" style={{width:'min(720px,100%)',maxHeight:'85vh',overflow:'auto',padding:0}}>
+        <div style={{padding:'22px 28px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'flex-start',justifyContent:'space-between',position:'sticky',top:0,background:'var(--surface)',zIndex:1}}>
+          <div>
+            <div style={{fontSize:11,color:'var(--ink-3)',marginBottom:4,textTransform:'uppercase',letterSpacing:'0.07em'}}>הערכת התנסות מעשית</div>
+            <h2 style={{fontFamily:'var(--font-serif)',fontSize:22,fontWeight:600,margin:'0 0 4px'}}>{student.name || '—'}</h2>
+            <div style={{fontSize:13,color:'var(--ink-3)'}}>{[student.school, student.grade].filter(Boolean).join(' · ')}</div>
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:14}}>
+            {ev.score!=null && (
+              <div style={{textAlign:'center'}}>
+                <div style={{fontFamily:'var(--font-serif)',fontSize:34,fontWeight:700,color:'var(--brand)',lineHeight:1}}>{ev.score}</div>
+                <div style={{fontSize:11,color:'var(--ink-3)'}}>/100</div>
+              </div>
+            )}
+            <div style={{position:'relative'}}>
+              <button
+                className="btn btn-secondary"
+                style={{padding:'7px 14px',fontSize:13,display:'flex',alignItems:'center',gap:6,opacity:exporting?0.6:1}}
+                onClick={()=>setExportOpen(o=>!o)}
+                disabled={!!exporting}
+                title="ייצוא ניתוח מלא"
+              >
+                <IconDownload size={13}/>
+                {exporting ? 'מייצא...' : 'ייצוא ניתוח'}
+              </button>
+              {exportOpen && (
+                <div style={{position:'absolute',top:'calc(100% + 6px)',insetInlineEnd:0,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,boxShadow:'0 8px 24px rgba(0,0,0,0.12)',zIndex:10,minWidth:160,overflow:'hidden'}}
+                  onClick={e=>e.stopPropagation()}>
+                  <button
+                    style={{width:'100%',padding:'11px 16px',fontSize:13,textAlign:'end',background:'none',border:'none',cursor:'pointer',color:'var(--ink-1)',display:'flex',alignItems:'center',gap:8,borderBottom:'1px solid var(--border)'}}
+                    onMouseEnter={e=>e.currentTarget.style.background='var(--surface-2)'}
+                    onMouseLeave={e=>e.currentTarget.style.background='none'}
+                    onClick={()=>handleExport('pdf')}
+                  >
+                    <IconDownload size={13} stroke="var(--ink-3)"/> PDF (הדפסה)
+                  </button>
+                  <button
+                    style={{width:'100%',padding:'11px 16px',fontSize:13,textAlign:'end',background:'none',border:'none',cursor:'pointer',color:'var(--ink-1)',display:'flex',alignItems:'center',gap:8}}
+                    onMouseEnter={e=>e.currentTarget.style.background='var(--surface-2)'}
+                    onMouseLeave={e=>e.currentTarget.style.background='none'}
+                    onClick={()=>handleExport('docx')}
+                  >
+                    <IconDoc size={13} stroke="var(--ink-3)"/> Word / HTML
+                  </button>
+                </div>
+              )}
+            </div>
+            {onDelete && (
+              <button className="btn-ghost" onClick={onDelete} style={{padding:8,borderRadius:'50%',color:'var(--ink-3)'}} title="מחק הערכה" onMouseEnter={e=>e.currentTarget.style.color='var(--warn)'} onMouseLeave={e=>e.currentTarget.style.color='var(--ink-3)'}><IconTrash size={16}/></button>
+            )}
+            <button className="btn-ghost" onClick={onClose} style={{padding:8,borderRadius:'50%'}}><IconClose size={16}/></button>
+          </div>
+        </div>
+
+        <div style={{padding:'24px 28px',display:'flex',flexDirection:'column',gap:20}}>
+          {draft.overallLevel && (
+            <div style={{display:'inline-flex',alignItems:'center',gap:8,padding:'8px 16px',background:'var(--brand-soft)',borderRadius:100,width:'fit-content'}}>
+              <span style={{fontSize:13,color:'var(--brand)',fontWeight:600}}>רמה כללית: {levelLabel(draft.overallLevel)}</span>
+            </div>
+          )}
+
+          {cats.length > 0 && (
+            <div>
+              <h3 style={{fontFamily:'var(--font-serif)',fontSize:16,fontWeight:600,margin:'0 0 12px',color:'var(--ink-1)'}}>קריטריונים</h3>
+              <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                {cats.map((c,i) => (
+                  <div key={i} style={{padding:'14px 18px',background:'var(--surface-2)',borderRadius:10,border:'1px solid var(--border)'}}>
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:c.balance?8:0}}>
+                      <div style={{display:'flex',alignItems:'center',gap:10}}>
+                        <span style={{width:22,height:22,borderRadius:6,background:'var(--surface)',border:'1px solid var(--border)',display:'grid',placeItems:'center',fontFamily:'var(--font-serif)',fontSize:12,fontWeight:600,color:'var(--ink-2)',flexShrink:0}}>{i+1}</span>
+                        <span style={{fontWeight:600,color:'var(--ink-1)',fontSize:14}}>{c.name}</span>
+                        <span style={{fontSize:12,color:'var(--ink-3)'}}>{c.weight}%</span>
+                      </div>
+                      {c.overallLevel && (
+                        <span style={{fontSize:12.5,color:'var(--brand)',fontWeight:600,padding:'3px 10px',background:'var(--brand-soft)',borderRadius:100,flexShrink:0}}>{levelLabel(c.overallLevel)}</span>
+                      )}
+                    </div>
+                    {c.balance && <div style={{fontSize:13,color:'var(--ink-2)',lineHeight:1.6}}>{c.balance}</div>}
+                    {(c.lessonPlanLevel || c.observationLevel) && (
+                      <div style={{display:'flex',gap:16,marginTop:6,fontSize:12,color:'var(--ink-3)'}}>
+                        {c.lessonPlanLevel && <span>📘 מערך: {levelLabel(c.lessonPlanLevel)}</span>}
+                        {c.observationLevel && <span>🎯 צפייה: {levelLabel(c.observationLevel)}</span>}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {draft.summary && (
+            <div style={{background:'var(--brand-soft)',borderRadius:10,padding:'16px 20px',border:'1px solid rgba(0,0,0,0.05)'}}>
+              <h3 style={{fontFamily:'var(--font-serif)',fontSize:15,fontWeight:600,margin:'0 0 8px',color:'var(--brand)'}}>סיכום והמלצות</h3>
+              <p style={{fontSize:14,color:'var(--ink-1)',lineHeight:1.7,margin:0}}>{draft.summary}</p>
+            </div>
+          )}
+
+          {cats.length===0 && !draft.summary && (
+            <div style={{textAlign:'center',color:'var(--ink-3)',padding:'32px 0',fontSize:14}}>אין נתונים להצגה בהערכה זו</div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -98,26 +302,41 @@ export function RubricsScreen() {
   const [rubric, setRubric] = useState(null);
   const [rubricsList, setRubricsList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [editOpen, setEditOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
-  useEffect(() => {
+  const loadRubrics = () =>
     API.getRubrics()
-      .then(data => { 
+      .then(data => {
         if (data?.length) {
           setRubricsList(data);
-          setRubric(data[0]); 
+          setRubric(prev => {
+            const updated = data.find(r => r.id === prev?.id);
+            return updated || data[0];
+          });
+        } else {
+          setRubricsList([]);
+          setRubric(null);
         }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+
+  useEffect(() => { loadRubrics(); }, []);
+
+  const handleDelete = async (id) => {
+    await API.deleteRubric(id);
+    setDeleteConfirm(null);
+    await loadRubrics();
+  };
 
   if (loading) return <div className="main-inner fade-in">טוען מחוון...</div>;
-  if (!rubric) return <div className="main-inner fade-in" style={{paddingTop:40,textAlign:'center',color:'var(--ink-3)'}}>לא נמצא מחוון</div>;
 
   return (
     <div className="main-inner fade-in">
       <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',marginBottom:'var(--gap-5)'}}>
-        <div style={{textAlign:'end', width:'100%'}}>
+        <div style={{textAlign:'end',width:'100%'}}>
           <div style={{fontSize:13,color:'var(--ink-3)',marginBottom:6,letterSpacing:'0.02em'}}>ספריית מחוונים · {rubricsList.length} תבניות פעילות</div>
           <h1 style={{fontFamily:'var(--font-serif)',fontSize:36,fontWeight:600,margin:0,color:'var(--ink-1)',letterSpacing:'-0.01em',lineHeight:1.1}}>מחוונים</h1>
           <p style={{fontSize:15,color:'var(--ink-2)',margin:'10px 0 0 0',lineHeight:1.6,float:'left',maxWidth:540,textAlign:'right'}}>תבניות הערכה זמינות בשלב יצירת הטיוטה. ניתן לערוך משקלים, להוסיף קריטריונים או לשכפל מחוון קיים.</p>
@@ -125,87 +344,256 @@ export function RubricsScreen() {
       </div>
 
       <div style={{display:'grid',gridTemplateColumns:'1fr 340px',gap:32,alignItems:'flex-start'}}>
-        
-        <div className="card" style={{padding:0,overflow:'hidden'}}>
-          <div style={{padding:'24px 32px',borderBottom:'1px solid var(--border)',background:'var(--surface-2)'}}>
-            <span className="badge" style={{marginBottom:12,background:'var(--brand-soft)',color:'var(--brand)', fontSize:13, padding:'4px 12px'}}>{rubric.semester || 'שנתי'}</span>
-            <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start'}}>
-              <div>
-                <h2 style={{fontFamily:'var(--font-serif)',fontSize:26,fontWeight:600,margin:'0 0 8px',letterSpacing:'-0.01em', color:'var(--ink-1)'}}>{rubric.name}</h2>
-                <p style={{fontSize:14,color:'var(--ink-2)',margin:0,lineHeight:1.6,maxWidth:540}}>המחוון המרכזי. כל קריטריון מאזן בין איכות מערך השיעור (כחול) לבין ההוראה בפועל בצפייה (אדום). פערים מוכרעים בעזרת המדריך.</p>
+        {rubric ? (
+          <div className="card" style={{padding:0,overflow:'hidden'}}>
+            <div style={{padding:'24px 32px',borderBottom:'1px solid var(--border)',background:'var(--surface-2)'}}>
+              <span className="badge" style={{marginBottom:12,background:'var(--brand-soft)',color:'var(--brand)',fontSize:13,padding:'4px 12px'}}>{rubric.semester || 'שנתי'}</span>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+                <button className="btn btn-secondary" onClick={()=>setEditOpen(true)} style={{display:'flex',alignItems:'center',gap:6,flexShrink:0}}>
+                  <IconPencil size={14}/> ערוך מחוון
+                </button>
+                <div style={{textAlign:'end'}}>
+                  <h2 style={{fontFamily:'var(--font-serif)',fontSize:26,fontWeight:600,margin:'0 0 8px',letterSpacing:'-0.01em',color:'var(--ink-1)'}}>{rubric.name}</h2>
+                  <p style={{fontSize:14,color:'var(--ink-2)',margin:0,lineHeight:1.6,maxWidth:480}}>{rubric.description || 'אין תיאור'}</p>
+                </div>
+              </div>
+              <div style={{display:'flex',gap:32,marginTop:24,fontSize:13.5,borderTop:'1px solid var(--border)',paddingTop:16}}>
+                {[
+                  {label:'סה"כ נקודות', value: rubric.total_points ? `${rubric.total_points} נק׳` : 'משוב מעצב'},
+                  {label:'קריטריונים',  value: `${rubric.criteria?.length || 0}`},
+                  {label:'בעלים',       value: 'חוג להוראה'},
+                ].map(m=>(
+                  <div key={m.label} style={{textAlign:'center'}}>
+                    <div style={{fontSize:11,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:4}}>{m.label}</div>
+                    <div style={{fontSize:15,color:'var(--ink-1)',fontWeight:600}}>{m.value}</div>
+                  </div>
+                ))}
               </div>
             </div>
-            
-            <div style={{display:'flex',gap:32,marginTop:24,fontSize:13.5, borderTop:'1px solid var(--border)', paddingTop:16}}>
-              {[
-                {label:'סה"כ נקודות', value: rubric.total_points ? `${rubric.total_points} נק׳` : 'משוב מעצב'},
-                {label:'בשימוש', value: `24 הערכות`},
-                {label:'בעלים', value: `חוג להוראה`},
-                {label:'עודכן', value: `לפני שבוע`},
-              ].map(m=>(
-                <div key={m.label} style={{textAlign:'center'}}>
-                  <div style={{fontSize:11,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:4}}>{m.label}</div>
-                  <div style={{fontSize:15,color:'var(--ink-1)',fontWeight:600}}>{m.value}</div>
-                </div>
-              ))}
+            <div style={{padding:'32px'}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:20}}>
+                <h3 style={{fontFamily:'var(--font-serif)',fontSize:18,fontWeight:600,margin:0,color:'var(--ink-1)'}}>קריטריונים</h3>
+                <span style={{fontSize:13,color:'var(--ink-3)'}}>סה"כ משקל: {(rubric.criteria||[]).reduce((a,b)=>a+(b.weight||0),0)}%</span>
+              </div>
+              {(rubric.criteria||[]).length === 0 && (
+                <div style={{textAlign:'center',color:'var(--ink-3)',padding:'32px 0',fontSize:14}}>אין קריטריונים — ערוך את המחוון כדי להוסיף</div>
+              )}
+              <div style={{display:'flex',flexDirection:'column',gap:12}}>
+                {(rubric.criteria||[]).map((c,i) => (
+                  <div key={i} style={{display:'grid',gridTemplateColumns:'60px 1fr 40px',alignItems:'center',gap:16,padding:'16px 20px',background:'var(--surface-2)',borderRadius:12}}>
+                    <div style={{textAlign:'start'}}>
+                      <span style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:600,color:'var(--ink-1)'}}>{c.weight}</span>
+                      <span style={{fontSize:13,color:'var(--ink-3)'}}>%</span>
+                    </div>
+                    <div style={{textAlign:'end'}}>
+                      <div style={{fontSize:15,fontWeight:600,color:'var(--ink-1)'}}>{c.name}</div>
+                      <div style={{fontSize:13,color:'var(--ink-3)',marginTop:4}}>{c.desc}</div>
+                    </div>
+                    <div style={{width:32,height:32,borderRadius:8,background:'var(--surface)',color:'var(--ink-1)',border:'1px solid var(--border)',display:'grid',placeItems:'center',fontFamily:'var(--font-serif)',fontSize:14,fontWeight:600}}>{i+1}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-          <div style={{padding:'32px'}}>
-            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:20}}>
-              <h3 style={{fontFamily:'var(--font-serif)',fontSize:18,fontWeight:600,margin:0, color:'var(--ink-1)'}}>קריטריונים</h3>
-              <span style={{fontSize:13,color:'var(--ink-3)'}}>סה"כ משקל: {rubric.criteria.reduce((a,b)=>a+(b.weight||0),0)}%</span>
-            </div>
-            <div style={{display:'flex',flexDirection:'column',gap:12}}>
-              {rubric.criteria.map((c,i)=>(
-                <div key={i} style={{display:'grid',gridTemplateColumns:'60px 1fr 40px',alignItems:'center',gap:16,padding:'16px 20px',background:'var(--surface-2)',borderRadius:12}}>
-                  <div style={{textAlign:'start'}}>
-                    <span style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:600,color:'var(--ink-1)'}}>{c.weight}</span>
-                    <span style={{fontSize:13,color:'var(--ink-3)'}}>%</span>
-                  </div>
-                  <div style={{textAlign:'end'}}>
-                    <div style={{fontSize:15,fontWeight:600,color:'var(--ink-1)'}}>{c.name}</div>
-                    <div style={{fontSize:13,color:'var(--ink-3)',marginTop:4}}>{c.desc}</div>
-                  </div>
-                  <div style={{width:32,height:32,borderRadius:8,background:'var(--surface)',color:'var(--ink-1)',border:'1px solid var(--border)',display:'grid',placeItems:'center',fontFamily:'var(--font-serif)',fontSize:14,fontWeight:600}}>{i+1}</div>
-                </div>
-              ))}
-            </div>
+        ) : (
+          <div className="card" style={{display:'flex',alignItems:'center',justifyContent:'center',padding:'64px 32px',color:'var(--ink-3)',fontSize:15}}>
+            אין מחוונים — צור מחוון חדש כדי להתחיל
           </div>
-        </div>
+        )}
 
         <div style={{display:'flex',flexDirection:'column',gap:16}}>
-          <button className="btn btn-secondary btn-lg" style={{width:'100%'}}><IconPlus size={16}/> מחוון חדש</button>
-          
-          <div style={{display:'flex',flexDirection:'column',gap:12}}>
-            {rubricsList.map((r, i) => (
-              <div key={r.id || i} onClick={() => setRubric(r)} className="card card-hover" style={{padding:'20px', border: rubric.id === r.id ? '1px solid var(--ink-1)' : '1px solid transparent', background: rubric.id === r.id ? 'var(--surface-2)' : 'var(--surface)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'space-between'}}>
-                <div>
-                  <div style={{fontFamily:'var(--font-serif)',fontSize:16,fontWeight:600,color:'var(--ink-1)',marginBottom:4}}>{r.name}</div>
-                  <div style={{fontSize:13,color:'var(--ink-3)'}}>{r.criteria?.length || 0} קריטריונים · {r.semester || 'שנתי'}</div>
-                  <div style={{fontSize:11.5,color:'var(--ink-4)',marginTop:8}}>בשימוש: <span style={{color:'var(--ink-2)',fontWeight:500}}>18</span> &nbsp;&middot;&nbsp; עודכן לפני שבוע</div>
+          <button className="btn btn-primary btn-lg" style={{width:'100%'}} onClick={()=>setCreateOpen(true)}>
+            <IconPlus size={16}/> מחוון חדש
+          </button>
+          {rubricsList.length > 0 && (
+            <div style={{display:'flex',flexDirection:'column',gap:12}}>
+              {rubricsList.map((r,i) => (
+                <div key={r.id||i} onClick={()=>setRubric(r)} className="card card-hover" style={{padding:'16px 20px',border:rubric?.id===r.id?'1px solid var(--ink-1)':'1px solid transparent',background:rubric?.id===r.id?'var(--surface-2)':'var(--surface)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
+                  <div style={{minWidth:0,flex:1}}>
+                    <div style={{fontFamily:'var(--font-serif)',fontSize:16,fontWeight:600,color:'var(--ink-1)',marginBottom:4,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.name}</div>
+                    <div style={{fontSize:13,color:'var(--ink-3)'}}>{r.criteria?.length||0} קריטריונים · {r.semester||'שנתי'}</div>
+                  </div>
+                  <div style={{display:'flex',alignItems:'center',gap:4,flexShrink:0}}>
+                    {rubric?.id===r.id && <IconChevron size={16} stroke="var(--ink-1)" style={{transform:'rotate(90deg)'}}/>}
+                    <button
+                      onClick={(e)=>{e.stopPropagation();setDeleteConfirm(r);}}
+                      title="מחק מחוון"
+                      style={{padding:5,borderRadius:6,border:'none',background:'transparent',cursor:'pointer',color:'var(--ink-4)',display:'grid',placeItems:'center'}}
+                      onMouseEnter={e=>e.currentTarget.style.color='var(--warn)'}
+                      onMouseLeave={e=>e.currentTarget.style.color='var(--ink-4)'}
+                    >
+                      <IconTrash size={13}/>
+                    </button>
+                  </div>
                 </div>
-                {rubric.id === r.id && <IconChevron size={16} stroke="var(--ink-1)" style={{transform:'rotate(90deg)'}}/>}
-              </div>
-            ))}
-            
-            {/* Fallback extra mock rubrics if DB is empty */}
-            {rubricsList.length === 1 && (
-              <>
-                <div className="card card-hover" style={{padding:'20px', border:'1px solid transparent'}}>
-                  <div style={{fontFamily:'var(--font-serif)',fontSize:16,fontWeight:600,color:'var(--ink-1)',marginBottom:4}}>הערכה מעצבת – סמסטר א׳</div>
-                  <div style={{fontSize:13,color:'var(--ink-3)'}}>4 קריטריונים · אמצע סמסטר א׳</div>
-                  <div style={{fontSize:11.5,color:'var(--ink-4)',marginTop:8}}>בשימוש: <span style={{color:'var(--ink-2)',fontWeight:500}}>18</span> &nbsp;&middot;&nbsp; עודכן לפני 6 שבועות</div>
-                </div>
-                <div className="card card-hover" style={{padding:'20px', border:'1px solid transparent'}}>
-                  <div style={{fontFamily:'var(--font-serif)',fontSize:16,fontWeight:600,color:'var(--ink-1)',marginBottom:4}}>מחוון הסדנה – התנסות מעשית</div>
-                  <div style={{fontSize:13,color:'var(--ink-3)'}}>5 קריטריונים · שוטף</div>
-                  <div style={{fontSize:11.5,color:'var(--ink-4)',marginTop:8}}>בשימוש: <span style={{color:'var(--ink-2)',fontWeight:500}}>32</span> &nbsp;&middot;&nbsp; עודכן אתמול</div>
-                </div>
-              </>
-            )}
-          </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {editOpen && rubric && (
+        <RubricEditModal
+          rubric={rubric}
+          mode="edit"
+          onClose={()=>setEditOpen(false)}
+          onSave={async (updated) => {
+            await API.updateRubric(rubric.id, updated);
+            setEditOpen(false);
+            await loadRubrics();
+          }}
+        />
+      )}
+
+      {createOpen && (
+        <RubricEditModal
+          rubric={{name:'',description:'',semester:'',total_points:'',criteria:[]}}
+          mode="create"
+          onClose={()=>setCreateOpen(false)}
+          onSave={async (data) => {
+            const created = await API.createRubric(data);
+            setCreateOpen(false);
+            await loadRubrics();
+            if (created?.id) setRubric(created);
+          }}
+        />
+      )}
+
+      {deleteConfirm && (
+        <DeleteConfirmModal
+          rubric={deleteConfirm}
+          onClose={()=>setDeleteConfirm(null)}
+          onConfirm={()=>handleDelete(deleteConfirm.id)}
+        />
+      )}
+    </div>
+  );
+}
+
+function DeleteConfirmModal({ rubric, onClose, onConfirm }) {
+  const [deleting, setDeleting] = useState(false);
+  const handleConfirm = async () => {
+    setDeleting(true);
+    try { await onConfirm(); } catch { setDeleting(false); }
+  };
+  return (
+    <div style={{position:'fixed',inset:0,zIndex:300,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'center',justifyContent:'center',padding:24}} onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div className="card fade-in" style={{width:'min(420px,100%)',padding:32}}>
+        <div style={{fontFamily:'var(--font-serif)',fontSize:18,fontWeight:600,marginBottom:12}}>מחיקת מחוון</div>
+        <p style={{fontSize:14,color:'var(--ink-2)',marginBottom:24,lineHeight:1.6}}>
+          האם למחוק את <strong>{rubric?.name}</strong>? פעולה זו אינה ניתנת לביטול.
+        </p>
+        <div style={{display:'flex',gap:10,justifyContent:'flex-end'}}>
+          <button className="btn btn-ghost" onClick={onClose} disabled={deleting}>ביטול</button>
+          <button className="btn btn-primary" onClick={handleConfirm} disabled={deleting} style={{background:'var(--warn)',borderColor:'var(--warn)'}}>
+            <IconTrash size={14}/> {deleting ? 'מוחק...' : 'מחק'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RubricEditModal({ rubric, mode = 'edit', onSave, onClose }) {
+  const [name, setName] = useState(rubric.name || '');
+  const [description, setDescription] = useState(rubric.description || '');
+  const [semester, setSemester] = useState(rubric.semester || '');
+  const [totalPoints, setTotalPoints] = useState(rubric.total_points ?? '');
+  const [criteria, setCriteria] = useState(
+    (rubric.criteria || []).map((c,i) => ({...c, _key: i}))
+  );
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  const totalWeight = criteria.reduce((a,c) => a + (Number(c.weight)||0), 0);
+
+  const updateCriterion = (key, field, value) =>
+    setCriteria(cs => cs.map(c => c._key===key ? {...c, [field]: value} : c));
+
+  const removeCriterion = (key) =>
+    setCriteria(cs => cs.filter(c => c._key!==key));
+
+  const addCriterion = () =>
+    setCriteria(cs => [...cs, {name:'', weight:0, desc:'', _key: Date.now()}]);
+
+  const handleSave = async () => {
+    if (!name.trim()) { setError('שם המחוון נדרש'); return; }
+    if (criteria.length > 0 && totalWeight !== 100) { setError(`סכום המשקלים הוא ${totalWeight}%, צריך להיות 100%`); return; }
+    setSaving(true);
+    setError(null);
+    try {
+      const cleanCriteria = criteria.map(({_key, ...c}) => ({...c, weight: Number(c.weight)||0}));
+      await onSave({ name: name.trim(), description: description.trim(), semester: semester.trim(), total_points: totalPoints===''?null:Number(totalPoints), criteria: cleanCriteria });
+    } catch (e) {
+      setError(e.message);
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={{position:'fixed',inset:0,zIndex:300,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'center',justifyContent:'center',padding:24}} onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div className="card fade-in" style={{width:'min(680px,100%)',maxHeight:'90vh',overflow:'auto',padding:0}}>
+        <div style={{padding:'20px 28px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,background:'var(--surface)',zIndex:1}}>
+          <h2 style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:600,margin:0}}>{mode==='create' ? 'מחוון חדש' : 'עריכת מחוון'}</h2>
+          <button className="btn-ghost" onClick={onClose} style={{padding:8,borderRadius:'50%'}}><IconClose size={16}/></button>
         </div>
 
+        <div style={{padding:'24px 28px',display:'flex',flexDirection:'column',gap:18}}>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
+            <div>
+              <label className="label">שם המחוון</label>
+              <input className="input" value={name} onChange={e=>setName(e.target.value)} placeholder="לדוגמה: הערכת סוף שנה"/>
+            </div>
+            <div>
+              <label className="label">סמסטר / תקופה</label>
+              <input className="input" value={semester} onChange={e=>setSemester(e.target.value)} placeholder="שנתי, סמסטר א׳..."/>
+            </div>
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 160px',gap:14}}>
+            <div>
+              <label className="label">תיאור</label>
+              <input className="input" value={description} onChange={e=>setDescription(e.target.value)} placeholder="תיאור קצר של המחוון"/>
+            </div>
+            <div>
+              <label className="label">סה"כ נקודות</label>
+              <input className="input" type="number" min="0" value={totalPoints} onChange={e=>setTotalPoints(e.target.value)} placeholder="100"/>
+            </div>
+          </div>
+
+          <div>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+              <label className="label" style={{margin:0}}>קריטריונים</label>
+              <span style={{fontSize:13,color: totalWeight===100 ? 'var(--ok)' : 'var(--warn)', fontWeight:600}}>
+                סכום משקלים: {totalWeight}%
+              </span>
+            </div>
+            <div style={{display:'flex',flexDirection:'column',gap:8}}>
+              {criteria.map((c) => (
+                <div key={c._key} style={{display:'grid',gridTemplateColumns:'1fr 2fr 70px 32px',gap:10,alignItems:'center',padding:'12px 14px',background:'var(--surface-2)',borderRadius:10,border:'1px solid var(--border)'}}>
+                  <input className="input" value={c.name} onChange={e=>updateCriterion(c._key,'name',e.target.value)} placeholder="שם הקריטריון" style={{fontSize:13}}/>
+                  <input className="input" value={c.desc} onChange={e=>updateCriterion(c._key,'desc',e.target.value)} placeholder="תיאור קצר" style={{fontSize:13}}/>
+                  <div style={{position:'relative'}}>
+                    <input className="input" type="number" min="0" max="100" value={c.weight} onChange={e=>updateCriterion(c._key,'weight',e.target.value)} placeholder="0" style={{fontSize:13,paddingLeft:24}}/>
+                    <span style={{position:'absolute',insetInlineStart:8,top:'50%',transform:'translateY(-50%)',fontSize:12,color:'var(--ink-3)',pointerEvents:'none'}}>%</span>
+                  </div>
+                  <button onClick={()=>removeCriterion(c._key)} style={{padding:6,borderRadius:6,border:'none',background:'transparent',cursor:'pointer',color:'var(--ink-4)',display:'grid',placeItems:'center'}} onMouseEnter={e=>e.currentTarget.style.color='var(--warn)'} onMouseLeave={e=>e.currentTarget.style.color='var(--ink-4)'}><IconTrash size={14}/></button>
+                </div>
+              ))}
+              <button onClick={addCriterion} style={{border:'2px dashed var(--border-strong)',background:'var(--surface)',borderRadius:10,padding:'10px',display:'flex',alignItems:'center',justifyContent:'center',gap:6,color:'var(--ink-2)',fontSize:13,cursor:'pointer'}}>
+                <IconPlus size={14}/> הוסף קריטריון
+              </button>
+            </div>
+          </div>
+
+          {error && <div style={{fontSize:13,color:'var(--warn)',padding:'10px 14px',background:'var(--warn-soft)',borderRadius:8}}>{error}</div>}
+        </div>
+
+        <div style={{padding:'16px 28px',borderTop:'1px solid var(--border)',display:'flex',justifyContent:'flex-start',gap:10,position:'sticky',bottom:0,background:'var(--surface)'}}>
+          <button className="btn btn-ghost" onClick={onClose}>ביטול</button>
+          <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+            <IconCheck size={14}/> {saving ? 'שומר...' : mode==='create' ? 'צור מחוון' : 'שמור שינויים'}
+          </button>
+        </div>
       </div>
     </div>
   );

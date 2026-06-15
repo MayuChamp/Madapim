@@ -1,4 +1,23 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, Component } from 'react';
+
+class EditorErrorBoundary extends Component {
+  state = { error: null };
+  static getDerivedStateFromError(error) { return { error }; }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{display:'grid',placeItems:'center',height:'100vh',background:'var(--bg)',textAlign:'center',padding:32}}>
+          <div>
+            <div style={{fontSize:18,fontWeight:600,color:'var(--ink-1)',marginBottom:8}}>שגיאה בטעינת הניתוח</div>
+            <div style={{fontSize:13,color:'var(--ink-3)',marginBottom:16,maxWidth:400}}>{this.state.error.message}</div>
+            <button className="btn btn-primary" onClick={() => window.location.reload()}>רענן דף</button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 import * as Icons from './icons';
 import { Icon, IconHome, IconUsers, IconArchive, IconSettings, IconFolder, IconFile, IconUpload, IconPlus, IconArrowLeft, IconArrowRight, IconChevron, IconPencil, IconMagic, IconMic, IconSearch, IconClose, IconCheck, IconDownload, IconSave, IconSend, IconSparkle, IconBookmark, IconDoc, IconWave, IconGrid, IconList, IconClock, IconArchiveBox, IconAlert, IconGraduationCap, IconEye } from './icons';
 import { SMART_QUESTIONS, EVAL_CATEGORIES, EVIDENCES, LEVELS, QA_SUGGESTIONS } from './data';
@@ -138,7 +157,7 @@ function SourceCell({ track, dim, activeEvidence, onEvidenceClick }) {
       <div style={{fontSize:12,color:'var(--ink-4)',marginTop:6}}>אין ראיה בערוץ זה</div>
     </div>
   );
-  const lvl = LEVELS[dim.level];
+  const lvl = LEVELS[dim.level] || { label: dim.level || '—', cls: 'badge-neutral' };
   return (
     <div style={{flex:1,padding:'10px 12px',borderRadius:'var(--r-sm)',background:tone.bg+'66',border:`1px solid ${tone.bg}`}}>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:6}}>
@@ -151,14 +170,14 @@ function SourceCell({ track, dim, activeEvidence, onEvidenceClick }) {
   );
 }
 
-function GapInsight({ cat, decisionText, answered }) {
+function GapInsight({ cat, answered }) {
   const g = cat.gap; if(!g) return null;
   const needsDecision = !!g.decisionKey&&!answered;
+  if (!needsDecision) return null;
   return (
-    <div style={{marginTop:14,padding:'12px 14px',background:needsDecision?'var(--warn-soft)':'var(--accent-soft)',borderInlineStart:`3px solid ${needsDecision?'var(--warn)':'var(--accent)'}`,borderRadius:6}}>
-      <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:needsDecision?'var(--warn)':'var(--accent)',marginBottom:4,display:'flex',alignItems:'center',gap:6}}><span>⚖</span>{needsDecision?'פער מזוהה — נדרשת הכרעתך':'פער בין הערוצים — הוכרע'}</div>
+    <div style={{marginTop:14,padding:'12px 14px',background:'var(--warn-soft)',borderInlineStart:'3px solid var(--warn)',borderRadius:6}}>
+      <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--warn)',marginBottom:4,display:'flex',alignItems:'center',gap:6}}><span>⚖</span>פער מזוהה — נדרשת הכרעתך</div>
       <div style={{fontSize:12.5,color:'var(--ink-2)',lineHeight:1.6}}>{g.summary}</div>
-      {decisionText&&<div style={{fontSize:12.5,color:'var(--ink-1)',lineHeight:1.6,marginTop:6,fontWeight:500}}>↳ {decisionText}</div>}
     </div>
   );
 }
@@ -199,7 +218,7 @@ function CategoryCard({ cat, index, aiTone, instructorAnswers, activeEvidence, o
           {refining&&<div style={{position:'absolute',inset:-4,display:'grid',placeItems:'center'}}><div style={{display:'flex',alignItems:'center',gap:10,padding:'8px 16px',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:100,boxShadow:'var(--shadow-2)',fontSize:13,fontWeight:500,color:'var(--brand)'}}><IconSparkle size={14} style={{animation:'pulse 1s infinite'}}/>ה-AI מנסח מחדש...</div></div>}
         </div>
       )}
-      <GapInsight cat={cat} decisionText={decisionText} answered={answered}/>
+      <GapInsight cat={cat} answered={answered}/>
       {extractEvidenceIds(baseText||'').length>0&&(
         <div style={{marginTop:14,display:'flex',alignItems:'center',gap:8,paddingTop:12,borderTop:'1px solid var(--border)',flexWrap:'wrap'}}>
           <span style={{fontSize:11.5,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em'}}>ראיות תומכות:</span>
@@ -277,9 +296,9 @@ function DraftHeader({ student, answersCount }) {
 function SplitEditor({ student, instructorAnswers, aiTone, onBack, onExport, evalCategories, evalSummary, evaluationId, onSave, evidenceFiles }) {
   const activeCategories = evalCategories || EVAL_CATEGORIES;
 
-  // Build live evidences from actual uploaded files, or fall back to mock data
+  // Build live evidences from actual uploaded files
   const liveEvidences = React.useMemo(() => {
-    if (!evidenceFiles || evidenceFiles.length === 0) return EVIDENCES;
+    if (!evidenceFiles || evidenceFiles.length === 0) return {};
     const result = {};
     evidenceFiles.forEach((f, i) => {
       const eid = `file_${f.id}`;
@@ -299,8 +318,11 @@ function SplitEditor({ student, instructorAnswers, aiTone, onBack, onExport, eva
     return result;
   }, [evidenceFiles]);
 
-  const defaultEvidenceId = Object.keys(liveEvidences)[0] || 'e1';
+  const defaultEvidenceId = Object.keys(liveEvidences)[0] || null;
   const [activeEvidence, setActiveEvidence] = useState(defaultEvidenceId);
+  useEffect(() => {
+    setActiveEvidence(prev => (prev && liveEvidences[prev]) ? prev : (Object.keys(liveEvidences)[0] || null));
+  }, [liveEvidences]);
   const [activeCat, setActiveCat] = useState((evalCategories||EVAL_CATEGORIES)[0].id);
   const [editing, setEditing] = useState(null);
   const [chatMessages, setChatMessages] = useState([]);
@@ -346,26 +368,39 @@ function SplitEditor({ student, instructorAnswers, aiTone, onBack, onExport, eva
       </div>
       <div style={{display:'grid',gridTemplateColumns:'36% 64%',flex:1,minHeight:0}}>
         <div style={{borderInlineStart:'1px solid var(--border)',background:'var(--surface-2)',display:'flex',flexDirection:'column',minHeight:0}}>
-          <div style={{display:'flex',overflowX:'auto',borderBottom:'1px solid var(--border)',background:'var(--surface)',padding:'0 8px',flexShrink:0}}>
-            {Object.values(liveEvidences).map(ev=>{
-              const tc=ev.track==='lesson_plan'?'#1e3a5f':ev.track==='observation'?'#2f7a4e':'var(--brand)';
-              const TrackIc=ev.track==='lesson_plan'?IconDoc:ev.track==='observation'?IconEye:null;
-              const isActive=activeEvidence===ev.id;
-              return <button key={ev.id} onClick={()=>setActiveEvidence(ev.id)} style={{padding:'12px 14px',fontSize:12.5,color:isActive?tc:'var(--ink-3)',fontWeight:isActive?600:400,whiteSpace:'nowrap',display:'flex',alignItems:'center',gap:6,cursor:'pointer',background:'transparent',border:'none',borderBottom:`2px solid ${isActive?tc:'transparent'}`}}>{TrackIc&&<TrackIc size={12}/>}{ev.label}</button>;
-            })}
+          <div style={{display:'flex',overflowX:'auto',borderBottom:'1px solid var(--border)',background:'var(--surface)',padding:'0 8px',flexShrink:0,minHeight:44,alignItems:'center'}}>
+            {Object.values(liveEvidences).length === 0
+              ? <span style={{padding:'0 14px',fontSize:12,color:'var(--ink-4)'}}>אין מסמכים להצגה</span>
+              : Object.values(liveEvidences).map(ev=>{
+                  const tc=ev.track==='lesson_plan'?'#1e3a5f':ev.track==='observation'?'#2f7a4e':'var(--brand)';
+                  const TrackIc=ev.track==='lesson_plan'?IconDoc:ev.track==='observation'?IconEye:null;
+                  const isActive=activeEvidence===ev.id;
+                  return <button key={ev.id} onClick={()=>setActiveEvidence(ev.id)} style={{padding:'12px 14px',fontSize:12.5,color:isActive?tc:'var(--ink-3)',fontWeight:isActive?600:400,whiteSpace:'nowrap',display:'flex',alignItems:'center',gap:6,cursor:'pointer',background:'transparent',border:'none',borderBottom:`2px solid ${isActive?tc:'transparent'}`}}>{TrackIc&&<TrackIc size={12}/>}{ev.label}</button>;
+                })
+            }
           </div>
           <div className="scroll" style={{flex:1,overflowY:'auto',padding:24,background:'var(--surface-2)'}}>
-            <div className="card" style={{padding:'32px'}}>
-              <div style={{fontSize:11.5,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:6}}>{evidence.label} · {evidence.fileName}</div>
-              {evidence.doc.map((line,i)=>{
-                if(line.heading)return <h3 key={i} style={{fontFamily:'var(--font-serif)',fontSize:19,fontWeight:600,margin:'4px 0 12px',color:'var(--ink-1)'}}>{line.text}</h3>;
-                return <p key={i} style={{margin:line.text===''?'6px 0':'8px 0',fontSize:14,lineHeight:1.75,color:'var(--ink-1)',background:line.highlight?'var(--highlight)':'transparent',padding:line.highlight?'2px 6px':0,borderRadius:line.highlight?3:0,display:line.highlight?'inline-block':'block',boxShadow:line.highlight?'0 0 0 2px var(--highlight)':'none'}}>{line.text}</p>;
-              })}
-            </div>
-            <div style={{marginTop:14,fontSize:12,color:'var(--ink-3)',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 6px'}}>
-              <span>מקור: {evidence.fileName}</span>
-              <button className="btn-ghost" style={{color:'var(--ink-3)',fontSize:12}}>פתח מקור מלא →</button>
-            </div>
+            {!evidence ? (
+              <div style={{display:'grid',placeItems:'center',height:'100%',padding:32,textAlign:'center'}}>
+                <div>
+                  <IconDoc size={32} style={{opacity:.25,marginBottom:12}}/>
+                  <div style={{fontSize:14,color:'var(--ink-3)',lineHeight:1.7}}>לא הועלו מסמכים לתיק זה<br/><span style={{fontSize:12}}>העלה קבצים מסך הסטודנט כדי לצפות בהם כאן</span></div>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="card" style={{padding:'32px'}}>
+                  <div style={{fontSize:11.5,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:6}}>{evidence.label} · {evidence.fileName}</div>
+                  {evidence.doc.map((line,i)=>{
+                    if(line.heading)return <h3 key={i} style={{fontFamily:'var(--font-serif)',fontSize:19,fontWeight:600,margin:'4px 0 12px',color:'var(--ink-1)'}}>{line.text}</h3>;
+                    return <p key={i} style={{margin:line.text===''?'6px 0':'8px 0',fontSize:14,lineHeight:1.75,color:'var(--ink-1)'}}>{line.text}</p>;
+                  })}
+                </div>
+                <div style={{marginTop:14,fontSize:12,color:'var(--ink-3)',padding:'0 6px'}}>
+                  <span>מקור: {evidence.fileName}</span>
+                </div>
+              </>
+            )}
           </div>
           <ChatBox messages={chatMessages} thinking={chatThinking} value={chatInput} onChange={setChatInput} onSend={sendChat} student={student}/>
         </div>
@@ -383,4 +418,8 @@ function SplitEditor({ student, instructorAnswers, aiTone, onBack, onExport, eva
   );
 }
 
-export {  HumanNodeModal, SplitEditor  };
+function SplitEditorWithBoundary(props) {
+  return <EditorErrorBoundary><SplitEditor {...props}/></EditorErrorBoundary>;
+}
+
+export {  HumanNodeModal, SplitEditorWithBoundary as SplitEditor  };

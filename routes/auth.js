@@ -40,4 +40,47 @@ router.get('/me', (req, res) => {
   }
 });
 
+// PUT /api/auth/profile — update name and email
+router.put('/profile', async (req, res) => {
+  if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+
+  const { name, email } = req.body;
+  if (!name?.trim() || !email?.trim()) return res.status(400).json({ error: 'name and email required' });
+
+  const normalizedEmail = email.toLowerCase().trim();
+  const existing = await q.userByEmail(normalizedEmail);
+  if (existing && existing.id !== req.user.id) {
+    return res.status(409).json({ error: 'כתובת הדוא״ל כבר בשימוש' });
+  }
+
+  await q.updateUserProfile(req.user.id, { name: name.trim(), email: normalizedEmail });
+
+  const updated = await q.userById(req.user.id);
+  const token = jwt.sign(
+    { id: updated.id, email: updated.email, name: updated.name, role: updated.role },
+    JWT_SECRET,
+    { expiresIn: '30d' }
+  );
+
+  res.json({ token, user: { id: updated.id, email: updated.email, name: updated.name, role: updated.role } });
+});
+
+// PUT /api/auth/password — change password
+router.put('/password', async (req, res) => {
+  if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword) return res.status(400).json({ error: 'currentPassword and newPassword required' });
+  if (newPassword.length < 6) return res.status(400).json({ error: 'הסיסמה חייבת להכיל לפחות 6 תווים' });
+
+  const user = await q.userById(req.user.id);
+  const valid = await bcrypt.compare(currentPassword, user.password_hash);
+  if (!valid) return res.status(401).json({ error: 'הסיסמה הנוכחית שגויה' });
+
+  const hash = await bcrypt.hash(newPassword, 10);
+  await q.updateUserPassword(req.user.id, hash);
+
+  res.json({ ok: true });
+});
+
 module.exports = router;

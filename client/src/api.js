@@ -1,6 +1,6 @@
 // HTTP client — replaces Supabase. Token stored in localStorage.
 
-const BASE = '/api';
+const BASE = (import.meta.env.VITE_API_URL || '') + '/api';
 
 function getToken() {
   return localStorage.getItem('auth_token');
@@ -83,10 +83,10 @@ export async function deleteStudent(id) {
   return apiFetch(`/students/${id}`, { method: 'DELETE' });
 }
 
-export async function createStudent({ name, school, grade, subjectTrack }) {
+export async function createStudent({ name, school, grade, subjectTrack, gender }) {
   return apiFetch('/students', {
     method: 'POST',
-    body: JSON.stringify({ name, school, grade, subject_track: subjectTrack }),
+    body: JSON.stringify({ name, school, grade, subject_track: subjectTrack, gender }),
   });
 }
 
@@ -105,14 +105,15 @@ export async function updateCycleTopic(cycleId, topic) {
 }
 
 // ─── Files ────────────────────────────────────────────────────────────────────
-export async function uploadFile(studentId, file, cycleId, stageKey, description) {
+export async function uploadFile(studentId, file, cycleId, stageKey, description, materialDate) {
   const token = getToken();
   const form = new FormData();
   if (file) form.append('file', file);
   form.append('student_id', studentId);
-  if (cycleId)  form.append('cycle_id', cycleId);
-  if (stageKey) form.append('stage_key', stageKey);
-  if (description) form.append('description', description);
+  if (cycleId)      form.append('cycle_id', cycleId);
+  if (stageKey)     form.append('stage_key', stageKey);
+  if (description)  form.append('description', description);
+  if (materialDate) form.append('material_date', materialDate);
 
   const res = await fetch(`${BASE}/files/upload`, {
     method: 'POST',
@@ -160,15 +161,44 @@ export async function exportPdf(evalId, format = 'pdf') {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const blob = await res.blob();
+  const html = await res.text();
+
+  if (format === 'docx') {
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `evaluation-${evalId}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    return;
+  }
+
+  // PDF: load HTML into a hidden iframe via blob URL, then trigger print dialog
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `evaluation-${evalId}.${format === 'pdf' ? 'pdf' : 'doc'}`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText = 'position:fixed;top:-10000px;left:-10000px;width:0;height:0;border:0;opacity:0';
+  document.body.appendChild(iframe);
+  iframe.onload = () => {
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+    setTimeout(() => {
+      document.body.removeChild(iframe);
+      URL.revokeObjectURL(url);
+    }, 2000);
+  };
+  iframe.src = url;
+}
+
+export async function getEvaluations() {
+  return apiFetch('/evaluations');
+}
+
+export async function deleteEvaluation(id) {
+  return apiFetch(`/evaluations/${id}`, { method: 'DELETE' });
 }
 
 // ─── Rubrics ──────────────────────────────────────────────────────────────────

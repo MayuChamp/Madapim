@@ -3,6 +3,16 @@ const router = express.Router();
 const { q } = require('../db');
 const { analyzePortfolio, generateSmartQuestions } = require('../services/ai');
 
+// GET /api/evaluations — list all evaluations with student info
+router.get('/', async (req, res) => {
+  if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+  try {
+    res.json(await q.allEvaluations());
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // POST /api/evaluations/analyze
 router.post('/analyze', async (req, res) => {
   const { student_id, instructor_answers } = req.body;
@@ -14,9 +24,9 @@ router.post('/analyze', async (req, res) => {
   const files = await q.studentFiles(student_id);
 
   try {
-    const draft = await analyzePortfolio(student.name, files, instructor_answers || {});
+    const draft = await analyzePortfolio(student.name, files, instructor_answers || {}, student.gender || 'female');
     const ev = await q.upsertEvaluation(student_id, draft, draft.score || null);
-    const smartQuestions = await generateSmartQuestions(draft, student.name);
+    const smartQuestions = await generateSmartQuestions(draft, student.name, student.gender || 'female');
     await q.updateStudentStatus(student_id, 'in_progress');
 
     res.json({ evaluation_id: ev.id, draft, smart_questions: smartQuestions });
@@ -59,7 +69,17 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// POST /api/evaluations/:id/export — generate PDF
+// DELETE /api/evaluations/:id
+router.delete('/:id', async (req, res) => {
+  try {
+    await q.deleteEvaluation(req.params.id);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/evaluations/:id/export — return styled HTML for client-side print-to-PDF
 router.post('/:id/export', async (req, res) => {
   const ev = await q.getEvaluation(req.params.id);
   if (!ev) return res.status(404).json({ error: 'Evaluation not found' });
@@ -68,25 +88,18 @@ router.post('/:id/export', async (req, res) => {
   const draft = ev.draft_json || {};
   const html = buildExportHtml(student, draft, ev);
 
-  try {
-    const puppeteer = require('puppeteer');
-    const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] });
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle0' });
-    const pdf = await page.pdf({ format: 'A4', printBackground: true });
-    await browser.close();
-
-    res.set({
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="evaluation-${student.name.replace(/\s/g, '_')}.pdf"`,
-    });
-    res.send(pdf);
-  } catch (err) {
-    console.error('PDF export error:', err.message);
-    res.set('Content-Type', 'text/html');
-    res.send(html);
-  }
+  res.set('Content-Type', 'text/html; charset=utf-8');
+  res.send(html);
 });
+
+function escapeHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
 function buildExportHtml(student, draft, ev) {
   const today = new Date().toLocaleDateString('he-IL');
@@ -94,11 +107,11 @@ function buildExportHtml(student, draft, ev) {
     <div class="criterion">
       <div class="criterion-header">
         <span class="num">${i + 1}.</span>
-        <strong>${c.name}</strong>
-        <span class="level">${c.overallLevel || ''} · ${c.weight}%</span>
+        <strong>${escapeHtml(c.name)}</strong>
+        <span class="level">${escapeHtml(c.overallLevel || '')} · ${escapeHtml(c.weight)}%</span>
       </div>
-      ${c.lessonPlanLevel ? `<div class="channels"><span>📘 מערך: ${c.lessonPlanLevel}</span>${c.observationLevel ? `<span>🎯 צפייה: ${c.observationLevel}</span>` : ''}</div>` : ''}
-      <p>${c.balance || ''}</p>
+      ${c.lessonPlanLevel ? `<div class="channels"><span>📘 מערך: ${escapeHtml(c.lessonPlanLevel)}</span>${c.observationLevel ? `<span>🎯 צפייה: ${escapeHtml(c.observationLevel)}</span>` : ''}</div>` : ''}
+      <p>${escapeHtml(c.balance || '')}</p>
     </div>
   `).join('');
 
@@ -107,7 +120,8 @@ function buildExportHtml(student, draft, ev) {
 <head>
 <meta charset="utf-8"/>
 <style>
-  body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #1a1f2c; padding: 48px 56px; font-size: 13px; line-height: 1.7; }
+  body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #1a1f2c; padding: 48px 56px; font-size: 13px; line-height: 1.7; max-width: 800px; margin: 0 auto; }
+  @media print { body { padding: 0; } @page { margin: 20mm 18mm; size: A4; } }
   .header { display: flex; justify-content: space-between; border-bottom: 2px solid #1e3a5f; padding-bottom: 16px; margin-bottom: 24px; }
   .logo { font-size: 18px; font-weight: 700; color: #1e3a5f; }
   .meta { font-size: 11px; color: #7a8295; text-align: left; }
@@ -128,22 +142,22 @@ function buildExportHtml(student, draft, ev) {
 <body>
   <div class="header">
     <div><div class="logo">המכללה האקדמית להוראה</div><div style="font-size:11px;color:#7a8295">בית הספר להכשרת מורים · התנסות מעשית</div></div>
-    <div class="meta">תאריך: ${today}<br/>מס׳ אסמכתא: HE-${new Date().getFullYear()}-${ev.id.slice(-4)}</div>
+    <div class="meta">תאריך: ${today}<br/>מס׳ אסמכתא: HE-${new Date().getFullYear()}-${escapeHtml(ev.id.slice(-4))}</div>
   </div>
   <div style="font-size:11px;color:#7a8295;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">הערכת התנסות מעשית · סוף שנה</div>
-  <h1>הערכת סטודנט/ית: ${student.name}</h1>
+  <h1>הערכת סטודנט/ית: ${escapeHtml(student.name)}</h1>
   <div class="fields">
-    <div><span style="color:#7a8295">בית ספר מאמן:</span> ${student.school || '—'}</div>
-    <div><span style="color:#7a8295">כיתה:</span> ${student.grade || '—'}</div>
-    <div><span style="color:#7a8295">מסלול:</span> ${student.subject_track || '—'}</div>
+    <div><span style="color:#7a8295">בית ספר מאמן:</span> ${escapeHtml(student.school || '—')}</div>
+    <div><span style="color:#7a8295">כיתה:</span> ${escapeHtml(student.grade || '—')}</div>
+    <div><span style="color:#7a8295">מסלול:</span> ${escapeHtml(student.subject_track || '—')}</div>
     <div><span style="color:#7a8295">מחוון:</span> הערכת סוף שנה — 100 נק׳</div>
   </div>
   ${cats}
   <div class="summary-box">
     <strong>סיכום והמלצות</strong>
-    <p>${draft.summary || ''}</p>
+    <p>${escapeHtml(draft.summary || '')}</p>
     <div style="display:flex;align-items:center;gap:18px;margin-top:12px">
-      <div><div style="font-size:10px;color:#7a8295;text-transform:uppercase">ציון מסכם</div><div class="score">${draft.score || '—'}<span style="font-size:14px;font-weight:400;color:#7a8295"> / 100</span></div></div>
+      <div><div style="font-size:10px;color:#7a8295;text-transform:uppercase">ציון מסכם</div><div class="score">${escapeHtml(draft.score || '—')}<span style="font-size:14px;font-weight:400;color:#7a8295"> / 100</span></div></div>
       <div style="width:1px;height:36px;background:#cfc7b3"></div>
       <div><div style="font-size:10px;color:#7a8295;text-transform:uppercase">הערכה כללית</div><div style="font-size:16px;font-weight:600;margin-top:4px">${levelLabel(draft.overallLevel)}</div></div>
     </div>

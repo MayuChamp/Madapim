@@ -27,7 +27,6 @@ function TopbarNav({ activeScreen, onNav, instructorName, onLogout }) {
         </div>
         <div className="topnav-actions">
           <button className="icon-btn" onClick={() => onNav('settings')} title="הגדרות"><Icons.IconSettings size={18} /></button>
-          <button className="icon-btn dot" title="התראות"><Icons.IconAlert size={18} /></button>
           {onLogout && <button className="icon-btn" onClick={onLogout} title="התנתק"><Icons.IconArrowLeft size={18} /></button>}
           <div className="user-pill">
             <div className="avatar">{initials}</div>
@@ -45,7 +44,7 @@ function TopbarNav({ activeScreen, onNav, instructorName, onLogout }) {
 function Dashboard({ students = STUDENTS, onOpenStudent, cardLayout, onCreateStudent, onImportCSV, onDeleteStudent }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
-  const [newStudent, setNewStudent] = useState({ name: '', school: '', grade: '', subjectTrack: '' });
+  const [newStudent, setNewStudent] = useState({ name: '', school: '', grade: '', subjectTrack: '', gender: 'female' });
   const [csvText, setCsvText] = useState('');
   const [importing, setImporting] = useState(false);
   const [confirmDeleteStudent, setConfirmDeleteStudent] = useState(null);
@@ -56,7 +55,7 @@ function Dashboard({ students = STUDENTS, onOpenStudent, cardLayout, onCreateStu
     if (onCreateStudent) {
       await onCreateStudent(newStudent);
       setShowAddModal(false);
-      setNewStudent({ name: '', school: '', grade: '', subjectTrack: '' });
+      setNewStudent({ name: '', school: '', grade: '', subjectTrack: '', gender: 'female' });
     }
   };
 
@@ -149,6 +148,17 @@ function Dashboard({ students = STUDENTS, onOpenStudent, cardLayout, onCreateStu
                 <div>
                   <label className="label">מסלול הוראה</label>
                   <input className="input" value={newStudent.subjectTrack} onChange={e=>setNewStudent({...newStudent, subjectTrack: e.target.value})} placeholder="מתמטיקה, אנגלית..." />
+                </div>
+              </div>
+              <div>
+                <label className="label">מגדר</label>
+                <div style={{display:'flex',gap:8,marginTop:4}}>
+                  {[{value:'female',label:'נקבה'},{value:'male',label:'זכר'}].map(opt=>(
+                    <label key={opt.value} style={{display:'flex',alignItems:'center',gap:6,padding:'7px 16px',borderRadius:'var(--r-sm)',border:`1.5px solid ${newStudent.gender===opt.value?'var(--accent)':'var(--border)'}`,background:newStudent.gender===opt.value?'var(--accent-soft)':'transparent',cursor:'pointer',fontSize:14,fontWeight:newStudent.gender===opt.value?500:400,transition:'all .12s'}}>
+                      <input type="radio" name="gender" value={opt.value} checked={newStudent.gender===opt.value} onChange={()=>setNewStudent({...newStudent,gender:opt.value})} style={{display:'none'}}/>
+                      {opt.label}
+                    </label>
+                  ))}
                 </div>
               </div>
               <div style={{display:'flex',justifyContent:'flex-end',gap:8,marginTop:16}}>
@@ -289,6 +299,37 @@ function StudentsList({ students = STUDENTS, onOpen, onDelete }) {
 
 const TRACK_COLORS = { lp:{fg:'#1e3a5f',bg:'#e8eef5',name:'מערכי שיעור',Icon:IconDoc}, ob:{fg:'#2f7a4e',bg:'#e3f0e8',name:'צפיות',Icon:IconEye} };
 
+// Format ISO date string or "DD.MM" to display as "DD.MM.YY"
+function formatDateDisplay(dateStr) {
+  if (!dateStr) return '';
+  if (dateStr.includes('-')) {
+    // ISO: YYYY-MM-DD or full timestamp
+    const d = new Date(dateStr.length > 10 ? dateStr : dateStr + 'T00:00:00');
+    if (isNaN(d.getTime())) return '';
+    const dd = String(d.getDate()).padStart(2,'0');
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const yy = String(d.getFullYear()).slice(-2);
+    return `${dd}.${mm}.${yy}`;
+  }
+  return dateStr; // already "DD.MM"
+}
+
+// Sort key for academic year (Sep=start, Aug=end)
+function academicSortKey(dateStr) {
+  if (!dateStr) return Infinity;
+  let day, month, year;
+  if (dateStr.includes('-')) {
+    const d = new Date(dateStr.length > 10 ? dateStr : dateStr + 'T00:00:00');
+    if (isNaN(d.getTime())) return Infinity;
+    day = d.getDate(); month = d.getMonth() + 1; year = d.getFullYear();
+  } else {
+    const parts = dateStr.split('.');
+    day = parseInt(parts[0]); month = parseInt(parts[1]);
+    year = month >= 9 ? 2025 : 2026;
+  }
+  return new Date(year, month - 1, day).getTime();
+}
+
 function ProgressPill({ kind, complete, total }) {
   const c = TRACK_COLORS[kind]; const pct = total===0?0:Math.round(100*complete/total);
   return (
@@ -333,7 +374,12 @@ function StageTimeline({ cycle, stageOrder, trackColor, studentId, onFileUploade
             </div>
             {done ? (
               <>
-                <div style={{marginTop:8}}>
+                {stage.date && (
+                  <div style={{display:'flex',alignItems:'center',gap:4,fontSize:11,color:'var(--ink-3)',marginBottom:4}}>
+                    <IconClock size={10}/>{stage.date}
+                  </div>
+                )}
+                <div style={{marginTop:4}}>
                   <ExtraMaterials extras={stage.files || []} studentId={studentId} cycleId={cycle.id} stageKey={stageKey} onFileUploaded={onFileUploaded} buttonLabel="הוספת חומר נוסף" />
                 </div>
                 {stage.summary&&<div style={{marginTop:8,fontSize:11.5,color:'var(--ink-2)',lineHeight:1.6,fontStyle:'italic'}}>״{stage.summary}״</div>}
@@ -389,7 +435,7 @@ function CycleRow({ kind, cycle, cycleIndex, stageOrder, open, onToggle, onUploa
               <IconPencil size={11} stroke="var(--ink-3)" style={{opacity:0.6}}/>
             </div>
           )}
-          <div style={{fontSize:12,color:'var(--ink-3)',marginTop:2}}>{cycle.subject||`תאריך תצפית: ${cycle.date}`}</div>
+          {cycle.subject && <div style={{fontSize:12,color:'var(--ink-3)',marginTop:2}}>{cycle.subject}</div>}
         </div>
         <StageDots cycle={cycle} stageOrder={stageOrder} trackColor={c.fg}/>
         <span className={`badge ${status.cls}`}>{status.label}</span>
@@ -440,6 +486,7 @@ function transformApiCycle(c) {
 
 function ExtraMaterials({ extras, studentId, cycleId, stageKey, onFileUploaded, buttonLabel = "הוספת חומר נוסף" }) {
   const [extraDesc, setExtraDesc] = useState('');
+  const [materialDate, setMaterialDate] = useState('');
   const [showExtraForm, setShowExtraForm] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState(null);
@@ -447,20 +494,20 @@ function ExtraMaterials({ extras, studentId, cycleId, stageKey, onFileUploaded, 
   const addExtra = async () => {
     const fileInput = document.getElementById(`extra-file-${cycleId || 'general'}-${stageKey || 'none'}`);
     const files = fileInput ? Array.from(fileInput.files) : [];
-    
+
     if (files.length === 0 && !extraDesc.trim()) return;
-    
+
     setUploading(true); setUploadError(null);
     try {
       if (files.length > 0) {
         for (const file of files) {
-          await window.API_uploadFile(studentId, file, cycleId || null, stageKey || null, extraDesc.trim());
+          await window.API_uploadFile(studentId, file, cycleId || null, stageKey || null, extraDesc.trim(), materialDate || null);
         }
       } else {
-        await window.API_uploadFile(studentId, null, cycleId || null, stageKey || null, extraDesc.trim());
+        await window.API_uploadFile(studentId, null, cycleId || null, stageKey || null, extraDesc.trim(), materialDate || null);
       }
       if (onFileUploaded) onFileUploaded();
-      setExtraDesc(''); setShowExtraForm(false);
+      setExtraDesc(''); setMaterialDate(''); setShowExtraForm(false);
     } catch (err) {
       setUploadError(err.message);
     } finally {
@@ -479,17 +526,32 @@ function ExtraMaterials({ extras, studentId, cycleId, stageKey, onFileUploaded, 
 
   return (
     <div style={{display:'flex',flexDirection:'column',gap:8}}>
-      {extras.map(ex=>(
-        <div key={ex.id} className="card" style={{padding:'12px 16px',display:'flex',alignItems:'center',gap:12}}>
-          <div style={{width:30,height:36,borderRadius:3,flexShrink:0,background:'var(--accent-soft)',color:'var(--accent)',fontSize:9,fontWeight:700,display:'grid',placeItems:'center'}}>{ex.original_name ? (ex.original_name.split('.').pop() || 'DOC').toUpperCase().slice(0,3) : 'TXT'}</div>
-          <div style={{flex:1,minWidth:0}}><div style={{fontSize:14,fontWeight:500,color:'var(--ink-1)'}}>{ex.description || 'ללא תיאור'}</div><div style={{fontSize:11.5,color:'var(--ink-3)',marginTop:1}}>{ex.original_name}</div></div>
-          <button className="btn-ghost" onClick={()=>deleteExtra(ex.id)} style={{padding:4,borderRadius:4,color:'var(--ink-4)'}}><IconClose size={14}/></button>
-        </div>
-      ))}
+      {extras.map(ex=>{
+        const displayDate = ex.material_date
+          ? formatDateDisplay(ex.material_date)
+          : ex.uploaded_at ? formatDateDisplay(ex.uploaded_at) : '';
+        return (
+          <div key={ex.id} className="card" style={{padding:'12px 16px',display:'flex',alignItems:'center',gap:12}}>
+            <div style={{width:30,height:36,borderRadius:3,flexShrink:0,background:'var(--accent-soft)',color:'var(--accent)',fontSize:9,fontWeight:700,display:'grid',placeItems:'center'}}>{ex.original_name ? (ex.original_name.split('.').pop() || 'DOC').toUpperCase().slice(0,3) : 'TXT'}</div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:14,fontWeight:500,color:'var(--ink-1)'}}>{ex.description || 'ללא תיאור'}</div>
+              <div style={{fontSize:11.5,color:'var(--ink-3)',marginTop:1}}>{ex.original_name}</div>
+              {displayDate && (
+                <div style={{display:'flex',alignItems:'center',gap:3,fontSize:11,color:'var(--ink-4)',marginTop:2}}>
+                  <IconClock size={10}/>{ex.material_date ? displayDate : `הועלה ${displayDate}`}
+                </div>
+              )}
+            </div>
+            <button className="btn-ghost" onClick={()=>deleteExtra(ex.id)} style={{padding:4,borderRadius:4,color:'var(--ink-4)'}}><IconClose size={14}/></button>
+          </div>
+        );
+      })}
       {showExtraForm ? (
         <div className="card" style={{padding:16}}>
           <label className="label">תיאור החומר</label>
           <input className="input" autoFocus value={extraDesc} onChange={e=>setExtraDesc(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')addExtra();}} placeholder="לדוגמה: תיק עבודות תלמידים, סרטון שיעור, תכתובת עם הורה... (רשות)"/>
+          <label className="label" style={{marginTop:10}}>תאריך החומר <span style={{fontWeight:400,color:'var(--ink-4)'}}>(רשות — מתי ניתן/נכתב)</span></label>
+          <input type="date" className="input" value={materialDate} onChange={e=>setMaterialDate(e.target.value)} style={{direction:'ltr'}}/>
           <label className="label" style={{marginTop:10}}>קובץ (אפשר לבחור כמה קבצים יחד)</label>
           <input id={`extra-file-${cycleId || 'general'}-${stageKey || 'none'}`} type="file" multiple accept=".docx,.doc,.pdf,.txt,.mp4,.mp3,.png,.jpg,.jpeg" className="input" style={{paddingTop:6}}/>
           {uploadError && <div style={{fontSize:12,color:'var(--warn)',marginTop:6}}>{uploadError}</div>}
@@ -497,7 +559,7 @@ function ExtraMaterials({ extras, studentId, cycleId, stageKey, onFileUploaded, 
             <button className="btn btn-primary btn-sm" onClick={addExtra} disabled={uploading}>
               {uploading ? 'מעלה...' : <><IconUpload size={13}/> הוסף</>}
             </button>
-            <button className="btn btn-ghost btn-sm" onClick={()=>{setShowExtraForm(false);setExtraDesc('');setUploadError(null);}}>ביטול</button>
+            <button className="btn btn-ghost btn-sm" onClick={()=>{setShowExtraForm(false);setExtraDesc('');setMaterialDate('');setUploadError(null);}}>ביטול</button>
           </div>
         </div>
       ) : (
@@ -506,6 +568,117 @@ function ExtraMaterials({ extras, studentId, cycleId, stageKey, onFileUploaded, 
         </button>
       )}
     </div>
+  );
+}
+
+const HEBREW_MONTHS = ['','ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+// Academic year month order: Sep → Aug
+const ACADEMIC_MONTH_ORDER = [9,10,11,12,1,2,3,4,5,6,7,8];
+
+function YearTimeline({ studentCycles, extraFiles }) {
+  const events = [];
+
+  for (const cycle of studentCycles) {
+    const trackType = cycle.track_type;
+    for (const [stageKey, stage] of Object.entries(cycle.stages)) {
+      if (stage.done && stage.date) {
+        events.push({
+          dateStr: stage.date,
+          sortKey: academicSortKey(stage.date),
+          label: `${cycle.topic} — ${STAGE_LABELS[stageKey]?.full || stageKey}`,
+          trackType,
+          type: 'stage',
+        });
+      }
+      for (const f of (stage.files || [])) {
+        if (f.material_date) {
+          events.push({
+            dateStr: formatDateDisplay(f.material_date),
+            sortKey: academicSortKey(f.material_date),
+            label: f.description || f.original_name || 'מסמך',
+            trackType,
+            type: 'file',
+          });
+        }
+      }
+    }
+  }
+
+  for (const f of (extraFiles || [])) {
+    if (f.material_date) {
+      events.push({
+        dateStr: formatDateDisplay(f.material_date),
+        sortKey: academicSortKey(f.material_date),
+        label: f.description || f.original_name || 'מסמך',
+        trackType: 'extra',
+        type: 'file',
+      });
+    }
+  }
+
+  if (events.length === 0) return null;
+  events.sort((a, b) => a.sortKey - b.sortKey);
+
+  // Group by month
+  const byMonth = {};
+  for (const ev of events) {
+    let month;
+    if (ev.dateStr.includes('.')) {
+      const parts = ev.dateStr.split('.');
+      month = parseInt(parts[1]);
+    } else {
+      month = new Date(ev.dateStr).getMonth() + 1;
+    }
+    if (!byMonth[month]) byMonth[month] = [];
+    byMonth[month].push(ev);
+  }
+
+  const activeMonths = ACADEMIC_MONTH_ORDER.filter(m => byMonth[m]);
+
+  return (
+    <section>
+      <div style={{display:'flex',alignItems:'baseline',justifyContent:'space-between',marginBottom:14}}>
+        <div style={{display:'flex',alignItems:'baseline',gap:10}}>
+          <div style={{width:28,height:28,borderRadius:8,background:'var(--surface-3)',color:'var(--ink-2)',display:'grid',placeItems:'center',fontSize:14,transform:'translateY(4px)'}}><IconClock size={15}/></div>
+          <div>
+            <h2 style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:600,margin:0,color:'var(--ink-1)',letterSpacing:'-0.01em'}}>ציר זמן שנתי</h2>
+            <div style={{fontSize:12.5,color:'var(--ink-3)',marginTop:2}}>מעקב התפתחות לאורך שנת ההתנסות</div>
+          </div>
+        </div>
+        <div style={{fontSize:12,color:'var(--ink-3)'}}>{events.length} אירועים מתועדים</div>
+      </div>
+      <div className="card" style={{padding:0,overflow:'hidden'}}>
+        {activeMonths.map((month, mi) => {
+          const monthEvents = byMonth[month];
+          return (
+            <div key={month} style={{borderBottom: mi < activeMonths.length - 1 ? '1px solid var(--border)' : 'none'}}>
+              <div style={{padding:'8px 18px 6px',background:'var(--surface-2)',fontSize:11,fontWeight:700,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.07em',display:'flex',alignItems:'center',gap:8}}>
+                <span style={{width:6,height:6,borderRadius:'50%',background:'var(--ink-4)',flexShrink:0,display:'inline-block'}}/>
+                {HEBREW_MONTHS[month]}
+                <span style={{fontWeight:400,marginInlineStart:4}}>· {monthEvents.length}</span>
+              </div>
+              <div style={{padding:'8px 18px 12px',display:'flex',flexDirection:'column',gap:6}}>
+                {monthEvents.map((ev, i) => {
+                  const isLP = ev.trackType === 'lesson_plan';
+                  const isOb = ev.trackType === 'observation';
+                  const tc = isLP ? TRACK_COLORS.lp : isOb ? TRACK_COLORS.ob : {fg:'var(--accent)',bg:'var(--accent-soft)'};
+                  const TrackIcon = isLP ? IconDoc : isOb ? IconEye : IconFile;
+                  return (
+                    <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 12px',background:'var(--surface)',borderRadius:'var(--r-sm)',border:`1px solid ${tc.bg}`}}>
+                      <span style={{flexShrink:0,width:40,fontFamily:'var(--font-mono)',fontSize:11.5,color:'var(--ink-3)',textAlign:'center'}}>{ev.dateStr}</span>
+                      <div style={{width:1,height:20,background:'var(--border)',flexShrink:0}}/>
+                      <div style={{width:22,height:22,borderRadius:5,background:tc.bg,color:tc.fg,display:'grid',placeItems:'center',flexShrink:0}}><TrackIcon size={11}/></div>
+                      <div style={{flex:1,fontSize:13,color:'var(--ink-1)',lineHeight:1.35}}>{ev.label}</div>
+                      {ev.type === 'stage' && <span style={{width:16,height:16,borderRadius:'50%',background:'var(--ok-soft)',color:'var(--ok)',display:'grid',placeItems:'center',flexShrink:0}}><IconCheck size={9}/></span>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -555,6 +728,7 @@ function Workspace({ student, onBack, onAnalyze, onFileUploaded }) {
         <div style={{display:'flex',flexDirection:'column',gap:28}}>
           <TrackSection kind="lp" title="מערכי שיעור" subtitle="הגשה → הערות מד״פ → תיקון" cycles={lpCycles} stageOrder={['submission','instructorNotes','revision']} openCycle={openCycle?.trackType==='lp'?openCycle.cycleId:null} onToggle={(id)=>setOpenCycle(openCycle?.cycleId===id?null:{trackType:'lp',cycleId:id})} onUpload={handleCycleUpload} studentId={student.id} onFileUploaded={onFileUploaded}/>
           <TrackSection kind="ob" title="צפיות בשיעורים" subtitle="צפייה → משוב → רפלקציה" cycles={obCycles} stageOrder={['observation','feedback','reflection']} openCycle={openCycle?.trackType==='ob'?openCycle.cycleId:null} onToggle={(id)=>setOpenCycle(openCycle?.cycleId===id?null:{trackType:'ob',cycleId:id})} onUpload={handleCycleUpload} studentId={student.id} onFileUploaded={onFileUploaded}/>
+          <YearTimeline studentCycles={studentCycles} extraFiles={student.extraFiles || []}/>
           <section>
             <div style={{display:'flex',alignItems:'baseline',justifyContent:'space-between',marginBottom:14}}>
               <div style={{display:'flex',alignItems:'baseline',gap:10}}>

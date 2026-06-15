@@ -12,7 +12,7 @@ import * as API from './api';
 
 // ─── Convert AI draft → editor categories ─────────────────────────────────────
 function draftToCategories(draftCats) {
-  if (!draftCats || draftCats.length === 0) return EVAL_CATEGORIES;
+  if (!draftCats || !Array.isArray(draftCats) || draftCats.length === 0) return EVAL_CATEGORIES;
   return draftCats.map(c => ({
     id: c.id,
     name: c.name,
@@ -132,6 +132,7 @@ function App() {
     if (evaluationId) {
       try {
         await API.exportPdf(evaluationId, format);
+        await API.saveEvaluation(evaluationId, { status: 'finalized' });
       } catch (e) {
         setToast(`שגיאה בייצוא: ${e.message}`);
         return;

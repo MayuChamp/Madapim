@@ -29,7 +29,7 @@ function buildDocContext(files) {
 }
 
 // ─── Build prompt ────────────────────────────────────────────────────────────
-function buildPrompt(studentName, files, instructorAnswers = {}) {
+function buildPrompt(studentName, files, instructorAnswers = {}, gender = 'female') {
   const docContext = buildDocContext(files);
 
   const answersText = Object.keys(instructorAnswers).length > 0
@@ -44,9 +44,15 @@ function buildPrompt(studentName, files, instructorAnswers = {}) {
     `${i + 1}. ${c.name} (${c.weight}%) — ערוצים: ${c.channels.join(', ') || 'קלט מדריך בלבד'}`
   ).join('\n');
 
-  return `אתה מערכת הערכה פדגוגית לסטודנטים מורים. עליך לנתח את תיק ההתנסות של הסטודנטית ולהפיק טיוטת הערכה מקצועית בעברית.
+  const isMale = gender === 'male';
+  const studentTitle = isMale ? 'הסטודנט' : 'הסטודנטית';
+  const pronoun = isMale ? 'הוא' : 'היא';
+  const possessive = isMale ? 'שלו' : 'שלה';
 
-## שם הסטודנטית
+  return `אתה מערכת הערכה פדגוגית לסטודנטים מורים. עליך לנתח את תיק ההתנסות של ${studentTitle} ולהפיק טיוטת הערכה מקצועית בעברית.
+השתמש בלשון ${isMale ? 'זכר' : 'נקבה'} בכל הניסוח (${pronoun}, ${possessive} וכו׳).
+
+## שם ${studentTitle}
 ${studentName}
 
 ## מחוון ההערכה (מחוון כלי מדפים)
@@ -92,8 +98,8 @@ ${docContext}
 }
 
 // ─── Main analysis function ──────────────────────────────────────────────────
-async function analyzePortfolio(studentName, files, instructorAnswers = {}) {
-  const prompt = buildPrompt(studentName, files, instructorAnswers);
+async function analyzePortfolio(studentName, files, instructorAnswers = {}, gender = 'female') {
+  const prompt = buildPrompt(studentName, files, instructorAnswers, gender);
 
   const message = await client.messages.create({
     model: 'claude-sonnet-4-6',
@@ -118,7 +124,7 @@ async function analyzePortfolio(studentName, files, instructorAnswers = {}) {
 }
 
 // ─── Smart gap questions (generated after analysis) ─────────────────────────
-async function generateSmartQuestions(analysisResult, studentName) {
+async function generateSmartQuestions(analysisResult, studentName, gender = 'female') {
   const gaps = (analysisResult.categories || []).filter(c => c.hasGap);
   const missing = (analysisResult.categories || []).filter(
     c => c.overallLevel === null || c.observationLevel === null
@@ -126,7 +132,9 @@ async function generateSmartQuestions(analysisResult, studentName) {
 
   if (gaps.length === 0 && missing.length === 0) return [];
 
-  const prompt = `בהתבסס על ניתוח התיק של ${studentName}, זוהו הפערים הבאים:
+  const studentTitle = gender === 'male' ? 'הסטודנט' : 'הסטודנטית';
+
+  const prompt = `בהתבסס על ניתוח התיק של ${studentTitle} ${studentName}, זוהו הפערים הבאים:
 ${gaps.map(c => `- ${c.name}: ${c.gapSummary}`).join('\n')}
 ${missing.map(c => `- ${c.name}: חסר תיעוד`).join('\n')}
 

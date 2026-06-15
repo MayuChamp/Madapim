@@ -246,6 +246,19 @@ const q = {
     return data || null;
   },
 
+  userById: async (id) => {
+    const { data } = await supabase.from('users').select('*').eq('id', id).single();
+    return data || null;
+  },
+
+  updateUserProfile: async (id, { name, email }) => {
+    await supabase.from('users').update({ name, email }).eq('id', id);
+  },
+
+  updateUserPassword: async (id, passwordHash) => {
+    await supabase.from('users').update({ password_hash: passwordHash }).eq('id', id);
+  },
+
   allRubrics: async () => {
     const { data } = await supabase.from('rubrics').select('*').order('created_at', { ascending: false });
     return data || [];
@@ -302,6 +315,41 @@ const q = {
 
     await supabase.from('cycles').insert(cycles);
     await supabase.from('stages').insert(stages);
+  },
+
+  deleteStudent: async (id) => {
+    const { data: cycles } = await supabase.from('cycles').select('id').eq('student_id', id);
+    const cycleIds = (cycles || []).map(c => c.id);
+    if (cycleIds.length > 0) {
+      await supabase.from('stages').delete().in('cycle_id', cycleIds);
+    }
+    const { data: files } = await supabase.from('files').select('stored_path').eq('student_id', id);
+    const paths = (files || []).filter(f => f.stored_path).map(f => f.stored_path);
+    if (paths.length > 0) {
+      await supabase.storage.from(BUCKET).remove(paths);
+    }
+    await supabase.from('files').delete().eq('student_id', id);
+    await supabase.from('cycles').delete().eq('student_id', id);
+    await supabase.from('evaluations').delete().eq('student_id', id);
+    await supabase.from('students').delete().eq('id', id);
+  },
+
+  allEvaluations: async () => {
+    const { data: evals } = await supabase
+      .from('evaluations')
+      .select('id, student_id, score, status, draft_json, created_at, updated_at')
+      .order('created_at', { ascending: false });
+    if (!evals || evals.length === 0) return [];
+    const studentIds = [...new Set(evals.map(e => e.student_id))];
+    const { data: students } = await supabase
+      .from('students').select('id, name, school, grade, subject_track').in('id', studentIds);
+    const studentMap = {};
+    for (const s of (students || [])) studentMap[s.id] = s;
+    return evals.map(e => ({ ...e, student: studentMap[e.student_id] || null }));
+  },
+
+  deleteEvaluation: async (id) => {
+    await supabase.from('evaluations').delete().eq('id', id);
   },
 
   bulkInsertStudents: async (students) => {

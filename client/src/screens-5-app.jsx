@@ -177,7 +177,7 @@ function AnalyzingScreen() {
     <div className="fade-in" style={{position:'fixed',inset:0,zIndex:50,background:'var(--bg)',display:'grid',placeItems:'center'}}>
       <div style={{width:420,maxWidth:'calc(100vw - 32px)',textAlign:'center'}}>
         <div style={{width:64,height:64,margin:'0 auto 20px',borderRadius:16,background:'var(--brand)',color:'#fff',display:'grid',placeItems:'center',boxShadow:'0 8px 32px rgba(30,58,95,.3)'}}><IconSparkle size={28} style={{animation:'pulse 1.5s infinite'}}/></div>
-        <h2 style={{fontFamily:'var(--font-serif)',fontSize:22,fontWeight:600,margin:'0 0 8px'}}>מכין את הטיוטה</h2>
+        <h2 style={{fontFamily:'var(--font-serif)',fontSize:22,fontWeight:600,margin:'0 0 8px'}}>מכינה את ניתוח התיק</h2>
         <p style={{fontSize:14,color:'var(--ink-2)',margin:'0 0 24px'}}>{label}</p>
         <div style={{height:4,background:'var(--surface-3)',borderRadius:100,overflow:'hidden'}}><div style={{height:'100%',width:`${pct}%`,background:'linear-gradient(90deg,var(--brand),var(--brand-3))',transition:'width .4s ease-out',borderRadius:100}}/></div>
         <div style={{marginTop:8,fontSize:12,color:'var(--ink-3)'}}>{pct}%</div>
