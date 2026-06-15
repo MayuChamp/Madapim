@@ -28,6 +28,7 @@ app.use((req, res, next) => {
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api/auth',       require('./routes/auth'));
+app.use('/api/users',      require('./routes/users'));
 app.use('/api/students',   require('./routes/students'));
 app.use('/api/files',      require('./routes/files'));
 app.use('/api/evaluations',require('./routes/evaluations'));

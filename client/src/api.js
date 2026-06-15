@@ -201,6 +201,19 @@ export async function deleteEvaluation(id) {
   return apiFetch(`/evaluations/${id}`, { method: 'DELETE' });
 }
 
+// ─── Users (admin) ────────────────────────────────────────────────────────────
+export async function getUsers() {
+  return apiFetch('/users');
+}
+
+export async function createUser({ name, email, password, role }) {
+  return apiFetch('/users', { method: 'POST', body: JSON.stringify({ name, email, password, role }) });
+}
+
+export async function deleteUser(id) {
+  return apiFetch(`/users/${id}`, { method: 'DELETE' });
+}
+
 // ─── Rubrics ──────────────────────────────────────────────────────────────────
 export async function getRubrics() {
   return apiFetch('/rubrics');

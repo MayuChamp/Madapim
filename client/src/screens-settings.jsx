@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { IconUser, IconBell, IconLock, IconPalette } from './icons';
+import React, { useState, useEffect } from 'react';
+import { IconUser, IconBell, IconLock, IconPalette, IconUsers, IconTrash, IconPlus } from './icons';
 import * as API from './api';
 
 export function SettingsScreen({ user, onLogout, onUserUpdate }) {
@@ -18,6 +18,9 @@ export function SettingsScreen({ user, onLogout, onUserUpdate }) {
           <TabButton active={activeTab === 'notifications'} onClick={() => setActiveTab('notifications')} icon={<IconBell size={18} />}    label="התראות" />
           <TabButton active={activeTab === 'security'}      onClick={() => setActiveTab('security')}      icon={<IconLock size={18} />}    label="אבטחה ופרטיות" />
           <TabButton active={activeTab === 'appearance'}    onClick={() => setActiveTab('appearance')}    icon={<IconPalette size={18} />} label="תצוגה" />
+          {user?.role === 'admin' && (
+            <TabButton active={activeTab === 'users'} onClick={() => setActiveTab('users')} icon={<IconUsers size={18} />} label="ניהול משתמשים" />
+          )}
           <div style={{ margin: '12px 0', height: 1, background: 'var(--border)' }} />
           <TabButton onClick={onLogout} icon={<IconUser size={18} />} label="התנתק" danger />
         </div>
@@ -27,6 +30,7 @@ export function SettingsScreen({ user, onLogout, onUserUpdate }) {
           {activeTab === 'notifications' && <NotificationSettings />}
           {activeTab === 'security'      && <SecuritySettings />}
           {activeTab === 'appearance'    && <AppearanceSettings />}
+          {activeTab === 'users'         && <UsersManagement currentUserId={user?.id} />}
         </div>
       </div>
     </div>
@@ -226,6 +230,153 @@ function AppearanceSettings() {
         <ToggleRow label="מצב כהה" description="הפעלת רקע כהה כברירת מחדל (זמין גם בפאנל Tweaks)." defaultChecked={false} />
         <ToggleRow label="אנימציות" description="הפעלת אפקטי מעבר ואנימציות ממשק לחוויה חלקה." defaultChecked={true} />
       </div>
+    </div>
+  );
+}
+
+function UsersManagement({ currentUserId }) {
+  const [users,    setUsers]    = useState([]);
+  const [loading,  setLoading]  = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [status,   setStatus]   = useState(null);
+  const [deleting, setDeleting] = useState(null);
+
+  const [name,     setName]     = useState('');
+  const [email,    setEmail]    = useState('');
+  const [password, setPassword] = useState('');
+  const [role,     setRole]     = useState('instructor');
+  const [saving,   setSaving]   = useState(false);
+
+  useEffect(() => {
+    API.getUsers()
+      .then(setUsers)
+      .catch(err => setStatus({ type: 'error', msg: err.message }))
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function handleCreate(e) {
+    e.preventDefault();
+    if (!name.trim() || !email.trim() || !password) {
+      setStatus({ type: 'error', msg: 'יש למלא את כל השדות' });
+      return;
+    }
+    setSaving(true);
+    setStatus(null);
+    try {
+      const newUser = await API.createUser({ name: name.trim(), email: email.trim(), password, role });
+      setUsers(prev => [...prev, newUser]);
+      setName(''); setEmail(''); setPassword(''); setRole('instructor');
+      setShowForm(false);
+      setStatus({ type: 'ok', msg: `המשתמש "${newUser.name}" נוצר בהצלחה` });
+    } catch (err) {
+      setStatus({ type: 'error', msg: err.message || 'שגיאה ביצירת המשתמש' });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete(userId, userName) {
+    if (!window.confirm(`האם למחוק את המשתמש "${userName}"?`)) return;
+    setDeleting(userId);
+    try {
+      await API.deleteUser(userId);
+      setUsers(prev => prev.filter(u => u.id !== userId));
+      setStatus({ type: 'ok', msg: `המשתמש "${userName}" נמחק` });
+    } catch (err) {
+      setStatus({ type: 'error', msg: err.message || 'שגיאה במחיקת המשתמש' });
+    } finally {
+      setDeleting(null);
+    }
+  }
+
+  const roleLabel = r => r === 'admin' ? 'מנהל' : 'מדריך פדגוגי';
+
+  return (
+    <div className="fade-in">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+        <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 24, fontWeight: 600, margin: 0, color: 'var(--ink-1)' }}>ניהול משתמשים</h2>
+        <button
+          className="btn btn-primary"
+          style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+          onClick={() => { setShowForm(f => !f); setStatus(null); }}
+        >
+          <IconPlus size={16} />
+          משתמש חדש
+        </button>
+      </div>
+
+      {showForm && (
+        <form onSubmit={handleCreate} style={{ background: 'var(--surface-1)', borderRadius: 'var(--r-md)', padding: 24, marginBottom: 24, border: '1px solid var(--border)' }}>
+          <h3 style={{ fontSize: 16, fontWeight: 600, margin: '0 0 20px', color: 'var(--ink-1)' }}>יצירת משתמש חדש</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+            <div>
+              <label className="label">שם מלא</label>
+              <input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="ישראל ישראלי" />
+            </div>
+            <div>
+              <label className="label">כתובת דוא״ל</label>
+              <input className="input" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="user@example.com" dir="ltr" />
+            </div>
+            <div>
+              <label className="label">סיסמה (לפחות 6 תווים)</label>
+              <input className="input" type="password" value={password} onChange={e => setPassword(e.target.value)} dir="ltr" />
+            </div>
+            <div>
+              <label className="label">תפקיד</label>
+              <select className="input" value={role} onChange={e => setRole(e.target.value)}>
+                <option value="instructor">מדריך פדגוגי</option>
+                <option value="admin">מנהל</option>
+              </select>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+            <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>ביטול</button>
+            <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'יוצר...' : 'צור משתמש'}</button>
+          </div>
+        </form>
+      )}
+
+      <StatusMsg status={status} />
+
+      {loading ? (
+        <div style={{ padding: 32, textAlign: 'center', color: 'var(--ink-3)' }}>טוען...</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+          {users.map(u => (
+            <div key={u.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 4px', borderBottom: '1px solid var(--border-soft)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--brand-soft)', color: 'var(--brand)', display: 'grid', placeItems: 'center', fontWeight: 600, fontSize: 16, flexShrink: 0 }}>
+                  {(u.name || u.email)[0]}
+                </div>
+                <div>
+                  <div style={{ fontWeight: 500, color: 'var(--ink-1)', fontSize: 14 }}>{u.name || '—'}</div>
+                  <div style={{ fontSize: 13, color: 'var(--ink-3)' }} dir="ltr">{u.email}</div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ fontSize: 12, padding: '3px 10px', borderRadius: 100, background: u.role === 'admin' ? 'var(--brand-soft)' : 'var(--surface-2)', color: u.role === 'admin' ? 'var(--brand)' : 'var(--ink-2)', fontWeight: 500 }}>
+                  {roleLabel(u.role)}
+                </span>
+                {u.id !== currentUserId && (
+                  <button
+                    onClick={() => handleDelete(u.id, u.name || u.email)}
+                    disabled={deleting === u.id}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-3)', padding: 4, borderRadius: 'var(--r-sm)', display: 'grid', placeItems: 'center' }}
+                    onMouseEnter={e => e.currentTarget.style.color = 'var(--warn)'}
+                    onMouseLeave={e => e.currentTarget.style.color = 'var(--ink-3)'}
+                    title="מחק משתמש"
+                  >
+                    <IconTrash size={16} />
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+          {users.length === 0 && (
+            <div style={{ padding: 32, textAlign: 'center', color: 'var(--ink-3)', fontSize: 14 }}>אין משתמשים</div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

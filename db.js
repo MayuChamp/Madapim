@@ -27,6 +27,7 @@ async function seed() {
       email: 'yearad@dyellin.ac.il',
       password_hash: bcrypt.hashSync('pilot2026', 10),
       name: 'ראש הקבוצה',
+      role: 'admin',
     });
     console.log('✓ Pilot user created: yearad@dyellin.ac.il / pilot2026');
   }
@@ -106,6 +107,8 @@ async function seed() {
 async function initDB() {
   await supabase.storage.createBucket(BUCKET, { public: false }).catch(() => {});
   await seed();
+  // Ensure the pilot user is an admin (handles existing DBs seeded before the role was set)
+  await supabase.from('users').update({ role: 'admin' }).eq('id', 'u1').neq('role', 'admin');
 }
 
 // ─── Query helpers (all async) ────────────────────────────────────────────────
@@ -257,6 +260,24 @@ const q = {
 
   updateUserPassword: async (id, passwordHash) => {
     await supabase.from('users').update({ password_hash: passwordHash }).eq('id', id);
+  },
+
+  allUsers: async () => {
+    const { data } = await supabase
+      .from('users').select('id, email, name, role, created_at').order('created_at');
+    return data || [];
+  },
+
+  createUser: async ({ id, email, passwordHash, name, role }) => {
+    const { data, error } = await supabase.from('users')
+      .insert({ id, email, password_hash: passwordHash, name, role: role || 'instructor' })
+      .select('id, email, name, role, created_at').single();
+    if (error) throw error;
+    return data;
+  },
+
+  deleteUser: async (id) => {
+    await supabase.from('users').delete().eq('id', id);
   },
 
   allRubrics: async () => {
