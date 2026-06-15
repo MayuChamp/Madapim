@@ -67,11 +67,6 @@ export function Login({ onLogin }) {
           </button>
         </form>
 
-        <div style={{ marginTop: 24, padding: '12px 14px', background: 'var(--surface-2)', borderRadius: 'var(--r-sm)', fontSize: 12, color: 'var(--ink-3)' }}>
-          <strong style={{ color: 'var(--ink-2)' }}>פיילוט — פרטי כניסה:</strong><br />
-          דוא״ל: yearad@dyellin.ac.il<br />
-          סיסמה: pilot2026
-        </div>
       </div>
     </div>
   );
