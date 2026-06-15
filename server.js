@@ -37,17 +37,10 @@ app.use('/api/rubrics',    require('./routes/rubrics'));
 // ─── Health check ─────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => res.json({ ok: true, time: new Date().toISOString() }));
 
-// ─── Catch-all: serve Vite SPA (or index.html at root) ────────────────────────
+// ─── Catch-all: serve Vite SPA ───────────────────────────────────────────────
 app.get('*', (req, res) => {
   if (!req.path.startsWith('/api')) {
-    const distIndex = path.join(__dirname, 'client', 'dist', 'index.html');
-    const rootIndex = path.join(__dirname, 'index.html');
-    const fs = require('fs');
-    if (fs.existsSync(distIndex)) {
-      res.sendFile(distIndex);
-    } else {
-      res.sendFile(rootIndex);
-    }
+    res.sendFile(path.join(__dirname, 'client', 'dist', 'index.html'));
   }
 });
 
