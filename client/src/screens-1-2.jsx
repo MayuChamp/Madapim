@@ -2,37 +2,44 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import * as Icons from './icons';
 import { Icon, IconHome, IconUsers, IconArchive, IconSettings, IconFolder, IconFile, IconUpload, IconPlus, IconArrowLeft, IconArrowRight, IconChevron, IconPencil, IconMagic, IconMic, IconSearch, IconClose, IconCheck, IconDownload, IconSave, IconSend, IconSparkle, IconBookmark, IconDoc, IconWave, IconGrid, IconList, IconClock, IconArchiveBox, IconAlert, IconGraduationCap, IconEye, IconTrash } from './icons';
 import { STUDENTS, EVAL_CATEGORIES, STAGE_LABELS, CYCLE_STATUS, STATUS_META } from './data';
+import { useLanguage } from './i18n';
 
 
 
 function TopbarNav({ activeScreen, onNav, instructorName, onLogout }) {
+  const { t, lang, setLang } = useLanguage();
   const initials = (instructorName || 'מ').slice(0, 1);
   return (
     <nav className="topnav">
       <div className="topnav-bar">
         <div className="brand-mark">
           <div className="brand-glyph">ה</div>
-          <div className="brand-text"><b>הערכה</b><span>כלי הדרכה פדגוגית</span></div>
+          <div className="brand-text"><b>הערכה</b><span>{t('brand_tagline')}</span></div>
         </div>
         <div className="topnav-pills">
           <button className={`topnav-pill ${activeScreen === 'dashboard' ? 'active' : ''}`} onClick={() => onNav('dashboard')}>
-            <Icons.IconUsers size={16} /> הסטודנטים שלי <span className="pill-count">6</span>
+            <Icons.IconUsers size={16} /> {t('nav_my_students')} <span className="pill-count">6</span>
           </button>
           <button className={`topnav-pill ${activeScreen === 'archive' ? 'active' : ''}`} onClick={() => onNav('archive')}>
-            <Icons.IconArchiveBox size={16} /> ארכיון
+            <Icons.IconArchiveBox size={16} /> {t('nav_archive')}
           </button>
           <button className={`topnav-pill ${activeScreen === 'rubrics' ? 'active' : ''}`} onClick={() => onNav('rubrics')}>
-            <Icons.IconBookmark size={16} /> מחוונים
+            <Icons.IconBookmark size={16} /> {t('nav_rubrics')}
           </button>
         </div>
         <div className="topnav-actions">
-          <button className="icon-btn" onClick={() => onNav('settings')} title="הגדרות"><Icons.IconSettings size={18} /></button>
-          {onLogout && <button className="icon-btn" onClick={onLogout} title="התנתק"><Icons.IconArrowLeft size={18} /></button>}
+          <div style={{display:'flex',alignItems:'center',gap:2,padding:'4px 6px',borderRadius:'var(--r-sm)',background:'var(--surface-2)',border:'1px solid var(--border)'}}>
+            {[{code:'he',label:'עב'},{code:'en',label:'EN'},{code:'ar',label:'ع'}].map(l=>(
+              <button key={l.code} onClick={()=>setLang(l.code)} style={{padding:'2px 6px',borderRadius:4,border:'none',fontSize:11,fontWeight:lang===l.code?700:400,background:lang===l.code?'var(--brand)':'transparent',color:lang===l.code?'#fff':'var(--ink-2)',cursor:'pointer',lineHeight:1.4}}>{l.label}</button>
+            ))}
+          </div>
+          <button className="icon-btn" onClick={() => onNav('settings')} title={t('nav_settings_title')}><Icons.IconSettings size={18} /></button>
+          {onLogout && <button className="icon-btn" onClick={onLogout} title={t('nav_logout')}><Icons.IconArrowLeft size={18} /></button>}
           <div className="user-pill">
             <div className="avatar">{initials}</div>
             <div>
               <div className="u-name">{instructorName}</div>
-              <div className="u-role">מדריכה פדגוגית</div>
+              <div className="u-role">{t('role_instructor')}</div>
             </div>
           </div>
         </div>
@@ -42,6 +49,7 @@ function TopbarNav({ activeScreen, onNav, instructorName, onLogout }) {
 }
 
 function Dashboard({ students = STUDENTS, onOpenStudent, cardLayout, onCreateStudent, onImportCSV, onDeleteStudent }) {
+  const { t } = useLanguage();
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [newStudent, setNewStudent] = useState({ name: '', school: '', grade: '', subjectTrack: '', gender: 'female' });
@@ -83,22 +91,22 @@ function Dashboard({ students = STUDENTS, onOpenStudent, cardLayout, onCreateStu
     <div className="main-inner fade-in">
       <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',marginBottom:'var(--gap-5)'}}>
         <div>
-          <div style={{fontSize:13,color:'var(--ink-3)',marginBottom:6,letterSpacing:'0.02em'}}>סמסטר ב׳ · תשפ"ו · קבוצת הדרכה 14</div>
-          <h1 style={{fontFamily:'var(--font-serif)',fontSize:36,fontWeight:600,margin:0,color:'var(--ink-1)',letterSpacing:'-0.01em',lineHeight:1.1}}>הסטודנטים שלי</h1>
-          <p style={{fontSize:15,color:'var(--ink-2)',margin:'10px 0 0',maxWidth:540,lineHeight:1.6}}>ריכוז של כלל הסטודנטים תחת אחריותך. בחרי כרטיסיה כדי להעלות חומרים, להפעיל ניתוח ולערוך טיוטת הערכה.</p>
+          <div style={{fontSize:13,color:'var(--ink-3)',marginBottom:6,letterSpacing:'0.02em'}}>{t('semester_label')}</div>
+          <h1 style={{fontFamily:'var(--font-serif)',fontSize:36,fontWeight:600,margin:0,color:'var(--ink-1)',letterSpacing:'-0.01em',lineHeight:1.1}}>{t('dashboard_title')}</h1>
+          <p style={{fontSize:15,color:'var(--ink-2)',margin:'10px 0 0',maxWidth:540,lineHeight:1.6}}>{t('dashboard_subtitle')}</p>
         </div>
         <div style={{display:'flex',gap:8}}>
-          <button className="btn btn-secondary btn-lg" onClick={()=>setShowImportModal(true)}><IconUpload size={16}/> ייבוא רשימה</button>
-          <button className="btn btn-primary btn-lg" onClick={()=>setShowAddModal(true)}><IconPlus size={16}/> הוסף סטודנט</button>
+          <button className="btn btn-secondary btn-lg" onClick={()=>setShowImportModal(true)}><IconUpload size={16}/> {t('btn_import_list')}</button>
+          <button className="btn btn-primary btn-lg" onClick={()=>setShowAddModal(true)}><IconPlus size={16}/> {t('btn_add_student')}</button>
         </div>
       </div>
       <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'var(--gap-3)',marginBottom:'var(--gap-5)'}}>
-        <StatTile n={counts.pending} label="ממתינות להתייחסותך" tone="warn" icon={<IconAlert size={14}/>}/>
-        <StatTile n={counts.in_progress} label="בעבודה" tone="info" icon={<IconClock size={14}/>}/>
-        <StatTile n={counts.ready} label="מוכנות לייצוא" tone="ok" icon={<IconCheck size={14}/>}/>
-        <StatTile n={counts.not_started} label="טרם הותחלו" tone="neutral" icon={<IconFolder size={14}/>}/>
+        <StatTile n={counts.pending} label={t('stat_pending')} tone="warn" icon={<IconAlert size={14}/>}/>
+        <StatTile n={counts.in_progress} label={t('stat_in_progress')} tone="info" icon={<IconClock size={14}/>}/>
+        <StatTile n={counts.ready} label={t('stat_ready')} tone="ok" icon={<IconCheck size={14}/>}/>
+        <StatTile n={counts.not_started} label={t('stat_not_started')} tone="neutral" icon={<IconFolder size={14}/>}/>
       </div>
-      <div className="section-title" style={{marginTop:'var(--gap-5)'}}><h2>הקבוצה</h2><div style={{display:'flex',alignItems:'center',gap:12}}><span className="hint">{students.length} סטודנטים</span></div></div>
+      <div className="section-title" style={{marginTop:'var(--gap-5)'}}><h2>{t('group_section')}</h2><div style={{display:'flex',alignItems:'center',gap:12}}><span className="hint">{t('students_count', { n: students.length })}</span></div></div>
       {cardLayout==='grid' ? <StudentsGrid students={students} onOpen={onOpenStudent} onDelete={setConfirmDeleteStudent}/> : <StudentsList students={students} onOpen={onOpenStudent} onDelete={setConfirmDeleteStudent}/>}
 
       {/* Confirm delete modal */}
@@ -108,15 +116,15 @@ function Dashboard({ students = STUDENTS, onOpenStudent, cardLayout, onCreateStu
             <div style={{width:52,height:52,borderRadius:'50%',background:'var(--warn-soft)',color:'var(--warn)',display:'grid',placeItems:'center',margin:'0 auto 16px'}}>
               <IconTrash size={22}/>
             </div>
-            <h2 style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:600,margin:'0 0 8px'}}>מחיקת סטודנט</h2>
+            <h2 style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:600,margin:'0 0 8px'}}>{t('delete_student_title')}</h2>
             <p style={{fontSize:14,color:'var(--ink-2)',lineHeight:1.6,margin:'0 0 24px'}}>
-              האם אתה בטוח שברצונך למחוק את <strong>{confirmDeleteStudent.name}</strong>?<br/>
-              פעולה זו תמחק את כל הנתונים, הקבצים וההערכות של הסטודנט ואינה ניתנת לביטול.
+              {t('delete_student_confirm_1')} <strong>{confirmDeleteStudent.name}</strong>?<br/>
+              {t('delete_student_confirm_2')}
             </p>
             <div style={{display:'flex',gap:10,justifyContent:'center'}}>
-              <button className="btn btn-ghost" style={{minWidth:100}} onClick={()=>setConfirmDeleteStudent(null)}>ביטול</button>
+              <button className="btn btn-ghost" style={{minWidth:100}} onClick={()=>setConfirmDeleteStudent(null)}>{t('cancel')}</button>
               <button className="btn" style={{minWidth:100,background:'var(--warn)',color:'#fff',border:'none'}} onClick={()=>{onDeleteStudent&&onDeleteStudent(confirmDeleteStudent);setConfirmDeleteStudent(null);}}>
-                <IconTrash size={14}/> מחק סטודנט
+                <IconTrash size={14}/> {t('delete_student_btn')}
               </button>
             </div>
           </div>
@@ -128,42 +136,42 @@ function Dashboard({ students = STUDENTS, onOpenStudent, cardLayout, onCreateStu
         <div style={{position:'fixed',inset:0,zIndex:100,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center'}}>
           <div className="card fade-in" style={{width: 400, padding: 24}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
-              <h2 style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:600,margin:0}}>הוסף סטודנט חדש</h2>
+              <h2 style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:600,margin:0}}>{t('add_student_title')}</h2>
               <button className="btn-ghost" onClick={()=>setShowAddModal(false)}><IconClose size={16}/></button>
             </div>
             <form onSubmit={handleCreate} style={{display:'flex',flexDirection:'column',gap:12}}>
               <div>
-                <label className="label">שם מלא</label>
-                <input className="input" required value={newStudent.name} onChange={e=>setNewStudent({...newStudent, name: e.target.value})} placeholder="לדוגמה: משה לוי" />
+                <label className="label">{t('field_full_name')}</label>
+                <input className="input" required value={newStudent.name} onChange={e=>setNewStudent({...newStudent, name: e.target.value})} placeholder={t('field_full_name_ph')} />
               </div>
               <div>
-                <label className="label">בית ספר מאמן</label>
-                <input className="input" value={newStudent.school} onChange={e=>setNewStudent({...newStudent, school: e.target.value})} placeholder="לדוגמה: יסודי הרצוג" />
+                <label className="label">{t('field_school')}</label>
+                <input className="input" value={newStudent.school} onChange={e=>setNewStudent({...newStudent, school: e.target.value})} placeholder={t('field_school_ph')} />
               </div>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
                 <div>
-                  <label className="label">כיתה</label>
-                  <input className="input" value={newStudent.grade} onChange={e=>setNewStudent({...newStudent, grade: e.target.value})} placeholder="לדוגמה: כיתה ד׳" />
+                  <label className="label">{t('field_grade')}</label>
+                  <input className="input" value={newStudent.grade} onChange={e=>setNewStudent({...newStudent, grade: e.target.value})} placeholder={t('field_grade_ph')} />
                 </div>
                 <div>
-                  <label className="label">מסלול הוראה</label>
-                  <input className="input" value={newStudent.subjectTrack} onChange={e=>setNewStudent({...newStudent, subjectTrack: e.target.value})} placeholder="מתמטיקה, אנגלית..." />
+                  <label className="label">{t('field_subject_track')}</label>
+                  <input className="input" value={newStudent.subjectTrack} onChange={e=>setNewStudent({...newStudent, subjectTrack: e.target.value})} placeholder={t('field_subject_track_ph')} />
                 </div>
               </div>
               <div>
-                <label className="label">מגדר</label>
+                <label className="label">{t('field_gender')}</label>
                 <div style={{display:'flex',gap:8,marginTop:4}}>
-                  {[{value:'female',label:'נקבה'},{value:'male',label:'זכר'}].map(opt=>(
+                  {[{value:'female',labelKey:'gender_female'},{value:'male',labelKey:'gender_male'}].map(opt=>(
                     <label key={opt.value} style={{display:'flex',alignItems:'center',gap:6,padding:'7px 16px',borderRadius:'var(--r-sm)',border:`1.5px solid ${newStudent.gender===opt.value?'var(--accent)':'var(--border)'}`,background:newStudent.gender===opt.value?'var(--accent-soft)':'transparent',cursor:'pointer',fontSize:14,fontWeight:newStudent.gender===opt.value?500:400,transition:'all .12s'}}>
                       <input type="radio" name="gender" value={opt.value} checked={newStudent.gender===opt.value} onChange={()=>setNewStudent({...newStudent,gender:opt.value})} style={{display:'none'}}/>
-                      {opt.label}
+                      {t(opt.labelKey)}
                     </label>
                   ))}
                 </div>
               </div>
               <div style={{display:'flex',justifyContent:'flex-end',gap:8,marginTop:16}}>
-                <button type="button" className="btn btn-ghost" onClick={()=>setShowAddModal(false)}>ביטול</button>
-                <button type="submit" className="btn btn-primary"><IconCheck size={14}/> שמור</button>
+                <button type="button" className="btn btn-ghost" onClick={()=>setShowAddModal(false)}>{t('cancel')}</button>
+                <button type="submit" className="btn btn-primary"><IconCheck size={14}/> {t('save')}</button>
               </div>
             </form>
           </div>
@@ -175,7 +183,7 @@ function Dashboard({ students = STUDENTS, onOpenStudent, cardLayout, onCreateStu
         <div style={{position:'fixed',inset:0,zIndex:100,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center'}}>
           <div className="card fade-in" style={{width:520,padding:24}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
-              <h2 style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:600,margin:0}}>ייבוא רשימת סטודנטים</h2>
+              <h2 style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:600,margin:0}}>{t('csv_import_title')}</h2>
               <button className="btn-ghost" onClick={()=>setShowImportModal(false)}><IconClose size={16}/></button>
             </div>
             <div style={{fontSize:13,color:'var(--ink-3)',marginBottom:16,lineHeight:1.6,background:'var(--surface-2)',padding:'10px 14px',borderRadius:'var(--r-sm)'}}>
@@ -185,19 +193,19 @@ function Dashboard({ students = STUDENTS, onOpenStudent, cardLayout, onCreateStu
             </div>
             <form onSubmit={handleImport} style={{display:'flex',flexDirection:'column',gap:12}}>
               <div>
-                <label className="label">טעינת קובץ CSV</label>
+                <label className="label">{t('csv_upload_label')}</label>
                 <input type="file" accept=".csv,.txt" onChange={handleFileRead} style={{fontSize:13,color:'var(--ink-2)'}}/>
               </div>
               <div>
-                <label className="label">או הדבק תוכן CSV</label>
+                <label className="label">{t('csv_paste_label')}</label>
                 <textarea className="input" rows={8} dir="ltr" value={csvText} onChange={e=>setCsvText(e.target.value)}
                   style={{fontFamily:'var(--font-mono)',fontSize:12}}
                   placeholder={"שם,בית ספר,כיתה,מסלול\nמשה לוי,יסודי הרצוג,כיתה ד׳,מתמטיקה\nדנה כהן,ניסויי יסוד,כיתה ב׳,אנגלית"}/>
               </div>
               <div style={{display:'flex',justifyContent:'flex-end',gap:8,marginTop:8}}>
-                <button type="button" className="btn btn-ghost" onClick={()=>setShowImportModal(false)}>ביטול</button>
+                <button type="button" className="btn btn-ghost" onClick={()=>setShowImportModal(false)}>{t('cancel')}</button>
                 <button type="submit" className="btn btn-primary" disabled={importing || !csvText.trim()}>
-                  <IconUpload size={14}/> {importing ? 'מייבא...' : 'ייבא סטודנטים'}
+                  <IconUpload size={14}/> {importing ? t('importing') : t('btn_import_students')}
                 </button>
               </div>
             </form>
@@ -238,6 +246,7 @@ function TrackProgressMini({ kind, label, complete, total }) {
 }
 
 function StudentCard({ s, onClick, onDelete }) {
+  const { t } = useLanguage();
   const meta = STATUS_META[s.status]; const lp = s.lessonProgress||{complete:0,total:0}; const ob = s.observationProgress||{complete:0,total:0};
   return (
     <div className="card card-hover" onClick={onClick} style={{borderTop:'4px solid var(--brand)', display:'flex', flexDirection:'column'}}>
@@ -248,7 +257,7 @@ function StudentCard({ s, onClick, onDelete }) {
         </div>
         <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:6}}>
           <div style={{width:44,height:44,borderRadius:'50%',background:'var(--brand-soft)',color:'var(--brand)',display:'grid',placeItems:'center',fontFamily:'var(--font-serif)',fontSize:17,fontWeight:600,flexShrink:0}}>{s.initials}</div>
-          {onDelete && <button onClick={e=>{e.stopPropagation();onDelete(s);}} style={{padding:'3px 6px',borderRadius:4,border:'none',background:'transparent',cursor:'pointer',color:'var(--ink-4)',transition:'color .15s'}} title="מחק סטודנט" onMouseEnter={e=>e.currentTarget.style.color='var(--warn)'} onMouseLeave={e=>e.currentTarget.style.color='var(--ink-4)'}><IconTrash size={13}/></button>}
+          {onDelete && <button onClick={e=>{e.stopPropagation();onDelete(s);}} style={{padding:'3px 6px',borderRadius:4,border:'none',background:'transparent',cursor:'pointer',color:'var(--ink-4)',transition:'color .15s'}} title={t('delete_student_btn')} onMouseEnter={e=>e.currentTarget.style.color='var(--warn)'} onMouseLeave={e=>e.currentTarget.style.color='var(--ink-4)'}><IconTrash size={13}/></button>}
         </div>
       </div>
       <div style={{fontSize:13,color:'var(--ink-2)',display:'flex',alignItems:'center',gap:6, justifyContent:'center', marginBottom:20}}>
@@ -260,18 +269,19 @@ function StudentCard({ s, onClick, onDelete }) {
         <TrackProgressMini kind="ob" label="צפיות" complete={ob.complete} total={ob.total}/>
       </div>
       <div style={{marginTop:'auto',display:'flex',alignItems:'center',justifyContent:'space-between', paddingTop:16, borderTop:'1px solid var(--border)'}}>
-        <span style={{fontSize:13,color:'var(--brand)',display:'flex',alignItems:'center',gap:4,fontWeight:600}}>פתח <IconArrowLeft size={14} strokeWidth={2.5}/></span>
-        <span className={`badge ${meta.cls}`} style={{padding:'6px 12px', fontSize:12.5, borderRadius:6}}>{meta.label}</span>
+        <span style={{fontSize:13,color:'var(--brand)',display:'flex',alignItems:'center',gap:4,fontWeight:600}}>{t('open')} <IconArrowLeft size={14} strokeWidth={2.5}/></span>
+        <span className={`badge ${meta.cls}`} style={{padding:'6px 12px', fontSize:12.5, borderRadius:6}}>{t('status_' + s.status)}</span>
       </div>
     </div>
   );
 }
 
 function StudentsList({ students = STUDENTS, onOpen, onDelete }) {
+  const { t } = useLanguage();
   return (
     <div className="card" style={{padding:0,overflow:'hidden'}}>
       <div style={{display:'grid',gridTemplateColumns:'40px 1.4fr 1.6fr 1.6fr 1.2fr 80px 40px',padding:'12px 18px',fontSize:11.5,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em',borderBottom:'1px solid var(--border)',background:'var(--surface-2)'}}>
-        <span/><span>סטודנט</span><span>בית ספר מאמן</span><span>התקדמות בערוצים</span><span>סטטוס</span><span/><span/>
+        <span/><span>{t('col_student')}</span><span>{t('col_school')}</span><span>{t('col_progress')}</span><span>{t('col_status')}</span><span/><span/>
       </div>
       {students.map((s,i)=>{
         const meta=STATUS_META[s.status]; const lp=s.lessonProgress||{complete:0,total:0}; const ob=s.observationProgress||{complete:0,total:0};
@@ -288,7 +298,7 @@ function StudentsList({ students = STUDENTS, onOpen, onDelete }) {
             <div><span className={`badge ${meta.cls}`}>{meta.label}</span></div>
             <div style={{textAlign:'start'}}><IconArrowLeft size={16} stroke="var(--ink-3)"/></div>
             <div style={{textAlign:'center'}}>
-              {onDelete && <button onClick={e=>{e.stopPropagation();onDelete(s);}} style={{padding:'5px 6px',borderRadius:4,border:'none',background:'transparent',cursor:'pointer',color:'var(--ink-4)',transition:'color .15s'}} title="מחק סטודנט" onMouseEnter={e=>e.currentTarget.style.color='var(--warn)'} onMouseLeave={e=>e.currentTarget.style.color='var(--ink-4)'}><IconTrash size={14}/></button>}
+              {onDelete && <button onClick={e=>{e.stopPropagation();onDelete(s);}} style={{padding:'5px 6px',borderRadius:4,border:'none',background:'transparent',cursor:'pointer',color:'var(--ink-4)',transition:'color .15s'}} title={t('delete_student_btn')} onMouseEnter={e=>e.currentTarget.style.color='var(--warn)'} onMouseLeave={e=>e.currentTarget.style.color='var(--ink-4)'}><IconTrash size={14}/></button>}
             </div>
           </div>
         );
@@ -331,10 +341,11 @@ function academicSortKey(dateStr) {
 }
 
 function ProgressPill({ kind, complete, total }) {
+  const { t } = useLanguage();
   const c = TRACK_COLORS[kind]; const pct = total===0?0:Math.round(100*complete/total);
   return (
     <div style={{padding:'8px 14px',borderRadius:100,background:c.bg,color:c.fg,fontSize:12.5,display:'flex',alignItems:'center',gap:10,fontWeight:500}}>
-      <c.Icon size={13}/><span>{c.name}</span><span style={{opacity:.5}}>·</span>
+      <c.Icon size={13}/><span>{kind === 'lp' ? t('track_lp_title') : t('track_ob_title')}</span><span style={{opacity:.5}}>·</span>
       <span style={{fontFamily:'var(--font-serif)',fontSize:14,fontWeight:600}}>{complete}/{total}</span>
       <span style={{width:36,height:4,borderRadius:100,background:'rgba(0,0,0,0.08)',position:'relative',overflow:'hidden'}}>
         <span style={{position:'absolute',insetInlineEnd:0,top:0,bottom:0,width:`${pct}%`,background:'currentColor'}}/>
@@ -362,15 +373,16 @@ function StageDots({ cycle, stageOrder, trackColor }) {
 }
 
 function StageTimeline({ cycle, stageOrder, trackColor, studentId, onFileUploaded }) {
+  const { t } = useLanguage();
   return (
     <div style={{display:'grid',gridTemplateColumns:`repeat(${stageOrder.length},1fr)`,gap:12,marginTop:14}}>
       {stageOrder.map((stageKey,i)=>{
-        const stage=cycle.stages[stageKey]; const meta=STAGE_LABELS[stageKey]; const done=stage?.done;
+        const stage=cycle.stages[stageKey]; const done=stage?.done;
         return (
           <div key={stageKey} style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'var(--r-sm)',padding:'12px 14px',opacity:done?1:0.7}}>
             <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
               <div style={{width:20,height:20,borderRadius:'50%',background:done?trackColor:'var(--surface-3)',color:done?'#fff':'var(--ink-3)',display:'grid',placeItems:'center',fontSize:11,fontWeight:700}}>{i+1}</div>
-              <div><div style={{fontSize:12.5,fontWeight:600,color:'var(--ink-1)'}}>{meta.full}</div><div style={{fontSize:10.5,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em',marginTop:1}}>{meta.who}</div></div>
+              <div><div style={{fontSize:12.5,fontWeight:600,color:'var(--ink-1)'}}>{t('stage_' + stageKey)}</div><div style={{fontSize:10.5,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em',marginTop:1}}>{t('stage_' + stageKey + '_who')}</div></div>
             </div>
             {done ? (
               <>
@@ -380,14 +392,14 @@ function StageTimeline({ cycle, stageOrder, trackColor, studentId, onFileUploade
                   </div>
                 )}
                 <div style={{marginTop:4}}>
-                  <ExtraMaterials extras={stage.files || []} studentId={studentId} cycleId={cycle.id} stageKey={stageKey} onFileUploaded={onFileUploaded} buttonLabel="הוספת חומר נוסף" />
+                  <ExtraMaterials extras={stage.files || []} studentId={studentId} cycleId={cycle.id} stageKey={stageKey} onFileUploaded={onFileUploaded} buttonLabel={t('add_extra_material')} />
                 </div>
                 {stage.summary&&<div style={{marginTop:8,fontSize:11.5,color:'var(--ink-2)',lineHeight:1.6,fontStyle:'italic'}}>״{stage.summary}״</div>}
               </>
             ) : (
               <div style={{marginTop:8,padding:'10px 8px',background:'var(--surface-2)',borderRadius:4,fontSize:11.5,textAlign:'center', border: '1px dashed var(--border-strong)'}}>
-                <div style={{color:'var(--ink-3)', marginBottom: 6}}>{stage.daysWaiting?`ממתין ${stage.daysWaiting} ימים`:'טרם הוגש'}</div>
-                <ExtraMaterials extras={stage.files || []} studentId={studentId} cycleId={cycle.id} stageKey={stageKey} onFileUploaded={onFileUploaded} buttonLabel="העלאת חומר לניתוח" />
+                <div style={{color:'var(--ink-3)', marginBottom: 6}}>{stage.daysWaiting ? t('waiting_days', { n: stage.daysWaiting }) : t('not_submitted')}</div>
+                <ExtraMaterials extras={stage.files || []} studentId={studentId} cycleId={cycle.id} stageKey={stageKey} onFileUploaded={onFileUploaded} buttonLabel={t('upload_material_for_analysis')} />
               </div>
             )}
           </div>
@@ -398,6 +410,7 @@ function StageTimeline({ cycle, stageOrder, trackColor, studentId, onFileUploade
 }
 
 function CycleRow({ kind, cycle, cycleIndex, stageOrder, open, onToggle, onUpload, studentId, onFileUploaded }) {
+  const { t } = useLanguage();
   const c = TRACK_COLORS[kind]; const status = CYCLE_STATUS[cycle.status];
   const [isEditing, setIsEditing] = useState(false);
   const [topicDraft, setTopicDraft] = useState(cycle.topic);
@@ -408,7 +421,7 @@ function CycleRow({ kind, cycle, cycleIndex, stageOrder, open, onToggle, onUploa
         await window.API_updateCycleTopic(cycle.id, topicDraft.trim());
         if (onFileUploaded) onFileUploaded(); // refresh
       } catch (err) {
-        alert('שגיאה בעדכון השם: ' + err.message);
+        alert(t('error_update_topic') + ': ' + err.message);
         setTopicDraft(cycle.topic);
       }
     }
@@ -430,7 +443,7 @@ function CycleRow({ kind, cycle, cycleIndex, stageOrder, open, onToggle, onUploa
               style={{fontSize:14.5,fontWeight:500,color:'var(--ink-1)', border:'1px solid var(--brand)', borderRadius:4, padding:'2px 6px', width:'100%', background:'var(--surface)'}} 
             />
           ) : (
-            <div onClick={() => setIsEditing(true)} style={{fontSize:14.5,fontWeight:500,color:'var(--ink-1)', display:'flex', alignItems:'center', gap:6, cursor:'text'}} title="לחץ לעריכת שם השיעור">
+            <div onClick={() => setIsEditing(true)} style={{fontSize:14.5,fontWeight:500,color:'var(--ink-1)', display:'flex', alignItems:'center', gap:6, cursor:'text'}} title={t('click_to_edit_lesson')}>
               {cycle.topic}
               <IconPencil size={11} stroke="var(--ink-3)" style={{opacity:0.6}}/>
             </div>
@@ -438,13 +451,13 @@ function CycleRow({ kind, cycle, cycleIndex, stageOrder, open, onToggle, onUploa
           {cycle.subject && <div style={{fontSize:12,color:'var(--ink-3)',marginTop:2}}>{cycle.subject}</div>}
         </div>
         <StageDots cycle={cycle} stageOrder={stageOrder} trackColor={c.fg}/>
-        <span className={`badge ${status.cls}`}>{status.label}</span>
+        <span className={`badge ${status.cls}`}>{t('cycle_' + cycle.status)}</span>
         <IconChevron size={14} stroke="var(--ink-3)" style={{transform:open?'rotate(-90deg)':'rotate(0)',transition:'transform .2s'}}/>
       </div>
       {open&&<div style={{padding:'4px 18px 18px',borderTop:'1px solid var(--border)',background:'var(--surface-2)',animation:'fadeIn .25s'}}>
         <StageTimeline cycle={cycle} stageOrder={stageOrder} trackColor={c.fg} studentId={studentId} onFileUploaded={onFileUploaded} />
         <div style={{marginTop: 24, paddingTop: 16, borderTop: '1px dashed var(--border-strong)'}}>
-          <div style={{fontSize: 13.5, fontWeight: 600, color: 'var(--ink-2)', marginBottom: 12}}>חומרים נוספים למחזור זה</div>
+          <div style={{fontSize: 13.5, fontWeight: 600, color: 'var(--ink-2)', marginBottom: 12}}>{t('additional_materials_cycle')}</div>
           <ExtraMaterials extras={cycle.extraFiles || []} studentId={studentId} cycleId={cycle.id} onFileUploaded={onFileUploaded} />
         </div>
       </div>}
@@ -453,6 +466,7 @@ function CycleRow({ kind, cycle, cycleIndex, stageOrder, open, onToggle, onUploa
 }
 
 function TrackSection({ kind, title, subtitle, cycles, stageOrder, openCycle, onToggle, onUpload, studentId, onFileUploaded }) {
+  const { t } = useLanguage();
   const c = TRACK_COLORS[kind]; const completeCount = cycles.filter(cy=>cy.status==='complete').length;
   return (
     <section>
@@ -464,7 +478,7 @@ function TrackSection({ kind, title, subtitle, cycles, stageOrder, openCycle, on
             <div style={{fontSize:12.5,color:'var(--ink-3)',marginTop:2}}>{subtitle}</div>
           </div>
         </div>
-        <div style={{fontSize:12,color:'var(--ink-3)'}}>{completeCount} מתוך {cycles.length} מחזורים הושלמו</div>
+        <div style={{fontSize:12,color:'var(--ink-3)'}}>{t('cycles_completed', { done: completeCount, total: cycles.length })}</div>
       </div>
       <div style={{display:'flex',flexDirection:'column',gap:8}}>
         {cycles.map((cy,i)=><CycleRow key={cy.id} kind={kind} cycle={cy} cycleIndex={i+1} stageOrder={stageOrder} open={openCycle===cy.id} onToggle={()=>onToggle(cy.id)} onUpload={(stageKey, file) => onUpload(cy.id, stageKey, file)} studentId={studentId} onFileUploaded={onFileUploaded}/>)}
@@ -484,7 +498,9 @@ function transformApiCycle(c) {
   return { ...c, stages, extraFiles: files.filter(f => !f.stage_key) };
 }
 
-function ExtraMaterials({ extras, studentId, cycleId, stageKey, onFileUploaded, buttonLabel = "הוספת חומר נוסף" }) {
+function ExtraMaterials({ extras, studentId, cycleId, stageKey, onFileUploaded, buttonLabel }) {
+  const { t } = useLanguage();
+  const resolvedButtonLabel = buttonLabel !== undefined ? buttonLabel : t('add_extra_material');
   const [extraDesc, setExtraDesc] = useState('');
   const [materialDate, setMaterialDate] = useState('');
   const [showExtraForm, setShowExtraForm] = useState(false);
@@ -520,7 +536,7 @@ function ExtraMaterials({ extras, studentId, cycleId, stageKey, onFileUploaded, 
       await window.API_deleteFile(id);
       if (onFileUploaded) onFileUploaded();
     } catch (err) {
-      alert('שגיאה במחיקת הקובץ: ' + err.message);
+      alert(t('error_delete_file') + ': ' + err.message);
     }
   };
 
@@ -534,11 +550,11 @@ function ExtraMaterials({ extras, studentId, cycleId, stageKey, onFileUploaded, 
           <div key={ex.id} className="card" style={{padding:'12px 16px',display:'flex',alignItems:'center',gap:12}}>
             <div style={{width:30,height:36,borderRadius:3,flexShrink:0,background:'var(--accent-soft)',color:'var(--accent)',fontSize:9,fontWeight:700,display:'grid',placeItems:'center'}}>{ex.original_name ? (ex.original_name.split('.').pop() || 'DOC').toUpperCase().slice(0,3) : 'TXT'}</div>
             <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:14,fontWeight:500,color:'var(--ink-1)'}}>{ex.description || 'ללא תיאור'}</div>
+              <div style={{fontSize:14,fontWeight:500,color:'var(--ink-1)'}}>{ex.description || t('no_description')}</div>
               <div style={{fontSize:11.5,color:'var(--ink-3)',marginTop:1}}>{ex.original_name}</div>
               {displayDate && (
                 <div style={{display:'flex',alignItems:'center',gap:3,fontSize:11,color:'var(--ink-4)',marginTop:2}}>
-                  <IconClock size={10}/>{ex.material_date ? displayDate : `הועלה ${displayDate}`}
+                  <IconClock size={10}/>{ex.material_date ? displayDate : t('uploaded_on', { date: displayDate })}
                 </div>
               )}
             </div>
@@ -548,18 +564,18 @@ function ExtraMaterials({ extras, studentId, cycleId, stageKey, onFileUploaded, 
       })}
       {showExtraForm ? (
         <div className="card" style={{padding:16}}>
-          <label className="label">תיאור החומר</label>
-          <input className="input" autoFocus value={extraDesc} onChange={e=>setExtraDesc(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')addExtra();}} placeholder="לדוגמה: תיק עבודות תלמידים, סרטון שיעור, תכתובת עם הורה... (רשות)"/>
-          <label className="label" style={{marginTop:10}}>תאריך החומר <span style={{fontWeight:400,color:'var(--ink-4)'}}>(רשות — מתי ניתן/נכתב)</span></label>
+          <label className="label">{t('material_desc_label')}</label>
+          <input className="input" autoFocus value={extraDesc} onChange={e=>setExtraDesc(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')addExtra();}} placeholder={t('material_desc_ph')}/>
+          <label className="label" style={{marginTop:10}}>{t('material_date_label')} <span style={{fontWeight:400,color:'var(--ink-4)'}}>({t('material_date_optional')})</span></label>
           <input type="date" className="input" value={materialDate} onChange={e=>setMaterialDate(e.target.value)} style={{direction:'ltr'}}/>
-          <label className="label" style={{marginTop:10}}>קובץ (אפשר לבחור כמה קבצים יחד)</label>
+          <label className="label" style={{marginTop:10}}>{t('file_label')}</label>
           <input id={`extra-file-${cycleId || 'general'}-${stageKey || 'none'}`} type="file" multiple accept=".docx,.doc,.pdf,.txt,.mp4,.mp3,.png,.jpg,.jpeg" className="input" style={{paddingTop:6}}/>
           {uploadError && <div style={{fontSize:12,color:'var(--warn)',marginTop:6}}>{uploadError}</div>}
           <div style={{display:'flex',gap:8,marginTop:12}}>
             <button className="btn btn-primary btn-sm" onClick={addExtra} disabled={uploading}>
-              {uploading ? 'מעלה...' : <><IconUpload size={13}/> הוסף</>}
+              {uploading ? t('uploading') : <><IconUpload size={13}/> {t('add')}</>}
             </button>
-            <button className="btn btn-ghost btn-sm" onClick={()=>{setShowExtraForm(false);setExtraDesc('');setMaterialDate('');setUploadError(null);}}>ביטול</button>
+            <button className="btn btn-ghost btn-sm" onClick={()=>{setShowExtraForm(false);setExtraDesc('');setMaterialDate('');setUploadError(null);}}>{t('cancel')}</button>
           </div>
         </div>
       ) : (

@@ -9,9 +9,10 @@ import { STUDENTS, EVAL_CATEGORIES, SMART_QUESTIONS } from './data';
 import { IconMenu } from './icons';
 import { Login } from './Login';
 import * as API from './api';
+import { useLanguage } from './i18n';
 
 // ─── Convert AI draft → editor categories ─────────────────────────────────────
-function draftToCategories(draftCats) {
+function draftToCategories(draftCats, emptyHintText) {
   if (!draftCats || !Array.isArray(draftCats) || draftCats.length === 0) return EVAL_CATEGORIES;
   return draftCats.map(c => ({
     id: c.id,
@@ -22,7 +23,7 @@ function draftToCategories(draftCats) {
     observation: c.observationLevel ? { level: c.observationLevel, note: c.observationNote || '', ev: null } : null,
     gap: c.hasGap ? { summary: c.gapSummary || '', decisionKey: null, resolution: null } : null,
     balance: c.balance || '',
-    emptyHint: c.overallLevel ? undefined : 'תחום זה דורש את הערכתך הישירה.',
+    emptyHint: c.overallLevel ? undefined : emptyHintText,
   }));
 }
 
@@ -30,10 +31,11 @@ function draftToCategories(draftCats) {
 const TWEAK_DEFAULTS = { density: 'comfortable', theme: 'honey', dark: false };
 
 function App() {
+  const { t, lang } = useLanguage();
   const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const [screen, setScreen]   = useState('dashboard');
   const [student, setStudent] = useState(null);
-  const [students, setStudents] = useState(STUDENTS);
+  const [students, setStudents] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [smartQuestions, setSmartQuestions] = useState(SMART_QUESTIONS);
   const [instructorAnswers, setInstructorAnswers] = useState({});
@@ -59,7 +61,7 @@ function App() {
   useEffect(() => {
     if (!user) return;
     API.getStudents()
-      .then(data => { if (data && data.length > 0) setStudents(data); })
+      .then(data => setStudents(data || []))
       .catch(err => console.warn('Could not load students:', err.message));
   }, [user]);
 
@@ -68,16 +70,23 @@ function App() {
     document.documentElement.setAttribute('data-density', tweaks.density);
     document.documentElement.setAttribute('data-dark', String(!!tweaks.dark));
     document.documentElement.setAttribute('data-theme', tweaks.theme);
-    
+
     // Clean up old overridden properties to let the CSS theme take over
     document.documentElement.style.removeProperty('--brand');
     document.documentElement.style.removeProperty('--brand-2');
     document.documentElement.style.removeProperty('--brand-3');
     document.documentElement.style.removeProperty('--brand-soft');
     document.documentElement.style.removeProperty('--brand-softer');
-    document.documentElement.style.removeProperty('--font-sans');
-    document.documentElement.style.removeProperty('--font-serif');
-  }, [tweaks.density, tweaks.dark, tweaks.theme]);
+
+    // Arabic font
+    if (lang === 'ar') {
+      document.documentElement.style.setProperty('--font-sans', "'Cairo', 'Rubik', sans-serif");
+      document.documentElement.style.setProperty('--font-serif', "'Cairo', 'Rubik', sans-serif");
+    } else {
+      document.documentElement.style.removeProperty('--font-sans');
+      document.documentElement.style.removeProperty('--font-serif');
+    }
+  }, [tweaks.density, tweaks.dark, tweaks.theme, lang]);
 
   // Expose upload helper to Workspace (which calls window.API_uploadFile)
   window.API_uploadFile = API.uploadFile;
@@ -115,7 +124,7 @@ function App() {
     } catch (err) {
       setAnalyzeError(err.message);
       setScreen('workspace');
-      setToast(`שגיאה בניתוח: ${err.message}`);
+      setToast(`${t('error_analysis')}: ${err.message}`);
     }
   };
 
@@ -126,7 +135,7 @@ function App() {
 
   const onFinishExport = async (format = 'pdf') => {
     if (format === 'link') {
-      setToast('קישור לשיתוף: ' + window.location.origin + '/eval/' + evaluationId);
+      setToast(t('share_link') + ': ' + window.location.origin + '/eval/' + evaluationId);
       return;
     }
     if (evaluationId) {
@@ -134,17 +143,17 @@ function App() {
         await API.exportPdf(evaluationId, format);
         await API.saveEvaluation(evaluationId, { status: 'finalized' });
       } catch (e) {
-        setToast(`שגיאה בייצוא: ${e.message}`);
+        setToast(`${t('error_export')}: ${e.message}`);
         return;
       }
     }
-    setToast('ההערכה יוצאה בהצלחה · נשמרה לארכיון');
+    setToast(t('export_success'));
     setTimeout(() => { setScreen('dashboard'); setStudent(null); setEvaluationDraft(null); setEvaluationId(null); setStudentFiles([]); }, 600);
   };
 
   const handleLogout = () => { API.logout(); setUser(null); setScreen('dashboard'); };
 
-  const editorCategories = evaluationDraft ? draftToCategories(evaluationDraft.categories) : EVAL_CATEGORIES;
+  const editorCategories = evaluationDraft ? draftToCategories(evaluationDraft.categories, t('empty_hint')) : EVAL_CATEGORIES;
   const editorSummary    = evaluationDraft ? { text: evaluationDraft.summary, score: evaluationDraft.score } : null;
 
   const showSidebar = ['dashboard', 'workspace', 'archive', 'rubrics', 'settings'].includes(screen);
@@ -157,7 +166,7 @@ function App() {
   });
   const firstStudent = students[0] || STUDENTS[0];
 
-  if (loadingAuth) return <div style={{ height: '100vh', display: 'grid', placeItems: 'center' }}>טוען...</div>;
+  if (loadingAuth) return <div style={{ height: '100vh', display: 'grid', placeItems: 'center' }}>{t('loading')}</div>;
   if (!user) return <Login onLogin={setUser} />;
 
   return (
@@ -181,27 +190,27 @@ function App() {
               try {
                 await API.createStudent(data);
                 await refreshStudents();
-                setToast('סטודנט נוצר בהצלחה');
+                setToast(t('student_created'));
               } catch (err) {
-                setToast('שגיאה ביצירת סטודנט: ' + err.message);
+                setToast(`${t('error_create_student')}: ${err.message}`);
               }
             }}
             onImportCSV={async (csvText) => {
               try {
                 const result = await API.importStudentsCSV(csvText);
                 await refreshStudents();
-                setToast(`יובאו ${result.imported} סטודנטים בהצלחה`);
+                setToast(t('students_imported', { n: result.imported }));
               } catch (err) {
-                setToast('שגיאה בייבוא: ' + err.message);
+                setToast(`${t('error_import')}: ${err.message}`);
               }
             }}
             onDeleteStudent={async (s) => {
               try {
                 await API.deleteStudent(s.id);
                 await refreshStudents();
-                setToast(`הסטודנט ${s.name} נמחק בהצלחה`);
+                setToast(t('student_deleted', { name: s.name }));
               } catch (err) {
-                setToast('שגיאה במחיקת הסטודנט: ' + err.message);
+                setToast(`${t('error_delete_student')}: ${err.message}`);
               }
             }}
           />
@@ -252,18 +261,18 @@ function App() {
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
 
       <TweaksPanel title="Tweaks">
-        <TweakSection label="צפיפות" />
-        <TweakRadio label="צפיפות" value={tweaks.density} options={[{ value: 'compact', label: 'דחוס' }, { value: 'comfortable', label: 'נוח' }]} onChange={(v) => setTweak('density', v)} />
-        <TweakToggle label="מצב כהה" value={!!tweaks.dark} onChange={(v) => setTweak('dark', v)} />
-        <TweakSection label="ערכת נושא" />
-        <TweakRadio label="ערכת נושא" value={tweaks.theme} options={[{ value: 'honey', label: 'Honey' }, { value: 'mist', label: 'Mist' }, { value: 'clay', label: 'Clay' }]} onChange={(v) => setTweak('theme', v)} />
-        <TweakSection label="ניווט" />
+        <TweakSection label={t('tweaks_density')} />
+        <TweakRadio label={t('tweaks_density')} value={tweaks.density} options={[{ value: 'compact', label: t('tweaks_compact') }, { value: 'comfortable', label: t('tweaks_comfortable') }]} onChange={(v) => setTweak('density', v)} />
+        <TweakToggle label={t('tweaks_dark_mode')} value={!!tweaks.dark} onChange={(v) => setTweak('dark', v)} />
+        <TweakSection label={t('tweaks_theme')} />
+        <TweakRadio label={t('tweaks_theme')} value={tweaks.theme} options={[{ value: 'honey', label: 'Honey' }, { value: 'mist', label: 'Mist' }, { value: 'clay', label: 'Clay' }]} onChange={(v) => setTweak('theme', v)} />
+        <TweakSection label={t('tweaks_nav')} />
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, padding: '4px 0' }}>
-          <button onClick={() => setScreen('dashboard')}                                                  style={tabBtnStyle(screen === 'dashboard')}>1 · דף הבית</button>
-          <button onClick={() => { if (!student) setStudent(firstStudent); setScreen('workspace'); }}     style={tabBtnStyle(screen === 'workspace')}>2 · העלאה</button>
-          <button onClick={() => { if (!student) setStudent(firstStudent); setModalOpen(true); }}         style={tabBtnStyle(modalOpen)}>3 · מודאל</button>
-          <button onClick={() => { if (!student) setStudent(firstStudent); setScreen('editor'); }}        style={tabBtnStyle(screen === 'editor')}>4 · עורך</button>
-          <button onClick={() => { if (!student) setStudent(firstStudent); setScreen('export'); }}        style={tabBtnStyle(screen === 'export')}>5 · ייצוא</button>
+          <button onClick={() => setScreen('dashboard')}                                                  style={tabBtnStyle(screen === 'dashboard')}>1 · {t('tweaks_home')}</button>
+          <button onClick={() => { if (!student) setStudent(firstStudent); setScreen('workspace'); }}     style={tabBtnStyle(screen === 'workspace')}>2 · {t('tweaks_upload')}</button>
+          <button onClick={() => { if (!student) setStudent(firstStudent); setModalOpen(true); }}         style={tabBtnStyle(modalOpen)}>3 · {t('tweaks_modal')}</button>
+          <button onClick={() => { if (!student) setStudent(firstStudent); setScreen('editor'); }}        style={tabBtnStyle(screen === 'editor')}>4 · {t('tweaks_editor')}</button>
+          <button onClick={() => { if (!student) setStudent(firstStudent); setScreen('export'); }}        style={tabBtnStyle(screen === 'export')}>5 · {t('tweaks_export')}</button>
         </div>
       </TweaksPanel>
     </div>
