@@ -53,53 +53,6 @@ async function seed() {
     console.log('✓ Rubric seeded: מחוון כלי מדפים');
   }
 
-  const { data: existing } = await supabase.from('students').select('id').limit(1);
-  if (existing && existing.length > 0) return;
-
-  await supabase.from('students').insert([
-    { id: 's1', name: 'מ. לוי',    school: 'בית ספר יסודי מאמן · מתמטי', grade: 'כיתה ד׳', subject_track: 'מתמטיקה',    status: 'pending',      initials: 'מל' },
-    { id: 's2', name: 'נ. כהן',    school: 'בית ספר ניסויי · יסוד',      grade: 'כיתה ב׳', subject_track: 'אנגלית',       status: 'ready',        initials: 'נכ' },
-    { id: 's3', name: 'ש. בן-דוד', school: 'בית ספר ממ"ד שדות',           grade: 'כיתה ה׳', subject_track: 'מדעים',        status: 'pending',      initials: 'שב' },
-    { id: 's4', name: 'ת. אבני',   school: 'בית ספר דמוקרטי האלה',       grade: 'כיתה ג׳', subject_track: 'חינוך מיוחד', status: 'in_progress',  initials: 'תא' },
-    { id: 's5', name: 'א. שמיר',   school: 'בית ספר מאמן · רב-תרבותי',   grade: 'כיתה ד׳', subject_track: 'רב-תחומי',    status: 'not_started',  initials: 'אש' },
-    { id: 's6', name: 'ר. פרץ',    school: 'בית ספר יסודי הרצוג',        grade: 'כיתה ו׳', subject_track: 'לשון ומקרא',  status: 'pending',      initials: 'רפ' },
-  ]);
-
-  await supabase.from('cycles').insert([
-    { id: 'lp1', student_id: 's1', track_type: 'lesson_plan', topic: 'חלוקה ארוכה — שיעור פתיחה', subject: 'מתמטיקה', date: null, status: 'complete',           position: 1 },
-    { id: 'lp2', student_id: 's1', track_type: 'lesson_plan', topic: 'הרצל וחזון מדינת היהודים',   subject: 'מולדת',   date: null, status: 'complete',           position: 2 },
-    { id: 'lp3', student_id: 's1', track_type: 'lesson_plan', topic: 'שירת מולדת — אנליזה',         subject: 'ספרות',   date: null, status: 'awaiting_revision', position: 3 },
-    { id: 'lp4', student_id: 's1', track_type: 'lesson_plan', topic: 'מבנה הסיפור — היכרות',        subject: 'ספרות',   date: null, status: 'in_review',         position: 4 },
-    { id: 'ob1', student_id: 's1', track_type: 'observation', topic: 'תצפית 1 — שיעור פתיחת שנה', subject: null, date: '12.10', status: 'complete', position: 1 },
-    { id: 'ob2', student_id: 's1', track_type: 'observation', topic: 'תצפית 2 — מתמטיקה כיתה ד׳', subject: null, date: '04.11', status: 'complete', position: 2 },
-    { id: 'ob3', student_id: 's1', track_type: 'observation', topic: 'תצפית 3 — שיעור הרצל',       subject: null, date: '04.12', status: 'complete', position: 3 },
-  ]);
-
-  await supabase.from('stages').insert([
-    { id: 'st1',  cycle_id: 'lp1', stage_key: 'submission',      done: 1, date: '04.11', summary: null, days_waiting: null, position: 1 },
-    { id: 'st2',  cycle_id: 'lp1', stage_key: 'instructorNotes', done: 1, date: '07.11', summary: 'להעמיק שלבי האלגוריתם, להוסיף דוגמה הפוכה', days_waiting: null, position: 2 },
-    { id: 'st3',  cycle_id: 'lp1', stage_key: 'revision',        done: 1, date: '14.11', summary: null, days_waiting: null, position: 3 },
-    { id: 'st4',  cycle_id: 'lp2', stage_key: 'submission',      done: 1, date: '20.11', summary: null, days_waiting: null, position: 1 },
-    { id: 'st5',  cycle_id: 'lp2', stage_key: 'instructorNotes', done: 1, date: '23.11', summary: 'מצוין — להוסיף שאלת פתיחה אקטיבית', days_waiting: null, position: 2 },
-    { id: 'st6',  cycle_id: 'lp2', stage_key: 'revision',        done: 1, date: '27.11', summary: null, days_waiting: null, position: 3 },
-    { id: 'st7',  cycle_id: 'lp3', stage_key: 'submission',      done: 1, date: '10.12', summary: null, days_waiting: null, position: 1 },
-    { id: 'st8',  cycle_id: 'lp3', stage_key: 'instructorNotes', done: 1, date: '14.12', summary: 'לחזק את הקישור לטקסט המקור', days_waiting: null, position: 2 },
-    { id: 'st9',  cycle_id: 'lp3', stage_key: 'revision',        done: 0, date: null,    summary: null, days_waiting: 9,    position: 3 },
-    { id: 'st10', cycle_id: 'lp4', stage_key: 'submission',      done: 1, date: '08.01', summary: null, days_waiting: null, position: 1 },
-    { id: 'st11', cycle_id: 'lp4', stage_key: 'instructorNotes', done: 0, date: null,    summary: null, days_waiting: 3,    position: 2 },
-    { id: 'st12', cycle_id: 'lp4', stage_key: 'revision',        done: 0, date: null,    summary: null, days_waiting: null, position: 3 },
-    { id: 'st13', cycle_id: 'ob1', stage_key: 'observation', done: 1, date: '12.10', summary: 'התרשמות ראשונית: לומדת מהר, ראוי לעקוב אחר תכנון', days_waiting: null, position: 1 },
-    { id: 'st14', cycle_id: 'ob1', stage_key: 'feedback',    done: 1, date: '14.10', summary: null, days_waiting: null, position: 2 },
-    { id: 'st15', cycle_id: 'ob1', stage_key: 'reflection',  done: 1, date: '18.10', summary: null, days_waiting: null, position: 3 },
-    { id: 'st16', cycle_id: 'ob2', stage_key: 'observation', done: 1, date: '04.11', summary: 'ניהול כיתה רגוע, יש לחזק העברה בין שלבים', days_waiting: null, position: 1 },
-    { id: 'st17', cycle_id: 'ob2', stage_key: 'feedback',    done: 1, date: '07.11', summary: null, days_waiting: null, position: 2 },
-    { id: 'st18', cycle_id: 'ob2', stage_key: 'reflection',  done: 1, date: '11.11', summary: null, days_waiting: null, position: 3 },
-    { id: 'st19', cycle_id: 'ob3', stage_key: 'observation', done: 1, date: '04.12', summary: 'נוכחות כיתתית מצוינת. אלתור מרשים אחרי תקלת מקרן', days_waiting: null, position: 1 },
-    { id: 'st20', cycle_id: 'ob3', stage_key: 'feedback',    done: 1, date: '06.12', summary: null, days_waiting: null, position: 2 },
-    { id: 'st21', cycle_id: 'ob3', stage_key: 'reflection',  done: 1, date: '12.12', summary: null, days_waiting: null, position: 3 },
-  ]);
-
-  console.log('✓ Database seeded with anonymised students');
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
