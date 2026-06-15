@@ -7,7 +7,7 @@ const { analyzePortfolio, generateSmartQuestions } = require('../services/ai');
 router.get('/', async (req, res) => {
   if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
   try {
-    res.json(await q.allEvaluations());
+    res.json(await q.allEvaluations(req.user.id));
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

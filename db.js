@@ -313,15 +313,26 @@ const q = {
     await supabase.from('students').delete().eq('id', id);
   },
 
-  allEvaluations: async () => {
-    const { data: evals } = await supabase
+  allEvaluations: async (instructorId) => {
+    let studentIds = null;
+    if (instructorId) {
+      const { data: myStudents } = await supabase
+        .from('students').select('id').eq('instructor_id', instructorId);
+      studentIds = (myStudents || []).map(s => s.id);
+      if (studentIds.length === 0) return [];
+    }
+
+    let query = supabase
       .from('evaluations')
       .select('id, student_id, score, status, draft_json, created_at, updated_at')
       .order('created_at', { ascending: false });
+    if (studentIds) query = query.in('student_id', studentIds);
+
+    const { data: evals } = await query;
     if (!evals || evals.length === 0) return [];
-    const studentIds = [...new Set(evals.map(e => e.student_id))];
+    const ids = [...new Set(evals.map(e => e.student_id))];
     const { data: students } = await supabase
-      .from('students').select('id, name, school, grade, subject_track').in('id', studentIds);
+      .from('students').select('id, name, school, grade, subject_track').in('id', ids);
     const studentMap = {};
     for (const s of (students || [])) studentMap[s.id] = s;
     return evals.map(e => ({ ...e, student: studentMap[e.student_id] || null }));
