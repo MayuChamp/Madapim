@@ -6,7 +6,7 @@ import { useLanguage } from './i18n';
 
 
 
-function TopbarNav({ activeScreen, onNav, instructorName, onLogout }) {
+function TopbarNav({ activeScreen, onNav, instructorName, onLogout, studentCount = 0 }) {
   const { t, lang, setLang } = useLanguage();
   const initials = (instructorName || 'מ').slice(0, 1);
   return (
@@ -18,7 +18,7 @@ function TopbarNav({ activeScreen, onNav, instructorName, onLogout }) {
         </div>
         <div className="topnav-pills">
           <button className={`topnav-pill ${activeScreen === 'dashboard' ? 'active' : ''}`} onClick={() => onNav('dashboard')}>
-            <Icons.IconUsers size={16} /> {t('nav_my_students')} <span className="pill-count">6</span>
+            <Icons.IconUsers size={16} /> {t('nav_my_students')} <span className="pill-count">{studentCount}</span>
           </button>
           <button className={`topnav-pill ${activeScreen === 'archive' ? 'active' : ''}`} onClick={() => onNav('archive')}>
             <Icons.IconArchiveBox size={16} /> {t('nav_archive')}
@@ -265,8 +265,8 @@ function StudentCard({ s, onClick, onDelete }) {
         <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{s.school}</span>
       </div>
       <div style={{display:'flex',flexDirection:'column',gap:12, marginBottom:20}}>
-        <TrackProgressMini kind="lp" label="מערכי שיעור" complete={lp.complete} total={lp.total}/>
-        <TrackProgressMini kind="ob" label="צפיות" complete={ob.complete} total={ob.total}/>
+        <TrackProgressMini kind="lp" label={t('track_lp_title')} complete={lp.complete} total={lp.total}/>
+        <TrackProgressMini kind="ob" label={t('track_ob_title')} complete={ob.complete} total={ob.total}/>
       </div>
       <div style={{marginTop:'auto',display:'flex',alignItems:'center',justifyContent:'space-between', paddingTop:16, borderTop:'1px solid var(--border)'}}>
         <span style={{fontSize:13,color:'var(--brand)',display:'flex',alignItems:'center',gap:4,fontWeight:600}}>{t('open')} <IconArrowLeft size={14} strokeWidth={2.5}/></span>
@@ -292,10 +292,10 @@ function StudentsList({ students = STUDENTS, onOpen, onDelete }) {
             <div><div style={{color:'var(--ink-1)',fontWeight:500}}>{s.name}</div><div style={{color:'var(--ink-3)',fontSize:12}}>{s.grade}</div></div>
             <div style={{color:'var(--ink-2)'}}>{s.school}</div>
             <div style={{display:'flex',flexDirection:'column',gap:4}}>
-              <TrackProgressMini kind="lp" label="מערכים" complete={lp.complete} total={lp.total}/>
-              <TrackProgressMini kind="ob" label="צפיות" complete={ob.complete} total={ob.total}/>
+              <TrackProgressMini kind="lp" label={t('track_lp_title')} complete={lp.complete} total={lp.total}/>
+              <TrackProgressMini kind="ob" label={t('track_ob_title')} complete={ob.complete} total={ob.total}/>
             </div>
-            <div><span className={`badge ${meta.cls}`}>{meta.label}</span></div>
+            <div><span className={`badge ${meta.cls}`}>{t('status_' + s.status)}</span></div>
             <div style={{textAlign:'start'}}><IconArrowLeft size={16} stroke="var(--ink-3)"/></div>
             <div style={{textAlign:'center'}}>
               {onDelete && <button onClick={e=>{e.stopPropagation();onDelete(s);}} style={{padding:'5px 6px',borderRadius:4,border:'none',background:'transparent',cursor:'pointer',color:'var(--ink-4)',transition:'color .15s'}} title={t('delete_student_btn')} onMouseEnter={e=>e.currentTarget.style.color='var(--warn)'} onMouseLeave={e=>e.currentTarget.style.color='var(--ink-4)'}><IconTrash size={14}/></button>}
@@ -580,7 +580,7 @@ function ExtraMaterials({ extras, studentId, cycleId, stageKey, onFileUploaded, 
         </div>
       ) : (
         <button onClick={()=>setShowExtraForm(true)} style={{border:'2px dashed var(--border-strong)',background:'var(--surface)',borderRadius:'var(--r-md)',padding:'10px 14px',display:'flex',alignItems:'center',justifyContent:'center',gap:6,color:'var(--ink-2)',fontSize:12.5,fontWeight:500,transition:'all .15s',width:'100%',cursor:'pointer'}}>
-          <IconPlus size={14}/> {buttonLabel}
+          <IconPlus size={14}/> {resolvedButtonLabel}
         </button>
       )}
     </div>
@@ -592,6 +592,7 @@ const HEBREW_MONTHS = ['','ינואר','פברואר','מרץ','אפריל','מ�
 const ACADEMIC_MONTH_ORDER = [9,10,11,12,1,2,3,4,5,6,7,8];
 
 function YearTimeline({ studentCycles, extraFiles }) {
+  const { t, lang } = useLanguage();
   const events = [];
 
   for (const cycle of studentCycles) {
@@ -657,11 +658,11 @@ function YearTimeline({ studentCycles, extraFiles }) {
         <div style={{display:'flex',alignItems:'baseline',gap:10}}>
           <div style={{width:28,height:28,borderRadius:8,background:'var(--surface-3)',color:'var(--ink-2)',display:'grid',placeItems:'center',fontSize:14,transform:'translateY(4px)'}}><IconClock size={15}/></div>
           <div>
-            <h2 style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:600,margin:0,color:'var(--ink-1)',letterSpacing:'-0.01em'}}>ציר זמן שנתי</h2>
-            <div style={{fontSize:12.5,color:'var(--ink-3)',marginTop:2}}>מעקב התפתחות לאורך שנת ההתנסות</div>
+            <h2 style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:600,margin:0,color:'var(--ink-1)',letterSpacing:'-0.01em'}}>{t('yearly_timeline')}</h2>
+            <div style={{fontSize:12.5,color:'var(--ink-3)',marginTop:2}}>{t('yearly_timeline_desc')}</div>
           </div>
         </div>
-        <div style={{fontSize:12,color:'var(--ink-3)'}}>{events.length} אירועים מתועדים</div>
+        <div style={{fontSize:12,color:'var(--ink-3)'}}>{t('events_documented', { n: events.length })}</div>
       </div>
       <div className="card" style={{padding:0,overflow:'hidden'}}>
         {activeMonths.map((month, mi) => {
@@ -670,7 +671,7 @@ function YearTimeline({ studentCycles, extraFiles }) {
             <div key={month} style={{borderBottom: mi < activeMonths.length - 1 ? '1px solid var(--border)' : 'none'}}>
               <div style={{padding:'8px 18px 6px',background:'var(--surface-2)',fontSize:11,fontWeight:700,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.07em',display:'flex',alignItems:'center',gap:8}}>
                 <span style={{width:6,height:6,borderRadius:'50%',background:'var(--ink-4)',flexShrink:0,display:'inline-block'}}/>
-                {HEBREW_MONTHS[month]}
+                {lang === 'he' ? HEBREW_MONTHS[month] : new Date(2000, month - 1, 1).toLocaleString(lang === 'ar' ? 'ar' : 'en', { month: 'long' })}
                 <span style={{fontWeight:400,marginInlineStart:4}}>· {monthEvents.length}</span>
               </div>
               <div style={{padding:'8px 18px 12px',display:'flex',flexDirection:'column',gap:6}}>
@@ -699,6 +700,7 @@ function YearTimeline({ studentCycles, extraFiles }) {
 }
 
 function Workspace({ student, onBack, onAnalyze, onFileUploaded }) {
+  const { t } = useLanguage();
   const [openCycle, setOpenCycle] = useState(null);
 
   const handleCycleUpload = async (cycleId, stageKey, file) => {
@@ -706,7 +708,7 @@ function Workspace({ student, onBack, onAnalyze, onFileUploaded }) {
       await window.API_uploadFile(student.id, file, cycleId, stageKey);
       if (onFileUploaded) onFileUploaded();
     } catch (err) {
-      alert('שגיאה בהעלאת הקובץ: ' + err.message);
+      alert(t('error_upload') + ': ' + err.message);
     }
   };
 
@@ -719,7 +721,7 @@ function Workspace({ student, onBack, onAnalyze, onFileUploaded }) {
   return (
     <div className="main-inner fade-in" style={{paddingTop:28}}>
       <div style={{display:'flex',alignItems:'center',gap:8,fontSize:13,marginBottom:18}}>
-        <button onClick={onBack} style={{color:'var(--ink-3)',display:'flex',alignItems:'center',gap:4}}><IconArrowRight size={14}/> הסטודנטים שלי</button>
+        <button onClick={onBack} style={{color:'var(--ink-3)',display:'flex',alignItems:'center',gap:4}}><IconArrowRight size={14}/> {t('back_to_students')}</button>
         <span style={{color:'var(--ink-4)'}}>/</span>
         <span style={{color:'var(--ink-1)',fontWeight:500}}>{student.name}</span>
       </div>
@@ -727,11 +729,11 @@ function Workspace({ student, onBack, onAnalyze, onFileUploaded }) {
         <div>
           <div style={{fontSize:13,color:'var(--ink-3)',marginBottom:6,display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
             <span>{student.school} · {student.grade}</span>
-            {student.subjectTrack&&<span style={{display:'inline-flex',alignItems:'center',gap:5,padding:'2px 9px',borderRadius:100,background:'var(--accent-soft)',color:'var(--accent)',fontSize:11.5,fontWeight:500}}><IconGraduationCap size={12}/> מסלול {student.subjectTrack}</span>}
-            <span>· {totalDocs} מסמכים בתיק</span>
+            {student.subjectTrack&&<span style={{display:'inline-flex',alignItems:'center',gap:5,padding:'2px 9px',borderRadius:100,background:'var(--accent-soft)',color:'var(--accent)',fontSize:11.5,fontWeight:500}}><IconGraduationCap size={12}/> {t('subject_track_label', { track: student.subjectTrack })}</span>}
+            <span>· {t('docs_in_portfolio', { n: totalDocs })}</span>
           </div>
-          <h1 style={{fontFamily:'var(--font-serif)',fontSize:32,fontWeight:600,margin:0,letterSpacing:'-0.01em'}}>{student.name} — תיק התנסות</h1>
-          <p style={{fontSize:14,color:'var(--ink-2)',margin:'8px 0 0',maxWidth:540,lineHeight:1.6}}>המערכת מנתחת שני סוגי חומרים: מערכי שיעור (3 שלבים) וצפיות בשיעורים (3 שלבים). השלמת הצומת האנושי תשלב את הידע שלך שאינו כתוב.</p>
+          <h1 style={{fontFamily:'var(--font-serif)',fontSize:32,fontWeight:600,margin:0,letterSpacing:'-0.01em'}}>{student.name} {t('workspace_title_suffix')}</h1>
+          <p style={{fontSize:14,color:'var(--ink-2)',margin:'8px 0 0',maxWidth:540,lineHeight:1.6}}>{t('workspace_desc')}</p>
         </div>
         <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:8}}>
           <div style={{display:'flex',gap:8}}>
@@ -742,14 +744,14 @@ function Workspace({ student, onBack, onAnalyze, onFileUploaded }) {
       </div>
       <div style={{display:'grid',gridTemplateColumns:'1fr 320px',gap:28,alignItems:'flex-start'}}>
         <div style={{display:'flex',flexDirection:'column',gap:28}}>
-          <TrackSection kind="lp" title="מערכי שיעור" subtitle="הגשה → הערות מד״פ → תיקון" cycles={lpCycles} stageOrder={['submission','instructorNotes','revision']} openCycle={openCycle?.trackType==='lp'?openCycle.cycleId:null} onToggle={(id)=>setOpenCycle(openCycle?.cycleId===id?null:{trackType:'lp',cycleId:id})} onUpload={handleCycleUpload} studentId={student.id} onFileUploaded={onFileUploaded}/>
-          <TrackSection kind="ob" title="צפיות בשיעורים" subtitle="צפייה → משוב → רפלקציה" cycles={obCycles} stageOrder={['observation','feedback','reflection']} openCycle={openCycle?.trackType==='ob'?openCycle.cycleId:null} onToggle={(id)=>setOpenCycle(openCycle?.cycleId===id?null:{trackType:'ob',cycleId:id})} onUpload={handleCycleUpload} studentId={student.id} onFileUploaded={onFileUploaded}/>
+          <TrackSection kind="lp" title={t('track_lp_title')} subtitle={t('track_lp_subtitle')} cycles={lpCycles} stageOrder={['submission','instructorNotes','revision']} openCycle={openCycle?.trackType==='lp'?openCycle.cycleId:null} onToggle={(id)=>setOpenCycle(openCycle?.cycleId===id?null:{trackType:'lp',cycleId:id})} onUpload={handleCycleUpload} studentId={student.id} onFileUploaded={onFileUploaded}/>
+          <TrackSection kind="ob" title={t('track_ob_title')} subtitle={t('track_ob_subtitle')} cycles={obCycles} stageOrder={['observation','feedback','reflection']} openCycle={openCycle?.trackType==='ob'?openCycle.cycleId:null} onToggle={(id)=>setOpenCycle(openCycle?.cycleId===id?null:{trackType:'ob',cycleId:id})} onUpload={handleCycleUpload} studentId={student.id} onFileUploaded={onFileUploaded}/>
           <YearTimeline studentCycles={studentCycles} extraFiles={student.extraFiles || []}/>
           <section>
             <div style={{display:'flex',alignItems:'baseline',justifyContent:'space-between',marginBottom:14}}>
               <div style={{display:'flex',alignItems:'baseline',gap:10}}>
                 <div style={{width:28,height:28,borderRadius:8,background:'var(--accent-soft)',color:'var(--accent)',display:'grid',placeItems:'center',fontSize:14,transform:'translateY(4px)'}}>＋</div>
-                <div><h2 style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:600,margin:0,color:'var(--ink-1)',letterSpacing:'-0.01em'}}>הגשות נוספות</h2><div style={{fontSize:12.5,color:'var(--ink-3)',marginTop:2}}>כל חומר אחר — תארי בעצמך מה הוא מכיל</div></div>
+                <div><h2 style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:600,margin:0,color:'var(--ink-1)',letterSpacing:'-0.01em'}}>{t('extra_submissions')}</h2><div style={{fontSize:12.5,color:'var(--ink-3)',marginTop:2}}>{t('extra_submissions_desc')}</div></div>
               </div>
             </div>
             <ExtraMaterials extras={student.extraFiles || []} studentId={student.id} cycleId={null} onFileUploaded={onFileUploaded} />
@@ -757,12 +759,12 @@ function Workspace({ student, onBack, onAnalyze, onFileUploaded }) {
         </div>
         <aside style={{position:'sticky',top:28}}>
           <div className="card">
-            <h2 style={{fontFamily:'var(--font-serif)',fontSize:17,fontWeight:600,margin:'0 0 4px'}}>הגדרות הערכה</h2>
-            <p style={{fontSize:12,color:'var(--ink-3)',margin:'0 0 16px'}}>המערכת תאזן בין מערך לצפייה ותשאל אותך השלמות לפני הניתוח.</p>
-            <label className="label">מחוון</label>
+            <h2 style={{fontFamily:'var(--font-serif)',fontSize:17,fontWeight:600,margin:'0 0 4px'}}>{t('eval_settings')}</h2>
+            <p style={{fontSize:12,color:'var(--ink-3)',margin:'0 0 16px'}}>{t('eval_settings_desc')}</p>
+            <label className="label">{t('rubric_label')}</label>
             <div style={{padding:'12px 14px',marginBottom:16,border:'1px solid var(--brand)',background:'var(--brand-softer)',borderRadius:'var(--r-sm)'}}>
-              <div style={{display:'flex',alignItems:'center',gap:8}}><IconBookmark size={15} stroke="var(--brand)"/><div style={{fontSize:14,fontWeight:600,color:'var(--ink-1)'}}>הערכת סוף שנה</div><span className="badge badge-ok" style={{marginInlineStart:'auto'}}>פעיל</span></div>
-              <div style={{fontSize:12,color:'var(--ink-3)',marginTop:6}}>7 קריטריונים · 100 נק׳ · מסלול {student.subjectTrack}</div>
+              <div style={{display:'flex',alignItems:'center',gap:8}}><IconBookmark size={15} stroke="var(--brand)"/><div style={{fontSize:14,fontWeight:600,color:'var(--ink-1)'}}>{t('rubric_end_year')}</div><span className="badge badge-ok" style={{marginInlineStart:'auto'}}>{t('rubric_active')}</span></div>
+              <div style={{fontSize:12,color:'var(--ink-3)',marginTop:6}}>{t('rubric_criteria_info', { track: student.subjectTrack })}</div>
               <div style={{marginTop:10,display:'flex',flexDirection:'column',gap:3}}>
                 {EVAL_CATEGORIES.map((c,i)=>(
                   <div key={c.id} style={{display:'flex',alignItems:'center',gap:7,fontSize:11.5,color:'var(--ink-2)'}}>
@@ -777,8 +779,8 @@ function Workspace({ student, onBack, onAnalyze, onFileUploaded }) {
               <IconSparkle size={13} stroke="var(--brand)" style={{marginTop:2,flexShrink:0}}/>
               <span>המערכת זיהתה <b style={{color:'var(--warn)'}}>2 פערים</b> בין מערך לצפייה, וקריטריון אחד <b style={{color:'var(--warn)'}}>ללא תיעוד</b>. תישאלי <b>3 שאלות</b> השלמה.</span>
             </div>
-            <button className="btn btn-magic btn-lg" style={{width:'100%'}} onClick={()=>onAnalyze('r1')}><IconSparkle size={16}/> נתח את התיק</button>
-            <p style={{fontSize:11.5,color:'var(--ink-3)',textAlign:'center',margin:'10px 0 0',lineHeight:1.5}}>הניתוח אורך כ-30 שניות. תוכלי לערוך את כל הטקסט בסיום.</p>
+            <button className="btn btn-magic btn-lg" style={{width:'100%'}} onClick={()=>onAnalyze('r1')}><IconSparkle size={16}/> {t('btn_analyze')}</button>
+            <p style={{fontSize:11.5,color:'var(--ink-3)',textAlign:'center',margin:'10px 0 0',lineHeight:1.5}}>{t('analyze_note')}</p>
           </div>
         </aside>
       </div>

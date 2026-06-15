@@ -176,6 +176,7 @@ function App() {
           activeScreen={screen}
           onNav={(s) => { setStudent(null); setScreen(s); setSidebarOpen(false); }}
           instructorName={user.name || user.email.split('@')[0]}
+          studentCount={students.length}
           onLogout={handleLogout}
         />
       )}
