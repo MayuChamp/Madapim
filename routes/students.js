@@ -2,19 +2,24 @@ const express = require('express');
 const router = express.Router();
 const { q, supabase } = require('../db');
 
+function requireAuth(req, res, next) {
+  if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+  next();
+}
+
 // GET /api/students
-router.get('/', async (_req, res) => {
+router.get('/', requireAuth, async (req, res) => {
   try {
-    res.json(await q.allStudents());
+    res.json(await q.allStudents(req.user.id));
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
 // GET /api/students/:id
-router.get('/:id', async (req, res) => {
+router.get('/:id', requireAuth, async (req, res) => {
   try {
-    const student = await q.studentWithCycles(req.params.id);
+    const student = await q.studentWithCycles(req.params.id, req.user.id);
     if (!student) return res.status(404).json({ error: 'Student not found' });
     res.json(student);
   } catch (e) {
@@ -23,7 +28,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // PUT /api/students/cycles/:cycleId/topic
-router.put('/cycles/:cycleId/topic', async (req, res) => {
+router.put('/cycles/:cycleId/topic', requireAuth, async (req, res) => {
   try {
     const { topic } = req.body;
     if (!topic) return res.status(400).json({ error: 'topic required' });
@@ -35,7 +40,7 @@ router.put('/cycles/:cycleId/topic', async (req, res) => {
 });
 
 // POST /api/students
-router.post('/', async (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
   try {
     const { name, school, grade, subject_track, gender } = req.body;
     if (!name) return res.status(400).json({ error: 'name required' });
@@ -44,19 +49,20 @@ router.post('/', async (req, res) => {
     const initials = name.replace(/[^א-ת]/g, '').slice(0, 2) || name.slice(0, 2);
     const resolvedGender = gender === 'male' ? 'male' : 'female';
 
-    await supabase.from('students').insert({ id, name, school: school || '', grade: grade || '', subject_track: subject_track || '', initials, gender: resolvedGender });
+    await supabase.from('students').insert({ id, name, school: school || '', grade: grade || '', subject_track: subject_track || '', initials, gender: resolvedGender, instructor_id: req.user.id });
     await q.seedDefaultCyclesForStudent(id, subject_track);
 
-    res.json(await q.student(id));
+    res.json(await q.student(id, req.user.id));
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
 // DELETE /api/students/:id
-router.delete('/:id', async (req, res) => {
-  if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+router.delete('/:id', requireAuth, async (req, res) => {
   try {
+    const student = await q.student(req.params.id, req.user.id);
+    if (!student) return res.status(404).json({ error: 'Student not found' });
     await q.deleteStudent(req.params.id);
     res.json({ success: true });
   } catch (e) {
@@ -65,7 +71,7 @@ router.delete('/:id', async (req, res) => {
 });
 
 // POST /api/students/import — bulk import from CSV text
-router.post('/import', async (req, res) => {
+router.post('/import', requireAuth, async (req, res) => {
   try {
     const { csv } = req.body;
     if (!csv || typeof csv !== 'string') return res.status(400).json({ error: 'csv string required' });
@@ -107,7 +113,7 @@ router.post('/import', async (req, res) => {
 
     if (rows.length === 0) return res.status(400).json({ error: 'No valid rows found' });
 
-    await q.bulkInsertStudents(rows);
+    await q.bulkInsertStudents(rows, req.user.id);
     res.json({ imported: rows.length, skipped: skipped.length, students: rows });
   } catch (e) {
     res.status(500).json({ error: e.message });

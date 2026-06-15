@@ -67,9 +67,10 @@ async function initDB() {
 // ─── Query helpers (all async) ────────────────────────────────────────────────
 
 const q = {
-  allStudents: async () => {
-    const { data: students, error } = await supabase
-      .from('students').select('*').order('created_at');
+  allStudents: async (instructorId) => {
+    let query = supabase.from('students').select('*').order('created_at');
+    if (instructorId) query = query.eq('instructor_id', instructorId);
+    const { data: students, error } = await query;
     if (error) throw error;
     if (!students || students.length === 0) return [];
 
@@ -87,13 +88,17 @@ const q = {
     }));
   },
 
-  student: async (id) => {
-    const { data } = await supabase.from('students').select('*').eq('id', id).single();
+  student: async (id, instructorId) => {
+    let query = supabase.from('students').select('*').eq('id', id);
+    if (instructorId) query = query.eq('instructor_id', instructorId);
+    const { data } = await query.single();
     return data || null;
   },
 
-  studentWithCycles: async (id) => {
-    const { data: student } = await supabase.from('students').select('*').eq('id', id).single();
+  studentWithCycles: async (id, instructorId) => {
+    let query = supabase.from('students').select('*').eq('id', id);
+    if (instructorId) query = query.eq('instructor_id', instructorId);
+    const { data: student } = await query.single();
     if (!student) return null;
 
     let { data: cycles } = await supabase
@@ -326,9 +331,10 @@ const q = {
     await supabase.from('evaluations').delete().eq('id', id);
   },
 
-  bulkInsertStudents: async (students) => {
-    await supabase.from('students').insert(students);
-    for (const s of students) {
+  bulkInsertStudents: async (students, instructorId) => {
+    const rows = students.map(s => ({ ...s, instructor_id: instructorId || null }));
+    await supabase.from('students').insert(rows);
+    for (const s of rows) {
       await q.seedDefaultCyclesForStudent(s.id, s.subject_track);
     }
   },
