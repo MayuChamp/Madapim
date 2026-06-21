@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { TweaksPanel, TweakSection, TweakRadio, TweakToggle, TweakColor, TweakSelect, useTweaks } from './tweaks-panel';
+import { AccessibilityBar } from './accessibility-bar';
 import { TopbarNav, Dashboard, Workspace } from './screens-1-2';
 import { HumanNodeModal, SplitEditor } from './screens-3-4';
 import { ArchiveScreen, RubricsScreen } from './screens-archive-rubrics';
@@ -260,6 +261,8 @@ function App() {
         onSkip={onModalSkip}
       />
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
+
+      <AccessibilityBar />
 
       <TweaksPanel title="Tweaks">
         <TweakSection label={t('tweaks_density')} />

@@ -56,6 +56,19 @@ const translations = {
     tweaks_editor: 'עורך',
     tweaks_export: 'ייצוא',
 
+    // Accessibility panel
+    a11y_title: 'נגישות',
+    a11y_font_size: 'גודל גופן',
+    a11y_font_normal: 'רגיל',
+    a11y_font_large: 'גדול',
+    a11y_font_xlarge: 'ענק',
+    a11y_display: 'תצוגה',
+    a11y_contrast: 'ניגודיות גבוהה',
+    a11y_grayscale: 'גווני אפור',
+    a11y_reduce_motion: 'הפחת אנימציות',
+    a11y_underline_links: 'הדגשת קישורים',
+    a11y_reset: 'איפוס הגדרות',
+
     // Topbar
     brand_tagline: 'כלי הדרכה פדגוגית',
     nav_my_students: 'הסטודנטים שלי',
@@ -458,6 +471,19 @@ const translations = {
     tweaks_editor: 'Editor',
     tweaks_export: 'Export',
 
+    // Accessibility panel
+    a11y_title: 'Accessibility',
+    a11y_font_size: 'Font Size',
+    a11y_font_normal: 'Normal',
+    a11y_font_large: 'Large',
+    a11y_font_xlarge: 'X-Large',
+    a11y_display: 'Display',
+    a11y_contrast: 'High Contrast',
+    a11y_grayscale: 'Grayscale',
+    a11y_reduce_motion: 'Reduce Motion',
+    a11y_underline_links: 'Underline Links',
+    a11y_reset: 'Reset Settings',
+
     // Topbar
     brand_tagline: 'Pedagogical guidance tool',
     nav_my_students: 'My Students',
@@ -859,6 +885,19 @@ const translations = {
     tweaks_modal: 'نافذة',
     tweaks_editor: 'محرر',
     tweaks_export: 'تصدير',
+
+    // Accessibility panel
+    a11y_title: 'إمكانية الوصول',
+    a11y_font_size: 'حجم الخط',
+    a11y_font_normal: 'عادي',
+    a11y_font_large: 'كبير',
+    a11y_font_xlarge: 'كبير جداً',
+    a11y_display: 'العرض',
+    a11y_contrast: 'تباين عالٍ',
+    a11y_grayscale: 'تدرج رمادي',
+    a11y_reduce_motion: 'تقليل الحركة',
+    a11y_underline_links: 'تسطير الروابط',
+    a11y_reset: 'إعادة الضبط',
 
     // Topbar
     brand_tagline: 'أداة التوجيه التربوي',
