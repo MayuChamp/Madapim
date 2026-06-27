@@ -62,6 +62,17 @@ export async function changePassword(currentPassword, newPassword) {
   });
 }
 
+export async function getProgramSettings() {
+  return apiFetch('/auth/program-settings');
+}
+
+export async function updateProgramSettings({ maxLessonPlans, maxObservations }) {
+  return apiFetch('/auth/program-settings', {
+    method: 'PUT',
+    body: JSON.stringify({ maxLessonPlans, maxObservations }),
+  });
+}
+
 export function logout() {
   setToken(null);
 }

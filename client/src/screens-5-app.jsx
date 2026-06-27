@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useLanguage } from './i18n';
 import * as Icons from './icons';
 import { Icon, IconHome, IconUsers, IconArchive, IconSettings, IconFolder, IconFile, IconUpload, IconPlus, IconArrowLeft, IconArrowRight, IconChevron, IconPencil, IconMagic, IconMic, IconSearch, IconClose, IconCheck, IconDownload, IconSave, IconSend, IconSparkle, IconBookmark, IconDoc, IconWave, IconGrid, IconList, IconClock, IconArchiveBox, IconAlert, IconGraduationCap } from './icons';
 import { EVAL_CATEGORIES } from './data';
@@ -41,6 +42,7 @@ function DocField({ label, value }) {
 }
 
 function A4Doc({ student, instructorAnswers, evaluationDraft }) {
+  const { t, lang } = useLanguage();
   const answers = instructorAnswers||{};
   // Use real AI draft categories if available
   const cats = evaluationDraft?.categories || null;
@@ -50,25 +52,31 @@ function A4Doc({ student, instructorAnswers, evaluationDraft }) {
     let dec='';
     if(cat.gap&&cat.gap.decisionKey){const a=answers[cat.gap.decisionKey];dec=a&&a.label?`לאחר התייעצות החלטת ${a.label}${a.note?` — ${a.note}`:''}. `:(cat.gap.resolution||'');}
     else if(cat.gap&&cat.gap.resolution){dec=cat.gap.resolution;}
-    return txt.replace(/\{\{e(\d+)\}\}/g,(_,n)=>`[ראיה ${n}]`).replace('{{instructor_input}}',instr||'[ממתין לקלט המדריך]').replace('{{decision}}',dec||'');
+    return txt.replace(/\{\{e(\d+)\}\}/g,(_,n)=>`[${t('doc_evidence_ref')} ${n}]`).replace('{{instructor_input}}',instr||`[${t('doc_instructor_awaiting')}]`).replace('{{decision}}',dec||'');
   };
-  const today = new Date().toLocaleDateString('he-IL');
+  const today = new Date().toLocaleDateString(lang === 'ar' ? 'ar' : lang === 'en' ? 'en-US' : 'he-IL');
+  const lvlLabel = (l) => ({
+    high: t('level_high'),
+    mid_high: t('level_mid_high'),
+    mid: t('level_mid'),
+    low_mid: t('level_low_mid'),
+  }[l] || l || '—');
   return (
     <div style={{width:794,minHeight:1123,margin:'0 auto',background:'#fff',color:'#1a1f2c',padding:'64px 72px',boxShadow:'0 4px 32px rgba(0,0,0,0.12)',fontFamily:'var(--font-sans)',direction:'rtl'}}>
       <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',paddingBottom:18,borderBottom:'2px solid #1e3a5f'}}>
         <div style={{display:'flex',alignItems:'center',gap:10}}>
           <div style={{width:42,height:42,background:'#1e3a5f',color:'#fff',display:'grid',placeItems:'center',fontFamily:'var(--font-serif)',fontSize:22,fontWeight:700,borderRadius:4}}>ה</div>
-          <div><div style={{fontFamily:'var(--font-serif)',fontSize:18,fontWeight:600,lineHeight:1.1,color:'#1a1f2c'}}>המכללה האקדמית להוראה</div><div style={{fontSize:11.5,color:'#7a8295',marginTop:2,letterSpacing:'0.02em'}}>בית הספר להכשרת מורים · התנסות מעשית</div></div>
+          <div><div style={{fontFamily:'var(--font-serif)',fontSize:18,fontWeight:600,lineHeight:1.1,color:'#1a1f2c'}}>{t('doc_institution')}</div><div style={{fontSize:11.5,color:'#7a8295',marginTop:2,letterSpacing:'0.02em'}}>{t('doc_institution_sub')}</div></div>
         </div>
-        <div style={{textAlign:'start',fontSize:11,color:'#7a8295',lineHeight:1.6}}>תאריך: {today}<br/>מס׳ אסמכתא: HE-2026-1142<br/>טופס: 14-ב/הת"מ</div>
+        <div style={{textAlign:'start',fontSize:11,color:'#7a8295',lineHeight:1.6}}>{t('doc_date_label')}: {today}<br/>{t('doc_ref_no')}: HE-2026-1142<br/>{t('doc_form_no')}: 14-ב/הת"מ</div>
       </div>
       <div style={{marginTop:28}}>
-        <div style={{fontSize:11.5,color:'#7a8295',textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:6}}>הערכת התנסות מעשית · סוף שנה ב׳</div>
-        <h1 style={{fontFamily:'var(--font-serif)',fontSize:26,fontWeight:600,margin:0,letterSpacing:'-0.01em',color:'#1a1f2c'}}>הערכת סטודנט/ית: {student.name}</h1>
+        <div style={{fontSize:11.5,color:'#7a8295',textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:6}}>{t('doc_eval_type')}</div>
+        <h1 style={{fontFamily:'var(--font-serif)',fontSize:26,fontWeight:600,margin:0,letterSpacing:'-0.01em',color:'#1a1f2c'}}>{t('doc_eval_student')}: {student.name}</h1>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginTop:12,fontSize:12.5,padding:'12px 14px',background:'#fbfaf7',borderRadius:4}}>
-          <DocField label="בית ספר מאמן" value={student.school}/><DocField label="כיתה" value={student.grade}/>
-          <DocField label="מדריך/ה פדגוגי/ת" value="ד״ר ר. כהן"/><DocField label="מורה מאמנת" value="גב׳ א. ש."/>
-          <DocField label="מחוון" value="הערכת סוף שנה — 100 נק׳"/><DocField label="תאריך הערכה" value={today}/>
+          <DocField label={t('doc_field_school')} value={student.school}/><DocField label={t('doc_field_grade')} value={student.grade}/>
+          <DocField label={t('doc_field_supervisor')} value="ד״ר ר. כהן"/><DocField label={t('doc_field_cooperating')} value="גב׳ א. ש."/>
+          <DocField label={t('doc_field_rubric')} value={t('doc_rubric_value')}/><DocField label={t('doc_field_eval_date')} value={today}/>
         </div>
       </div>
       <div style={{marginTop:28}}>
@@ -79,7 +87,6 @@ function A4Doc({ student, instructorAnswers, evaluationDraft }) {
           const overallKey = cat.overallLevel || 'mid_high';
           const lpLevel = isAiCat ? cat.lessonPlanLevel : cat.lessonPlan?.level;
           const obLevel = isAiCat ? cat.observationLevel : cat.observation?.level;
-          const lvlLabel = (l) => ({high:'גבוהה',mid_high:'בינונית-גבוהה',mid:'בינונית',low_mid:'בינונית-נמוכה'}[l]||l||'—');
           return (
             <div key={cat.id||idx} style={{marginBottom:22}}>
               <div style={{display:'flex',alignItems:'baseline',justifyContent:'space-between',marginBottom:8}}>
@@ -96,56 +103,57 @@ function A4Doc({ student, instructorAnswers, evaluationDraft }) {
         })}
       </div>
       <div style={{marginTop:14,padding:'16px 18px',background:'#f3f6fa',borderInlineStart:'3px solid #1e3a5f',borderRadius:4}}>
-        <h3 style={{fontFamily:'var(--font-serif)',fontSize:15,fontWeight:600,margin:'0 0 8px'}}>סיכום והמלצות</h3>
+        <h3 style={{fontFamily:'var(--font-serif)',fontSize:15,fontWeight:600,margin:'0 0 8px'}}>{t('doc_summary_title')}</h3>
         <p style={{fontSize:12.5,lineHeight:1.75,margin:0,color:'#1a1f2c',textAlign:'justify'}}>{evaluationDraft?.summary || `${student.name} נמצאת בנקודה טובה בשלב ההכשרה.`}</p>
         <div style={{marginTop:14,display:'flex',alignItems:'center',gap:18}}>
-          <div><div style={{fontSize:10.5,color:'#7a8295',textTransform:'uppercase',letterSpacing:'0.06em'}}>ציון מסכם</div><div style={{fontFamily:'var(--font-serif)',fontSize:32,fontWeight:600,color:'#1e3a5f',lineHeight:1,marginTop:2}}>{evaluationDraft?.score||'—'} <span style={{fontSize:14,color:'#7a8295',fontWeight:400}}>/ 100</span></div></div>
+          <div><div style={{fontSize:10.5,color:'#7a8295',textTransform:'uppercase',letterSpacing:'0.06em'}}>{t('doc_total_score')}</div><div style={{fontFamily:'var(--font-serif)',fontSize:32,fontWeight:600,color:'#1e3a5f',lineHeight:1,marginTop:2}}>{evaluationDraft?.score||'—'} <span style={{fontSize:14,color:'#7a8295',fontWeight:400}}>/ 100</span></div></div>
           <div style={{width:1,height:40,background:'#cfc7b3'}}/>
-          <div><div style={{fontSize:10.5,color:'#7a8295',textTransform:'uppercase',letterSpacing:'0.06em'}}>הערכה כללית</div><div style={{fontFamily:'var(--font-serif)',fontSize:18,fontWeight:600,color:'#1a1f2c',marginTop:4}}>{{high:'גבוהה',mid_high:'בינונית-גבוהה',mid:'בינונית',low_mid:'בינונית-נמוכה'}[evaluationDraft?.overallLevel]||'בינונית-גבוהה'}</div></div>
+          <div><div style={{fontSize:10.5,color:'#7a8295',textTransform:'uppercase',letterSpacing:'0.06em'}}>{t('doc_overall_assessment')}</div><div style={{fontFamily:'var(--font-serif)',fontSize:18,fontWeight:600,color:'#1a1f2c',marginTop:4}}>{lvlLabel(evaluationDraft?.overallLevel) || t('level_mid_high')}</div></div>
         </div>
       </div>
       <div style={{marginTop:40,paddingTop:18,borderTop:'1px solid #e3ddd0',display:'grid',gridTemplateColumns:'1fr 1fr',gap:28,fontSize:11.5,color:'#1a1f2c'}}>
-        <div><div style={{borderBottom:'1px solid #1a1f2c',height:30}}/><div style={{marginTop:6,color:'#7a8295'}}>חתימת המדריך/ה הפדגוגי/ת</div></div>
-        <div><div style={{borderBottom:'1px solid #1a1f2c',height:30}}/><div style={{marginTop:6,color:'#7a8295'}}>חתימת ראש החוג</div></div>
+        <div><div style={{borderBottom:'1px solid #1a1f2c',height:30}}/><div style={{marginTop:6,color:'#7a8295'}}>{t('doc_supervisor_sig')}</div></div>
+        <div><div style={{borderBottom:'1px solid #1a1f2c',height:30}}/><div style={{marginTop:6,color:'#7a8295'}}>{t('doc_dept_head_sig')}</div></div>
       </div>
-      <div style={{marginTop:32,paddingTop:14,borderTop:'1px solid #ebe8e0',fontSize:10,color:'#9aa0ad',textAlign:'center',letterSpacing:'0.02em'}}>מסמך זה הופק באמצעות כלי ההערכה הפדגוגית · עמוד 1 מתוך 1</div>
+      <div style={{marginTop:32,paddingTop:14,borderTop:'1px solid #ebe8e0',fontSize:10,color:'#9aa0ad',textAlign:'center',letterSpacing:'0.02em'}}>{t('doc_footer')}</div>
     </div>
   );
 }
 
 function ExportScreen({ student, onBack, onFinish, instructorAnswers, evaluationDraft }) {
+  const { t } = useLanguage();
   const [format, setFormat] = useState('pdf');
   return (
     <div className="fade-in" style={{display:'flex',height:'100vh',minHeight:0}}>
       <aside style={{width:340,flexShrink:0,background:'var(--surface)',borderInlineEnd:'1px solid var(--border)',display:'flex',flexDirection:'column',padding:'32px 28px',overflowY:'auto'}}>
-        <button onClick={onBack} className="btn-ghost" style={{display:'flex',alignItems:'center',gap:6,color:'var(--ink-3)',fontSize:14,marginBottom:28,alignSelf:'flex-start'}}><IconArrowRight size={14}/> חזרה לעריכה</button>
-        <h2 style={{fontFamily:'var(--font-serif)',fontSize:24,fontWeight:600,margin:'0 0 6px',letterSpacing:'-0.01em'}}>סיכום וייצוא</h2>
-        <p style={{fontSize:14,color:'var(--ink-3)',margin:'0 0 32px'}}>{student.name} · הערכת התנסות סוף שנה</p>
+        <button onClick={onBack} className="btn-ghost" style={{display:'flex',alignItems:'center',gap:6,color:'var(--ink-3)',fontSize:14,marginBottom:28,alignSelf:'flex-start'}}><IconArrowRight size={14}/> {t('back_to_edit')}</button>
+        <h2 style={{fontFamily:'var(--font-serif)',fontSize:24,fontWeight:600,margin:'0 0 6px',letterSpacing:'-0.01em'}}>{t('export_screen_title')}</h2>
+        <p style={{fontSize:14,color:'var(--ink-3)',margin:'0 0 32px'}}>{student.name} · {t('eval_end_year_subtitle')}</p>
         <div style={{marginBottom:24}}>
-          <div style={{fontSize:12,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:10,fontWeight:600}}>בדיקה אחרונה</div>
-          <ChecklistItem ok label="7 קריטריונים נסקרו"/>
-          <ChecklistItem ok label="איזון מערך מול צפייה בכל קריטריון"/>
-          <ChecklistItem ok label="שלוש תובנות המדריך שולבו בטיוטה"/>
-          <ChecklistItem ok label="סיכום והמלצות נוצרו"/>
+          <div style={{fontSize:12,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:10,fontWeight:600}}>{t('final_check')}</div>
+          <ChecklistItem ok label={t('check_1')}/>
+          <ChecklistItem ok label={t('check_2')}/>
+          <ChecklistItem ok label={t('check_3')}/>
+          <ChecklistItem ok label={t('check_4')}/>
         </div>
         <div style={{marginBottom:22}}>
-          <div style={{fontSize:12,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:10,fontWeight:600}}>פורמט ייצוא</div>
+          <div style={{fontSize:12,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:10,fontWeight:600}}>{t('export_format')}</div>
           <div style={{display:'flex',flexDirection:'column',gap:6}}>
-            <FormatOption value="pdf" current={format} onSelect={setFormat} label="PDF" desc="לחתימה ולהגשה רשמית"/>
-            <FormatOption value="docx" current={format} onSelect={setFormat} label="Word" desc="לעריכה נוספת"/>
-            <FormatOption value="link" current={format} onSelect={setFormat} label="קישור משותף" desc="לצפייה בלבד"/>
+            <FormatOption value="pdf" current={format} onSelect={setFormat} label="PDF" desc={t('format_pdf_desc')}/>
+            <FormatOption value="docx" current={format} onSelect={setFormat} label="Word" desc={t('format_word_desc')}/>
+            <FormatOption value="link" current={format} onSelect={setFormat} label={t('format_link_label')} desc={t('format_link_desc')}/>
           </div>
         </div>
         <div style={{marginBottom:22}}>
-          <div style={{fontSize:12,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:10,fontWeight:600}}>אפשרויות</div>
-          <CheckRow defaultChecked label="כלול חתימה דיגיטלית"/>
-          <CheckRow defaultChecked label="הצג ראיות כהפניות בסוף המסמך"/>
-          <CheckRow label="הצג ציון מספרי לכל קריטריון"/>
-          <CheckRow label="הוסף עמוד שער"/>
+          <div style={{fontSize:12,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:10,fontWeight:600}}>{t('export_options_label')}</div>
+          <CheckRow defaultChecked label={t('opt_digital_sig')}/>
+          <CheckRow defaultChecked label={t('opt_evidence_refs')}/>
+          <CheckRow label={t('opt_numerical_score')}/>
+          <CheckRow label={t('opt_cover_page')}/>
         </div>
         <div style={{marginTop:'auto',display:'flex',flexDirection:'column',gap:10,paddingTop:24}}>
-          <button className="btn btn-primary btn-lg" onClick={() => onFinish(format)} style={{borderRadius:100}}><IconDownload size={15}/> ייצא כ-{format==='pdf'?'PDF':format==='docx'?'Word':'קישור'}</button>
-          <button className="btn btn-secondary btn-lg" style={{borderRadius:100}}><IconSave size={14}/> שמור וסיים</button>
+          <button className="btn btn-primary btn-lg" onClick={() => onFinish(format)} style={{borderRadius:100}}><IconDownload size={15}/> {format === 'pdf' ? t('btn_export_pdf') : format === 'docx' ? t('btn_export_word') : t('btn_export_link')}</button>
+          <button className="btn btn-secondary btn-lg" style={{borderRadius:100}}><IconSave size={14}/> {t('btn_save_finish')}</button>
         </div>
       </aside>
       <div className="scroll" style={{flex:1,overflowY:'auto',background:'#e7e3da',padding:'32px 0'}}>
@@ -156,13 +164,14 @@ function ExportScreen({ student, onBack, onFinish, instructorAnswers, evaluation
 }
 
 function AnalyzingScreen() {
+  const { t } = useLanguage();
   const [progress, setProgress] = useState(0);
   const STEPS = [
-    { from:  0, label: 'קורא את המסמכים שהועלו...' },
-    { from: 20, label: 'מזהה מוטיבים חוזרים...' },
-    { from: 42, label: 'משבץ ראיות לפי קריטריונים...' },
-    { from: 62, label: 'משלב את תובנותייך בטיוטה...' },
-    { from: 80, label: 'מנסח את הטיוטה הסופית...' },
+    { from:  0, label: t('step_reading') },
+    { from: 20, label: t('step_patterns') },
+    { from: 42, label: t('step_mapping') },
+    { from: 62, label: t('step_insights') },
+    { from: 80, label: t('step_draft') },
   ];
   // Phase 1: fast burst to ~30% (3s), then slow steady 1%/s so it's always visibly moving
   useEffect(() => {
@@ -177,7 +186,7 @@ function AnalyzingScreen() {
     <div className="fade-in" style={{position:'fixed',inset:0,zIndex:50,background:'var(--bg)',display:'grid',placeItems:'center'}}>
       <div style={{width:420,maxWidth:'calc(100vw - 32px)',textAlign:'center'}}>
         <div style={{width:64,height:64,margin:'0 auto 20px',borderRadius:16,background:'var(--brand)',color:'#fff',display:'grid',placeItems:'center',boxShadow:'0 8px 32px rgba(30,58,95,.3)'}}><IconSparkle size={28} style={{animation:'pulse 1.5s infinite'}}/></div>
-        <h2 style={{fontFamily:'var(--font-serif)',fontSize:22,fontWeight:600,margin:'0 0 8px'}}>מכינה את ניתוח התיק</h2>
+        <h2 style={{fontFamily:'var(--font-serif)',fontSize:22,fontWeight:600,margin:'0 0 8px'}}>{t('analyzing_title')}</h2>
         <p style={{fontSize:14,color:'var(--ink-2)',margin:'0 0 24px'}}>{label}</p>
         <div style={{height:4,background:'var(--surface-3)',borderRadius:100,overflow:'hidden'}}><div style={{height:'100%',width:`${pct}%`,background:'linear-gradient(90deg,var(--brand),var(--brand-3))',transition:'width .4s ease-out',borderRadius:100}}/></div>
         <div style={{marginTop:8,fontSize:12,color:'var(--ink-3)'}}>{pct}%</div>

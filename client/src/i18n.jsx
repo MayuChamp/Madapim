@@ -284,7 +284,18 @@ const translations = {
     tab_security: 'אבטחה ופרטיות',
     tab_appearance: 'תצוגה',
     tab_users: 'ניהול משתמשים',
+    tab_program: 'הגדרות תכנית',
     tab_logout: 'התנתק',
+
+    // Program settings
+    program_settings_title: 'הגדרות תכנית לימודים',
+    program_settings_desc: 'קבע כמה מערכי שיעור וצפיות יידרשו מכל סטודנט בתחילת המסלול.',
+    program_lesson_plans_label: 'מספר מערכי שיעור',
+    program_lesson_plans_desc: 'כמה מערכי שיעור (עם שלושה שלבים) יפתחו לכל סטודנט חדש.',
+    program_observations_label: 'מספר צפיות בשיעור',
+    program_observations_desc: 'כמה צפיות יפתחו לכל סטודנט חדש.',
+    program_settings_note: 'שינוי ייכנס לתוקף רק עבור סטודנטים חדשים שיתווספו מעתה ואילך.',
+    program_settings_saved: 'ההגדרות נשמרו בהצלחה.',
 
     // Account
     account_title: 'החשבון שלי',
@@ -699,7 +710,18 @@ const translations = {
     tab_security: 'Security & Privacy',
     tab_appearance: 'Appearance',
     tab_users: 'User Management',
+    tab_program: 'Program Settings',
     tab_logout: 'Sign Out',
+
+    // Program settings
+    program_settings_title: 'Program Settings',
+    program_settings_desc: 'Set how many lesson plans and observations each student will require at the start of the program.',
+    program_lesson_plans_label: 'Number of Lesson Plans',
+    program_lesson_plans_desc: 'How many lesson plans (with 3 stages each) will be created for each new student.',
+    program_observations_label: 'Number of Observations',
+    program_observations_desc: 'How many observations will be created for each new student.',
+    program_settings_note: 'Changes apply only to new students added from now on.',
+    program_settings_saved: 'Settings saved successfully.',
 
     // Account
     account_title: 'My Account',
@@ -1114,7 +1136,18 @@ const translations = {
     tab_security: 'الأمان والخصوصية',
     tab_appearance: 'المظهر',
     tab_users: 'إدارة المستخدمين',
+    tab_program: 'إعدادات البرنامج',
     tab_logout: 'تسجيل الخروج',
+
+    // Program settings
+    program_settings_title: 'إعدادات برنامج التعلم',
+    program_settings_desc: 'حدد عدد خطط الدروس والمراقبات المطلوبة من كل طالب.',
+    program_lesson_plans_label: 'عدد خطط الدروس',
+    program_lesson_plans_desc: 'عدد خطط الدروس (بثلاث مراحل لكل منها) التي ستُنشأ لكل طالب جديد.',
+    program_observations_label: 'عدد المراقبات',
+    program_observations_desc: 'عدد المراقبات التي ستُنشأ لكل طالب جديد.',
+    program_settings_note: 'تسري التغييرات فقط على الطلاب الجدد الذين سيُضافون من الآن فصاعداً.',
+    program_settings_saved: 'تم حفظ الإعدادات بنجاح.',
 
     // Account
     account_title: 'حسابي',

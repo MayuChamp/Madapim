@@ -65,6 +65,33 @@ router.put('/profile', async (req, res) => {
   res.json({ token, user: { id: updated.id, email: updated.email, name: updated.name, role: updated.role } });
 });
 
+// GET /api/auth/program-settings
+router.get('/program-settings', async (req, res) => {
+  if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+  try {
+    const user = await q.userById(req.user.id);
+    res.json({ maxLessonPlans: user?.max_lesson_plans ?? 5, maxObservations: user?.max_observations ?? 3 });
+  } catch {
+    res.json({ maxLessonPlans: 5, maxObservations: 3 });
+  }
+});
+
+// PUT /api/auth/program-settings
+router.put('/program-settings', async (req, res) => {
+  if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+  const { maxLessonPlans, maxObservations } = req.body;
+  if (!Number.isInteger(maxLessonPlans) || maxLessonPlans < 1 || maxLessonPlans > 20)
+    return res.status(400).json({ error: 'maxLessonPlans חייב להיות בין 1 ל-20' });
+  if (!Number.isInteger(maxObservations) || maxObservations < 1 || maxObservations > 20)
+    return res.status(400).json({ error: 'maxObservations חייב להיות בין 1 ל-20' });
+  try {
+    await q.updateUserQuota(req.user.id, maxLessonPlans, maxObservations);
+  } catch {
+    return res.status(503).json({ error: 'שדות ההגדרות טרם נוצרו. יש להריץ את ה-migration ב-Supabase.' });
+  }
+  res.json({ ok: true });
+});
+
 // PUT /api/auth/password — change password
 router.put('/password', async (req, res) => {
   if (!req.user) return res.status(401).json({ error: 'Unauthorized' });

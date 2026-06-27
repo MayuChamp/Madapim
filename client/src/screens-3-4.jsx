@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, Component } from 'react';
+import { useLanguage } from './i18n';
 
 class EditorErrorBoundary extends Component {
   state = { error: null };
@@ -25,6 +26,7 @@ import { SMART_QUESTIONS, EVAL_CATEGORIES, EVIDENCES, LEVELS, QA_SUGGESTIONS } f
 
 
 function HumanNodeModal({ open, onComplete, onSkip, questions }) {
+  const { t } = useLanguage();
   const SMART_QUESTIONS_ACTIVE = questions && questions.length > 0 ? questions : SMART_QUESTIONS;
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState({});
@@ -48,7 +50,7 @@ function HumanNodeModal({ open, onComplete, onSkip, questions }) {
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
             <div style={{display:'flex',alignItems:'center',gap:10}}>
               <div style={{width:32,height:32,borderRadius:8,background:'var(--brand)',color:'#fff',display:'grid',placeItems:'center'}}><IconSparkle size={16}/></div>
-              <div><div style={{fontFamily:'var(--font-serif)',fontSize:17,fontWeight:600,color:'var(--ink-1)'}}>השלמת מידע</div><div style={{fontSize:12,color:'var(--ink-3)'}}>המערכת זיהתה פערים בתיק — תובנותיך ישולבו בטיוטה</div></div>
+              <div><div style={{fontFamily:'var(--font-serif)',fontSize:17,fontWeight:600,color:'var(--ink-1)'}}>{t('modal_title')}</div><div style={{fontSize:12,color:'var(--ink-3)'}}>{t('modal_subtitle')}</div></div>
             </div>
             <button onClick={onSkip} className="btn-ghost" style={{padding:6,borderRadius:6,color:'var(--ink-3)'}}><IconClose size={18}/></button>
           </div>
@@ -56,7 +58,7 @@ function HumanNodeModal({ open, onComplete, onSkip, questions }) {
             {SMART_QUESTIONS_ACTIVE.map((q,i)=>(
               <div key={q.id} style={{flex:1,display:'flex',flexDirection:'column',gap:4}}>
                 <div style={{height:3,borderRadius:2,background:i<=step?'var(--brand)':'var(--border)',transition:'background .3s'}}/>
-                <div style={{fontSize:10.5,color:i===step?'var(--brand)':'var(--ink-3)',textAlign:'center',fontWeight:i===step?600:400}}>שאלה {i+1}</div>
+                <div style={{fontSize:10.5,color:i===step?'var(--brand)':'var(--ink-3)',textAlign:'center',fontWeight:i===step?600:400}}>{t('question_label', { n: i+1 })}</div>
               </div>
             ))}
           </div>
@@ -64,7 +66,7 @@ function HumanNodeModal({ open, onComplete, onSkip, questions }) {
         <div style={{padding:'22px 24px'}}>
           <div style={{display:'inline-flex',alignItems:'center',gap:6,padding:'4px 10px',background:gapTone.bg,color:gapTone.fg,borderRadius:100,fontSize:11.5,fontWeight:500,marginBottom:12}}>{Q.badge}</div>
           <div style={{padding:'12px 14px',background:'var(--surface-2)',borderInlineStart:`3px solid ${gapTone.fg}`,borderRadius:6,fontSize:13,color:'var(--ink-2)',lineHeight:1.6,marginBottom:16}}>
-            <div style={{fontSize:11,color:gapTone.fg,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:4}}>מה המערכת זיהתה</div>
+            <div style={{fontSize:11,color:gapTone.fg,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:4}}>{t('system_detected_label')}</div>
             {Q.context}
           </div>
           <div style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:600,color:'var(--ink-1)',lineHeight:1.4,marginBottom:16,letterSpacing:'-0.005em'}}>{Q.question}</div>
@@ -94,19 +96,19 @@ function HumanNodeModal({ open, onComplete, onSkip, questions }) {
           {recording?(
             <div style={{marginTop:10,display:'flex',alignItems:'center',gap:8,fontSize:12,color:'#c0392b'}}>
               <span style={{width:8,height:8,borderRadius:'50%',background:'#c0392b',animation:'pulse 1s infinite'}}/>
-              מקליט · {String(Math.floor(recordTime/60)).padStart(2,'0')}:{String(recordTime%60).padStart(2,'0')}
-              <span style={{flex:1}}/><span style={{color:'var(--ink-3)'}}>לחץ שוב על המיקרופון לסיום</span>
+              {t('recording_timer', { time: `${String(Math.floor(recordTime/60)).padStart(2,'0')}:${String(recordTime%60).padStart(2,'0')}` })}
+              <span style={{flex:1}}/><span style={{color:'var(--ink-3)'}}>{t('mic_stop_hint')}</span>
             </div>
           ):(
-            <div style={{marginTop:10,fontSize:12,color:'var(--ink-3)'}}>לחץ על המיקרופון להקלטת תשובה קולית · המערכת תתמלל אוטומטית</div>
+            <div style={{marginTop:10,fontSize:12,color:'var(--ink-3)'}}>{t('mic_hint')}</div>
           )}
         </div>
         <div style={{padding:'14px 24px',background:'var(--surface-2)',borderTop:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'space-between',gap:12}}>
-          <button className="btn btn-ghost btn-sm" onClick={onSkip}>דלג על הכל</button>
+          <button className="btn btn-ghost btn-sm" onClick={onSkip}>{t('btn_skip_all')}</button>
           <div style={{display:'flex',alignItems:'center',gap:8}}>
-            {step>0&&<button className="btn btn-ghost btn-sm" onClick={()=>setStep(step-1)}><IconArrowRight size={13}/> חזרה</button>}
-            {!isLast?<button className="btn btn-primary" onClick={()=>setStep(step+1)}>שאלה הבאה <IconArrowLeft size={14}/></button>
-              :<button className="btn btn-primary" onClick={()=>onComplete(answers)}>סיום והכנת טיוטה <IconArrowLeft size={14}/></button>}
+            {step>0&&<button className="btn btn-ghost btn-sm" onClick={()=>setStep(step-1)}><IconArrowRight size={13}/> {t('btn_back')}</button>}
+            {!isLast?<button className="btn btn-primary" onClick={()=>setStep(step+1)}>{t('btn_next_question')} <IconArrowLeft size={14}/></button>
+              :<button className="btn btn-primary" onClick={()=>onComplete(answers)}>{t('btn_finish_draft')} <IconArrowLeft size={14}/></button>}
           </div>
         </div>
       </div>
@@ -150,18 +152,20 @@ function extractEvidenceIds(text) {
 }
 
 function SourceCell({ track, dim, activeEvidence, onEvidenceClick }) {
+  const { t } = useLanguage();
   const tone = TRACK_TONE[track];
+  const trackLabel = track === 'lesson_plan' ? t('track_lesson_plan') : t('track_observation_label');
   if(!dim) return (
     <div style={{flex:1,padding:'10px 12px',borderRadius:'var(--r-sm)',background:'var(--surface-2)',border:'1px dashed var(--border-strong)',opacity:0.7}}>
-      <div style={{display:'flex',alignItems:'center',gap:6,fontSize:12,color:'var(--ink-3)'}}>{tone.Icon&&<tone.Icon size={12} style={{opacity:.5}}/>}<span>{tone.label}</span></div>
-      <div style={{fontSize:12,color:'var(--ink-4)',marginTop:6}}>אין ראיה בערוץ זה</div>
+      <div style={{display:'flex',alignItems:'center',gap:6,fontSize:12,color:'var(--ink-3)'}}>{tone.Icon&&<tone.Icon size={12} style={{opacity:.5}}/>}<span>{trackLabel}</span></div>
+      <div style={{fontSize:12,color:'var(--ink-4)',marginTop:6}}>{t('no_evidence')}</div>
     </div>
   );
   const lvl = LEVELS[dim.level] || { label: dim.level || '—', cls: 'badge-neutral' };
   return (
     <div style={{flex:1,padding:'10px 12px',borderRadius:'var(--r-sm)',background:tone.bg+'66',border:`1px solid ${tone.bg}`}}>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:6}}>
-        <div style={{display:'flex',alignItems:'center',gap:6,fontSize:12,fontWeight:600,color:tone.fg}}>{tone.Icon&&<tone.Icon size={12}/>}<span>{tone.label}</span></div>
+        <div style={{display:'flex',alignItems:'center',gap:6,fontSize:12,fontWeight:600,color:tone.fg}}>{tone.Icon&&<tone.Icon size={12}/>}<span>{trackLabel}</span></div>
         <span style={{fontSize:11,fontWeight:600,color:tone.fg,background:'#fff',padding:'1px 7px',borderRadius:100,border:`1px solid ${tone.bg}`}}>{lvl.label}</span>
       </div>
       <div style={{fontSize:12.5,color:'var(--ink-2)',marginTop:6,lineHeight:1.55}}>{dim.note}</div>
@@ -171,18 +175,20 @@ function SourceCell({ track, dim, activeEvidence, onEvidenceClick }) {
 }
 
 function GapInsight({ cat, answered }) {
+  const { t } = useLanguage();
   const g = cat.gap; if(!g) return null;
   const needsDecision = !!g.decisionKey&&!answered;
   if (!needsDecision) return null;
   return (
     <div style={{marginTop:14,padding:'12px 14px',background:'var(--warn-soft)',borderInlineStart:'3px solid var(--warn)',borderRadius:6}}>
-      <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--warn)',marginBottom:4,display:'flex',alignItems:'center',gap:6}}><span>⚖</span>פער מזוהה — נדרשת הכרעתך</div>
+      <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--warn)',marginBottom:4,display:'flex',alignItems:'center',gap:6}}><span>⚖</span>{t('gap_detected')}</div>
       <div style={{fontSize:12.5,color:'var(--ink-2)',lineHeight:1.6}}>{g.summary}</div>
     </div>
   );
 }
 
 function CategoryCard({ cat, index, aiTone, instructorAnswers, activeEvidence, onEvidenceClick, editing, onEdit, onRefine, refining, isActive, onSelect }) {
+  const { t } = useLanguage();
   const {instructorText,decisionText} = resolveCategoryInputs(cat,instructorAnswers);
   const baseText = aiTone==='friendly'&&cat.balanceFriendly?cat.balanceFriendly:cat.balance;
   const answered = cat.gap&&cat.gap.decisionKey?!!(instructorAnswers&&instructorAnswers[cat.gap.decisionKey]):(cat.usesInstructorInput?!!(instructorAnswers&&instructorAnswers[cat.usesInstructorInput]):true);
@@ -198,30 +204,30 @@ function CategoryCard({ cat, index, aiTone, instructorAnswers, activeEvidence, o
           <div style={{width:32,height:32,borderRadius:'50%',background:'var(--surface-3)',color:'var(--ink-1)',display:'grid',placeItems:'center',fontFamily:'var(--font-serif)',fontSize:14,fontWeight:600}}>{index+1}</div>
           <div>
             <h3 style={{fontFamily:'var(--font-serif)',fontSize:17,fontWeight:600,margin:0,letterSpacing:'-0.005em'}}>{cat.name}</h3>
-            <div style={{fontSize:11.5,color:'var(--ink-3)',marginTop:2}}>משקל: {cat.weight}% מהציון הסופי</div>
+            <div style={{fontSize:11.5,color:'var(--ink-3)',marginTop:2}}>{t('weight_label', { weight: cat.weight })}</div>
           </div>
         </div>
         <div style={{display:'flex',alignItems:'center',gap:8}}>
-          {lvl?<span className={`badge ${lvl.cls}`}>{lvl.label}</span>:<span className="badge badge-warn">טעון השלמה</span>}
-          <button onClick={(e)=>{e.stopPropagation();onEdit();}} className="btn-ghost" title="ערוך ידנית" style={{width:30,height:30,borderRadius:6,display:'grid',placeItems:'center',color:editing?'var(--brand)':'var(--ink-3)',background:editing?'var(--brand-softer)':'transparent'}}><IconPencil size={14}/></button>
-          <button onClick={(e)=>{e.stopPropagation();onRefine();}} className="btn-ghost" title="בקש מה-AI לנסח מחדש" style={{width:30,height:30,borderRadius:6,display:'grid',placeItems:'center',color:'var(--brand)',background:refining?'var(--brand-softer)':'transparent'}}><IconMagic size={14}/></button>
+          {lvl?<span className={`badge ${lvl.cls}`}>{lvl.label}</span>:<span className="badge badge-warn">{t('needs_completion')}</span>}
+          <button onClick={(e)=>{e.stopPropagation();onEdit();}} className="btn-ghost" title={t('edit_manually')} style={{width:30,height:30,borderRadius:6,display:'grid',placeItems:'center',color:editing?'var(--brand)':'var(--ink-3)',background:editing?'var(--brand-softer)':'transparent'}}><IconPencil size={14}/></button>
+          <button onClick={(e)=>{e.stopPropagation();onRefine();}} className="btn-ghost" title={t('ai_rephrase')} style={{width:30,height:30,borderRadius:6,display:'grid',placeItems:'center',color:'var(--brand)',background:refining?'var(--brand-softer)':'transparent'}}><IconMagic size={14}/></button>
         </div>
       </div>
       {hasSplit&&<div style={{display:'flex',gap:8,marginBottom:14}}><SourceCell track="lesson_plan" dim={cat.lessonPlan} activeEvidence={activeEvidence} onEvidenceClick={onEvidenceClick}/><SourceCell track="observation" dim={cat.observation} activeEvidence={activeEvidence} onEvidenceClick={onEvidenceClick}/></div>}
       {isEmpty?(
-        <div style={{padding:'14px 16px',borderRadius:'var(--r-sm)',background:'var(--warn-soft)',color:'var(--warn)',fontSize:13,lineHeight:1.6,textAlign:'center'}}>{cat.emptyHint||'תחום זה דורש את הערכתך הישירה.'}</div>
+        <div style={{padding:'14px 16px',borderRadius:'var(--r-sm)',background:'var(--warn-soft)',color:'var(--warn)',fontSize:13,lineHeight:1.6,textAlign:'center'}}>{cat.emptyHint || t('empty_hint')}</div>
       ):editing?(
         <textarea className="textarea" defaultValue={(baseText||'').replace(/\{\{e(\d+)\}\}/g,(_,n)=>`[ראיה ${n}]`).replace('{{instructor_input}}',instructorText||'...').replace('{{decision}}',decisionText||'')} style={{minHeight:140,fontSize:14,lineHeight:1.75}} onClick={e=>e.stopPropagation()} autoFocus/>
       ):(
         <div style={{fontSize:14.5,lineHeight:1.85,color:'var(--ink-1)',opacity:refining?0.4:1,transition:'opacity .3s',position:'relative'}}>
           {rendered}
-          {refining&&<div style={{position:'absolute',inset:-4,display:'grid',placeItems:'center'}}><div style={{display:'flex',alignItems:'center',gap:10,padding:'8px 16px',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:100,boxShadow:'var(--shadow-2)',fontSize:13,fontWeight:500,color:'var(--brand)'}}><IconSparkle size={14} style={{animation:'pulse 1s infinite'}}/>ה-AI מנסח מחדש...</div></div>}
+          {refining&&<div style={{position:'absolute',inset:-4,display:'grid',placeItems:'center'}}><div style={{display:'flex',alignItems:'center',gap:10,padding:'8px 16px',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:100,boxShadow:'var(--shadow-2)',fontSize:13,fontWeight:500,color:'var(--brand)'}}><IconSparkle size={14} style={{animation:'pulse 1s infinite'}}/>{t('ai_rephrasing')}</div></div>}
         </div>
       )}
       <GapInsight cat={cat} answered={answered}/>
       {extractEvidenceIds(baseText||'').length>0&&(
         <div style={{marginTop:14,display:'flex',alignItems:'center',gap:8,paddingTop:12,borderTop:'1px solid var(--border)',flexWrap:'wrap'}}>
-          <span style={{fontSize:11.5,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em'}}>ראיות תומכות:</span>
+          <span style={{fontSize:11.5,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em'}}>{t('supporting_evidence')}</span>
           {extractEvidenceIds(baseText||'').map(eid=>{
             const ev=EVIDENCES[eid]; const isActive=activeEvidence===eid;
             const tc=ev?.track==='lesson_plan'?TRACK_TONE.lesson_plan:ev?.track==='observation'?TRACK_TONE.observation:{bg:'var(--brand-soft)',fg:'var(--brand)',activeBg:'var(--brand)',Icon:null};
@@ -234,22 +240,24 @@ function CategoryCard({ cat, index, aiTone, instructorAnswers, activeEvidence, o
 }
 
 function SummaryCard({ summary }) {
+  const { t } = useLanguage();
   const text = summary?.text || 'הסטודנטית נמצאת בנקודה טובה בשלב ההכשרה. הכוחות הבולטים: רפלקציה עמוקה, תושייה בכיתה והיכרות תוכנית מבוססת. תחומי הצמיחה: העמקת התכנון לפני השיעור. ההמלצה: מעבר עם ליווי ממוקד.';
   const score = summary?.score || '—';
   return (
     <div className="card" style={{background:'var(--surface-2)',borderColor:'var(--border)'}}>
-      <h3 style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:600,margin:'0 0 12px',color:'var(--ink-1)'}}>סיכום והמלצות</h3>
+      <h3 style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:600,margin:'0 0 12px',color:'var(--ink-1)'}}>{t('summary_title')}</h3>
       <p style={{fontSize:15,lineHeight:1.85,color:'var(--ink-1)',margin:0}}>{text}</p>
       <div style={{marginTop:20,padding:'16px 20px',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:12,display:'flex',alignItems:'center',gap:20}}>
-        <div><div style={{fontSize:12,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em'}}>ציון מסכם מוצע</div><div style={{fontFamily:'var(--font-serif)',fontSize:32,fontWeight:600,color:'var(--brand)',lineHeight:1.1,marginTop:4}}>{score} <span style={{fontSize:16,color:'var(--ink-3)',fontWeight:400}}>/ 100</span></div></div>
+        <div><div style={{fontSize:12,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em'}}>{t('proposed_score')}</div><div style={{fontFamily:'var(--font-serif)',fontSize:32,fontWeight:600,color:'var(--brand)',lineHeight:1.1,marginTop:4}}>{score} <span style={{fontSize:16,color:'var(--ink-3)',fontWeight:400}}>/ 100</span></div></div>
         <div style={{width:1,height:48,background:'var(--border)'}}/>
-        <div style={{fontSize:13.5,color:'var(--ink-2)',lineHeight:1.5}}>התפלגות לפי קריטריונים זמינה במסך הייצוא.<br/>ניתן לשנות ידנית את הציון המסכם.</div>
+        <div style={{fontSize:13.5,color:'var(--ink-2)',lineHeight:1.5}}>{t('score_note_1')}<br/>{t('score_note_2')}</div>
       </div>
     </div>
   );
 }
 
 function ChatBox({ messages, thinking, value, onChange, onSend, student }) {
+  const { t } = useLanguage();
   const scrollRef = useRef(null);
   const [expanded, setExpanded] = useState(false);
   useEffect(()=>{ if(scrollRef.current)scrollRef.current.scrollTop=scrollRef.current.scrollHeight; },[messages,thinking]);
@@ -257,7 +265,7 @@ function ChatBox({ messages, thinking, value, onChange, onSend, student }) {
     <div style={{borderTop:'1px solid var(--border)',background:'var(--surface)',flexShrink:0}}>
       {(messages.length>0||expanded)&&(
         <div ref={scrollRef} className="scroll" style={{maxHeight:220,overflowY:'auto',padding:'14px 18px',display:'flex',flexDirection:'column',gap:10}}>
-          {messages.length===0&&<div style={{fontSize:12,color:'var(--ink-3)'}}>לדוגמה: "איך היא עם בעיות משמעת?" · "מה התכנון שלה?"</div>}
+          {messages.length===0&&<div style={{fontSize:12,color:'var(--ink-3)'}}>{t('chat_example')}</div>}
           {messages.map((m,i)=>(
             <div key={i} style={{alignSelf:m.role==='user'?'flex-end':'flex-start',maxWidth:'88%',padding:'8px 12px',borderRadius:m.role==='user'?'12px 12px 4px 12px':'12px 12px 12px 4px',background:m.role==='user'?'var(--brand)':'var(--surface-2)',color:m.role==='user'?'#fff':'var(--ink-1)',fontSize:13,lineHeight:1.6}}>{m.text}</div>
           ))}
@@ -273,7 +281,7 @@ function ChatBox({ messages, thinking, value, onChange, onSend, student }) {
       )}
       <form onSubmit={e=>{e.preventDefault();onSend(value);}} style={{display:'flex',alignItems:'center',gap:8,padding:'12px 18px 14px'}}>
         <div style={{width:26,height:26,borderRadius:6,background:'var(--brand)',color:'#fff',display:'grid',placeItems:'center',flexShrink:0}}><IconSparkle size={13}/></div>
-        <input className="input" placeholder={`שאל את המערכת על ${student.name}...`} value={value} onChange={e=>onChange(e.target.value)} onFocus={()=>setExpanded(true)} style={{padding:'8px 12px',fontSize:13}}/>
+        <input className="input" placeholder={t('chat_placeholder', { name: student.name })} value={value} onChange={e=>onChange(e.target.value)} onFocus={()=>setExpanded(true)} style={{padding:'8px 12px',fontSize:13}}/>
         <button type="submit" className="btn btn-primary btn-sm" disabled={!value.trim()} style={{width:36,padding:0}}><IconSend size={14}/></button>
       </form>
     </div>
@@ -281,19 +289,26 @@ function ChatBox({ messages, thinking, value, onChange, onSend, student }) {
 }
 
 function DraftHeader({ student, answersCount }) {
+  const { t } = useLanguage();
+  const legendItems = [
+    {Ic:IconDoc, label:t('track_lesson_plan'), fg:'#1e3a5f', bg:'#e8eef5'},
+    {Ic:IconEye, label:t('track_observation_label'), fg:'#2f7a4e', bg:'#e3f0e8'},
+    {Ic:IconSparkle, label:t('gap_decided'), fg:'#b08552', bg:'#f4ecdf'},
+  ];
   return (
     <div style={{marginBottom:24}}>
-      <div style={{fontSize:12,color:'var(--ink-3)',marginBottom:6,display:'flex',alignItems:'center',gap:8}}><IconSparkle size={12} stroke="var(--brand)"/>מחוון סוף שנה · 7 קריטריונים · כל קריטריון מאזן בין מערך לבין צפייה</div>
-      <h1 style={{fontFamily:'var(--font-serif)',fontSize:28,fontWeight:600,margin:0,letterSpacing:'-0.01em'}}>הערכת התנסות — {student.name}</h1>
+      <div style={{fontSize:12,color:'var(--ink-3)',marginBottom:6,display:'flex',alignItems:'center',gap:8}}><IconSparkle size={12} stroke="var(--brand)"/>{t('rubric_info')}</div>
+      <h1 style={{fontFamily:'var(--font-serif)',fontSize:28,fontWeight:600,margin:0,letterSpacing:'-0.01em'}}>{t('eval_draft_title_prefix')} {student.name}</h1>
       <div style={{marginTop:10,display:'flex',gap:8,flexWrap:'wrap'}}>
-        {[{Ic:IconDoc,label:'מערך שיעור',fg:'#1e3a5f',bg:'#e8eef5'},{Ic:IconEye,label:'צפייה בשיעור',fg:'#2f7a4e',bg:'#e3f0e8'},{Ic:IconSparkle,label:'פער שהוכרע',fg:'#b08552',bg:'#f4ecdf'}].map(c=><span key={c.label} style={{display:'inline-flex',alignItems:'center',gap:5,padding:'3px 9px',borderRadius:100,background:c.bg,color:c.fg,fontSize:11.5,fontWeight:500}}><c.Ic size={12}/>{c.label}</span>)}
-        {answersCount>0&&<span style={{fontSize:12,color:'var(--ink-3)',alignSelf:'center',marginInlineStart:4}}>{answersCount} מהתובנות שלך שולבו בטיוטה</span>}
+        {legendItems.map(c=><span key={c.label} style={{display:'inline-flex',alignItems:'center',gap:5,padding:'3px 9px',borderRadius:100,background:c.bg,color:c.fg,fontSize:11.5,fontWeight:500}}><c.Ic size={12}/>{c.label}</span>)}
+        {answersCount>0&&<span style={{fontSize:12,color:'var(--ink-3)',alignSelf:'center',marginInlineStart:4}}>{t('instructor_insights_integrated', { n: answersCount })}</span>}
       </div>
     </div>
   );
 }
 
 function SplitEditor({ student, instructorAnswers, aiTone, onBack, onExport, evalCategories, evalSummary, evaluationId, onSave, evidenceFiles }) {
+  const { t } = useLanguage();
   const activeCategories = evalCategories || EVAL_CATEGORIES;
 
   // Build live evidences from actual uploaded files
@@ -354,23 +369,23 @@ function SplitEditor({ student, instructorAnswers, aiTone, onBack, onExport, eva
     <div className="fade-in" style={{display:'flex',flexDirection:'column',height:'100vh'}}>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'14px 28px',background:'var(--surface)',borderBottom:'1px solid var(--border)',zIndex:10}}>
         <div style={{display:'flex',alignItems:'center',gap:16}}>
-          <button onClick={onBack} className="btn btn-ghost btn-sm" style={{borderRadius:100,padding:'6px 12px'}}><IconArrowRight size={14}/> חזרה</button>
+          <button onClick={onBack} className="btn btn-ghost btn-sm" style={{borderRadius:100,padding:'6px 12px'}}><IconArrowRight size={14}/> {t('editor_back')}</button>
           <div style={{width:1,height:24,background:'var(--border)'}}/>
-          <div><div style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:600}}>טיוטת הערכה · {student.name}</div><div style={{fontSize:13,color:'var(--ink-3)',marginTop:2}}>מחוון: הערכת סוף שנה · 7 קריטריונים · מאזן מערך/צפייה</div></div>
+          <div><div style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:600}}>{t('eval_draft_title_prefix')} {student.name}</div><div style={{fontSize:13,color:'var(--ink-3)',marginTop:2}}>{t('eval_draft_subtitle')}</div></div>
         </div>
         <div style={{display:'flex',alignItems:'center',gap:10}}>
-          <span className="badge badge-info" style={{borderRadius:100,padding:'4px 12px',fontSize:13}}>טיוטה</span>
+          <span className="badge badge-info" style={{borderRadius:100,padding:'4px 12px',fontSize:13}}>{t('editor_draft_badge')}</span>
           <button onClick={handleSave} disabled={saveStatus==='saving'} className="btn btn-secondary btn-sm" style={{borderRadius:100,padding:'6px 16px',minWidth:90}}>
-            {saveStatus==='saving'?<><IconSparkle size={13} style={{animation:'pulse 1s infinite'}}/> שומר...</>:saveStatus==='saved'?<><IconCheck size={13} stroke="var(--ok)"/> נשמר!</>:<><IconSave size={14}/> שמירה</>}
+            {saveStatus==='saving'?<><IconSparkle size={13} style={{animation:'pulse 1s infinite'}}/> {t('editor_saving')}</>:saveStatus==='saved'?<><IconCheck size={13} stroke="var(--ok)"/> {t('editor_saved')}</>:<><IconSave size={14}/> {t('editor_save')}</>}
           </button>
-          <button className="btn btn-primary btn-sm" onClick={onExport} style={{borderRadius:100,padding:'6px 16px',background:'var(--brand)'}}>ייצוא <IconArrowLeft size={14}/></button>
+          <button className="btn btn-primary btn-sm" onClick={onExport} style={{borderRadius:100,padding:'6px 16px',background:'var(--brand)'}}>{t('editor_export')} <IconArrowLeft size={14}/></button>
         </div>
       </div>
       <div style={{display:'grid',gridTemplateColumns:'36% 64%',flex:1,minHeight:0}}>
         <div style={{borderInlineStart:'1px solid var(--border)',background:'var(--surface-2)',display:'flex',flexDirection:'column',minHeight:0}}>
           <div style={{display:'flex',overflowX:'auto',borderBottom:'1px solid var(--border)',background:'var(--surface)',padding:'0 8px',flexShrink:0,minHeight:44,alignItems:'center'}}>
             {Object.values(liveEvidences).length === 0
-              ? <span style={{padding:'0 14px',fontSize:12,color:'var(--ink-4)'}}>אין מסמכים להצגה</span>
+              ? <span style={{padding:'0 14px',fontSize:12,color:'var(--ink-4)'}}>{t('no_documents')}</span>
               : Object.values(liveEvidences).map(ev=>{
                   const tc=ev.track==='lesson_plan'?'#1e3a5f':ev.track==='observation'?'#2f7a4e':'var(--brand)';
                   const TrackIc=ev.track==='lesson_plan'?IconDoc:ev.track==='observation'?IconEye:null;
@@ -384,7 +399,7 @@ function SplitEditor({ student, instructorAnswers, aiTone, onBack, onExport, eva
               <div style={{display:'grid',placeItems:'center',height:'100%',padding:32,textAlign:'center'}}>
                 <div>
                   <IconDoc size={32} style={{opacity:.25,marginBottom:12}}/>
-                  <div style={{fontSize:14,color:'var(--ink-3)',lineHeight:1.7}}>לא הועלו מסמכים לתיק זה<br/><span style={{fontSize:12}}>העלה קבצים מסך הסטודנט כדי לצפות בהם כאן</span></div>
+                  <div style={{fontSize:14,color:'var(--ink-3)',lineHeight:1.7}}>{t('no_documents_uploaded')}<br/><span style={{fontSize:12}}>{t('no_documents_hint')}</span></div>
                 </div>
               </div>
             ) : (

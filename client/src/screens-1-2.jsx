@@ -467,7 +467,7 @@ function CycleRow({ kind, cycle, cycleIndex, stageOrder, open, onToggle, onUploa
 
 function TrackSection({ kind, title, subtitle, cycles, stageOrder, openCycle, onToggle, onUpload, studentId, onFileUploaded }) {
   const { t } = useLanguage();
-  const c = TRACK_COLORS[kind]; const completeCount = cycles.filter(cy=>cy.status==='complete').length;
+  const c = TRACK_COLORS[kind]; const completeCount = cycles.filter(cy => cy.status === 'complete' || Object.values(cy.stages).some(s => s.done)).length;
   return (
     <section>
       <div style={{display:'flex',alignItems:'baseline',justifyContent:'space-between',marginBottom:14}}>
@@ -715,8 +715,9 @@ function Workspace({ student, onBack, onAnalyze, onFileUploaded }) {
   const studentCycles = (student.cycles || []).map(transformApiCycle);
   const lpCycles = studentCycles.filter(c => c.track_type === 'lesson_plan');
   const obCycles = studentCycles.filter(c => c.track_type === 'observation');
-  const lpComplete = lpCycles.filter(c=>c.status==='complete').length;
-  const obComplete = obCycles.filter(c=>c.status==='complete').length;
+  const hasActivity = c => c.status === 'complete' || Object.values(c.stages).some(s => s.done);
+  const lpComplete = lpCycles.filter(hasActivity).length;
+  const obComplete = obCycles.filter(hasActivity).length;
   const totalDocs = studentCycles.reduce((acc,c)=>acc+Object.values(c.stages).filter(s=>s.done).length,0);
   return (
     <div className="main-inner fade-in" style={{paddingTop:28}}>

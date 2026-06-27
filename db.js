@@ -10,9 +10,17 @@ const BUCKET = 'student-files';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function progressFor(cycles, trackType) {
+function progressFor(cycles, trackType, files) {
   const subset = (cycles || []).filter(c => c.track_type === trackType);
-  return { complete: subset.filter(c => c.status === 'complete').length, total: subset.length };
+  return {
+    complete: subset.filter(c => {
+      if (c.status === 'complete') return true;
+      if (c.stages && c.stages.some(s => s.done)) return true;
+      if (files && files.some(f => f.cycle_id === c.id)) return true;
+      return false;
+    }).length,
+    total: subset.length,
+  };
 }
 
 // ─── Seed ─────────────────────────────────────────────────────────────────────
@@ -80,12 +88,16 @@ const q = {
       supabase.from('files').select('id, student_id, cycle_id').in('student_id', ids).not('cycle_id', 'is', null),
     ]);
 
-    return students.map(s => ({
-      ...s,
-      lessonProgress:      progressFor((cycles || []).filter(c => c.student_id === s.id), 'lesson_plan'),
-      observationProgress: progressFor((cycles || []).filter(c => c.student_id === s.id), 'observation'),
-      docs: (files || []).filter(f => f.student_id === s.id).length,
-    }));
+    return students.map(s => {
+      const sCycles = (cycles || []).filter(c => c.student_id === s.id);
+      const sFiles  = (files  || []).filter(f => f.student_id === s.id);
+      return {
+        ...s,
+        lessonProgress:      progressFor(sCycles, 'lesson_plan',  sFiles),
+        observationProgress: progressFor(sCycles, 'observation',  sFiles),
+        docs: sFiles.length,
+      };
+    });
   },
 
   student: async (id, instructorId) => {
@@ -220,6 +232,10 @@ const q = {
     await supabase.from('users').update({ password_hash: passwordHash }).eq('id', id);
   },
 
+  updateUserQuota: async (id, maxLessonPlans, maxObservations) => {
+    await supabase.from('users').update({ max_lesson_plans: maxLessonPlans, max_observations: maxObservations }).eq('id', id);
+  },
+
   allUsers: async () => {
     const { data } = await supabase
       .from('users').select('id, email, name, role, created_at').order('created_at');
@@ -272,11 +288,11 @@ const q = {
     await supabase.from('rubrics').delete().eq('id', id);
   },
 
-  seedDefaultCyclesForStudent: async (studentId, subjectTrack) => {
+  seedDefaultCyclesForStudent: async (studentId, subjectTrack, { maxLessonPlans = 5, maxObservations = 3 } = {}) => {
     const cycles = [];
     const stages = [];
 
-    for (let i = 1; i <= 5; i++) {
+    for (let i = 1; i <= maxLessonPlans; i++) {
       const cId = `lp_${studentId}_${i}`;
       cycles.push({ id: cId, student_id: studentId, track_type: 'lesson_plan', topic: `מערך שיעור ${i}`, subject: subjectTrack || '', date: null, status: 'not_started', position: i });
       stages.push({ id: `st_${cId}_1`, cycle_id: cId, stage_key: 'submission',      done: 0, position: 1 });
@@ -284,7 +300,7 @@ const q = {
       stages.push({ id: `st_${cId}_3`, cycle_id: cId, stage_key: 'revision',        done: 0, position: 3 });
     }
 
-    for (let i = 1; i <= 3; i++) {
+    for (let i = 1; i <= maxObservations; i++) {
       const cId = `ob_${studentId}_${i}`;
       cycles.push({ id: cId, student_id: studentId, track_type: 'observation', topic: `תצפית ${i}`, subject: '', date: null, status: 'not_started', position: i });
       stages.push({ id: `st_${cId}_1`, cycle_id: cId, stage_key: 'observation', done: 0, position: 1 });

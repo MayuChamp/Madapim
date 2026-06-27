@@ -51,7 +51,11 @@ router.post('/', requireAuth, async (req, res) => {
 
     const { error: insertError } = await supabase.from('students').insert({ id, name, school: school || '', grade: grade || '', subject_track: subject_track || '', initials, gender: resolvedGender, instructor_id: req.user.id });
     if (insertError) throw insertError;
-    await q.seedDefaultCyclesForStudent(id, subject_track);
+    const instructor = await q.userById(req.user.id);
+    await q.seedDefaultCyclesForStudent(id, subject_track, {
+      maxLessonPlans: instructor?.max_lesson_plans ?? 5,
+      maxObservations: instructor?.max_observations ?? 3,
+    });
 
     const created = await q.student(id, req.user.id);
     if (!created) throw new Error('Student was not found after insert');

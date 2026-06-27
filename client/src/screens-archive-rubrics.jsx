@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { IconDownload, IconDoc, IconSearch, IconPlus, IconChevron, IconPencil, IconClose, IconCheck, IconTrash } from './icons';
 import * as API from './api';
+import { useLanguage } from './i18n';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -20,6 +21,7 @@ function formatDate(iso) {
 // ─── Archive ──────────────────────────────────────────────────────────────────
 
 export function ArchiveScreen() {
+  const { t } = useLanguage();
   const [search, setSearch] = useState('');
   const [evaluations, setEvaluations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -56,7 +58,7 @@ export function ArchiveScreen() {
   const scores = evaluations.filter(e => e.score != null).map(e => e.score);
   const avgScore = scores.length ? Math.round(scores.reduce((a,b) => a+b, 0) / scores.length) : null;
 
-  if (loading) return <div className="main-inner fade-in">טוען ארכיון...</div>;
+  if (loading) return <div className="main-inner fade-in">{t('archive_loading')}</div>;
 
   return (
     <div className="main-inner fade-in">
@@ -68,7 +70,7 @@ export function ArchiveScreen() {
               ev.student?.name||'',
               ev.student?.school||'',
               ev.student?.grade||'',
-              ev.status==='finalized'?'מסויים':'טיוטה',
+              ev.status==='finalized'?t('status_finalized'):t('status_draft_label'),
               ev.score!=null?ev.score:'',
               levelLabel(ev.draft_json?.overallLevel)||'',
               formatDate(ev.updated_at),
@@ -81,44 +83,44 @@ export function ArchiveScreen() {
           a.href=url; a.download='ארכיון-הערכות.csv';
           document.body.appendChild(a); a.click();
           document.body.removeChild(a); URL.revokeObjectURL(url);
-        }}><IconDownload size={14}/> ייצוא רשימה</button>
+        }}><IconDownload size={14}/> {t('btn_export_list')}</button>
         <div style={{textAlign:'end'}}>
-          <div style={{fontSize:13,color:'var(--ink-3)',marginBottom:6,letterSpacing:'0.02em'}}>ארכיון · {evaluations.length} הערכות</div>
-          <h1 style={{fontFamily:'var(--font-serif)',fontSize:36,fontWeight:600,margin:0,color:'var(--ink-1)',letterSpacing:'-0.01em',lineHeight:1.1}}>ארכיון הערכות</h1>
-          <p style={{fontSize:15,color:'var(--ink-2)',margin:'10px 0 0',maxWidth:540,lineHeight:1.6}}>כל ההערכות שנוצרו, מסודרות לפי תאריך עדכון.</p>
+          <div style={{fontSize:13,color:'var(--ink-3)',marginBottom:6,letterSpacing:'0.02em'}}>{t('archive_count_label')} · {evaluations.length} {t('archive_evaluations_label')}</div>
+          <h1 style={{fontFamily:'var(--font-serif)',fontSize:36,fontWeight:600,margin:0,color:'var(--ink-1)',letterSpacing:'-0.01em',lineHeight:1.1}}>{t('archive_title')}</h1>
+          <p style={{fontSize:15,color:'var(--ink-2)',margin:'10px 0 0',maxWidth:540,lineHeight:1.6}}>{t('archive_subtitle')}</p>
         </div>
       </div>
 
       <div style={{display:'flex',alignItems:'center',justifyContent:'flex-end',marginBottom:'var(--gap-4)'}}>
         <div style={{width:300,position:'relative'}}>
           <IconSearch size={14} stroke="var(--ink-3)" style={{position:'absolute',insetInlineEnd:16,top:'50%',transform:'translateY(-50%)'}}/>
-          <input className="input" placeholder="חיפוש לפי שם או בית ספר..." value={search} onChange={e=>setSearch(e.target.value)} style={{borderRadius:100,background:'transparent',padding:'12px 16px 12px 40px',borderColor:'var(--border-strong)'}}/>
+          <input className="input" placeholder={t('search_placeholder')} value={search} onChange={e=>setSearch(e.target.value)} style={{borderRadius:100,background:'transparent',padding:'12px 16px 12px 40px',borderColor:'var(--border-strong)'}}/>
         </div>
       </div>
 
       <div style={{display:'grid',gridTemplateColumns:'1.5fr 1fr 1.5fr',gap:'var(--gap-4)',marginBottom:'var(--gap-5)'}}>
         <div className="card" style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-          <div><div style={{fontSize:12,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em'}}>הערכה אחרונה</div><div style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:600,marginTop:4}}>{evaluations[0] ? formatDate(evaluations[0].updated_at) : '—'}</div></div>
-          <div style={{textAlign:'end'}}><div style={{fontSize:12,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em'}}>מסוימות</div><div style={{fontFamily:'var(--font-serif)',fontSize:28,fontWeight:600,color:'var(--brand)'}}>{evaluations.filter(e=>e.status==='finalized').length}</div></div>
+          <div><div style={{fontSize:12,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em'}}>{t('last_eval_label')}</div><div style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:600,marginTop:4}}>{evaluations[0] ? formatDate(evaluations[0].updated_at) : '—'}</div></div>
+          <div style={{textAlign:'end'}}><div style={{fontSize:12,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em'}}>{t('finalized_count')}</div><div style={{fontFamily:'var(--font-serif)',fontSize:28,fontWeight:600,color:'var(--brand)'}}>{evaluations.filter(e=>e.status==='finalized').length}</div></div>
         </div>
         <div className="card" style={{textAlign:'center'}}>
-          <div style={{fontSize:12,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em'}}>סה"כ הערכות</div>
+          <div style={{fontSize:12,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em'}}>{t('total_evals')}</div>
           <div style={{fontFamily:'var(--font-serif)',fontSize:28,fontWeight:600}}>{evaluations.length}</div>
         </div>
         <div className="card" style={{display:'flex',justifyContent:'flex-end',alignItems:'center'}}>
-          <div style={{textAlign:'end'}}><div style={{fontSize:12,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em'}}>ממוצע ציונים</div><div style={{fontFamily:'var(--font-serif)',fontSize:28,fontWeight:600,color:'var(--brand)'}}>{avgScore!=null?<>{avgScore}<span style={{fontSize:16,fontWeight:400,color:'var(--ink-3)'}}>/100</span></>:'—'}</div></div>
+          <div style={{textAlign:'end'}}><div style={{fontSize:12,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em'}}>{t('avg_score')}</div><div style={{fontFamily:'var(--font-serif)',fontSize:28,fontWeight:600,color:'var(--brand)'}}>{avgScore!=null?<>{avgScore}<span style={{fontSize:16,fontWeight:400,color:'var(--ink-3)'}}>/100</span></>:'—'}</div></div>
         </div>
       </div>
 
       <div className="card" style={{padding:0,overflow:'hidden'}}>
         <div style={{display:'grid',gridTemplateColumns:'1.4fr 1.2fr 1fr 0.9fr 0.7fr 1fr 60px',padding:'16px 24px',fontSize:12.5,color:'var(--ink-3)',borderBottom:'1px solid var(--border)',background:'var(--surface-2)'}}>
-          <span>סטודנט</span><span>בית ספר</span><span>סטטוס</span><span>תאריך עדכון</span><span>ציון</span><span>רמה</span><span/>
+          <span>{t('col_student_arch')}</span><span>{t('col_school_arch')}</span><span>{t('col_status_arch')}</span><span>{t('col_date_arch')}</span><span>{t('col_score_arch')}</span><span>{t('col_level_arch')}</span><span/>
         </div>
         {evaluations.length===0 && (
-          <div style={{padding:'48px 20px',textAlign:'center',color:'var(--ink-3)',fontSize:14}}>אין הערכות בארכיון עדיין</div>
+          <div style={{padding:'48px 20px',textAlign:'center',color:'var(--ink-3)',fontSize:14}}>{t('no_evaluations')}</div>
         )}
         {filtered.length===0 && evaluations.length>0 && (
-          <div style={{padding:'40px 20px',textAlign:'center',color:'var(--ink-3)',fontSize:14}}>לא נמצאו הערכות מתאימות</div>
+          <div style={{padding:'40px 20px',textAlign:'center',color:'var(--ink-3)',fontSize:14}}>{t('no_results')}</div>
         )}
         {filtered.map((ev,i) => {
           const name = ev.student?.name || '—';
@@ -134,13 +136,13 @@ export function ArchiveScreen() {
                 <span style={{color:'var(--ink-1)',fontWeight:600}}>{name}</span>
               </div>
               <div style={{color:'var(--ink-2)'}}>{school}</div>
-              <div><span className={`badge ${ev.status==='finalized'?'badge-ok':''}`}>{ev.status==='finalized'?'מסויים':'טיוטה'}</span></div>
+              <div><span className={`badge ${ev.status==='finalized'?'badge-ok':''}`}>{ev.status==='finalized'?t('status_finalized'):t('status_draft_label')}</span></div>
               <div style={{color:'var(--ink-3)',fontSize:13}}>{formatDate(ev.updated_at)}</div>
               <div>{score!=null?<><span style={{fontFamily:'var(--font-serif)',fontSize:18,fontWeight:600,color:scoreColor(score)}}>{score}</span><span style={{fontSize:12,color:'var(--ink-3)'}}>/100</span></>:<span style={{color:'var(--ink-4)'}}>—</span>}</div>
               <div style={{fontSize:13,color:'var(--ink-2)'}}>{levelLabel(overallLevel)}</div>
               <div style={{display:'flex',justifyContent:'flex-end',gap:4}}>
-                <button className="btn-ghost" onClick={e=>{e.stopPropagation();setViewEval(ev);}} style={{padding:8,borderRadius:'50%',background:'var(--surface-2)',color:'var(--ink-3)'}} title="צפה בהערכה"><IconDoc size={14}/></button>
-                <button className="btn-ghost" onClick={e=>{e.stopPropagation();setConfirmDelete(ev);}} style={{padding:8,borderRadius:'50%',background:'var(--surface-2)',color:'var(--ink-3)'}} title="מחק הערכה" onMouseEnter={e=>e.currentTarget.style.color='var(--warn)'} onMouseLeave={e=>e.currentTarget.style.color='var(--ink-3)'}><IconTrash size={14}/></button>
+                <button className="btn-ghost" onClick={e=>{e.stopPropagation();setViewEval(ev);}} style={{padding:8,borderRadius:'50%',background:'var(--surface-2)',color:'var(--ink-3)'}} title={t('view_eval_btn')}><IconDoc size={14}/></button>
+                <button className="btn-ghost" onClick={e=>{e.stopPropagation();setConfirmDelete(ev);}} style={{padding:8,borderRadius:'50%',background:'var(--surface-2)',color:'var(--ink-3)'}} title={t('delete_eval_btn')} onMouseEnter={e=>e.currentTarget.style.color='var(--warn)'} onMouseLeave={e=>e.currentTarget.style.color='var(--ink-3)'}><IconTrash size={14}/></button>
               </div>
             </div>
           );
@@ -159,12 +161,12 @@ export function ArchiveScreen() {
         <div style={{position:'fixed',inset:0,zIndex:400,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'center',justifyContent:'center',padding:24}} onClick={e=>{if(e.target===e.currentTarget)setConfirmDelete(null);}}>
           <div className="card fade-in" style={{width:'min(420px,100%)',padding:'28px 32px',textAlign:'center'}}>
             <div style={{width:48,height:48,borderRadius:'50%',background:'var(--warn-soft,#fff3f0)',display:'grid',placeItems:'center',margin:'0 auto 16px'}}><IconTrash size={20} stroke="var(--warn)"/></div>
-            <h3 style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:600,margin:'0 0 8px',color:'var(--ink-1)'}}>מחיקת הערכה</h3>
-            <p style={{fontSize:14,color:'var(--ink-2)',lineHeight:1.6,margin:'0 0 24px'}}>האם למחוק את ההערכה של <strong>{confirmDelete.student?.name || '—'}</strong>? פעולה זו אינה ניתנת לביטול.</p>
+            <h3 style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:600,margin:'0 0 8px',color:'var(--ink-1)'}}>{t('delete_eval_title')}</h3>
+            <p style={{fontSize:14,color:'var(--ink-2)',lineHeight:1.6,margin:'0 0 24px'}}>{t('delete_eval_confirm', { name: confirmDelete.student?.name || '—' })}</p>
             <div style={{display:'flex',gap:10,justifyContent:'center'}}>
-              <button className="btn btn-ghost" onClick={()=>setConfirmDelete(null)} disabled={deleting}>ביטול</button>
+              <button className="btn btn-ghost" onClick={()=>setConfirmDelete(null)} disabled={deleting}>{t('cancel')}</button>
               <button className="btn btn-primary" style={{background:'var(--warn)',borderColor:'var(--warn)'}} onClick={()=>handleDelete(confirmDelete)} disabled={deleting}>
-                {deleting ? 'מוחק...' : 'מחק'}
+                {deleting ? t('deleting_label') : t('delete_btn_label')}
               </button>
             </div>
           </div>
@@ -175,11 +177,14 @@ export function ArchiveScreen() {
 }
 
 function EvalViewModal({ ev, onClose, onDelete }) {
+  const { t } = useLanguage();
   const student = ev.student || {};
   const draft = ev.draft_json || {};
   const cats = draft.categories || [];
   const [exportOpen, setExportOpen] = useState(false);
   const [exporting, setExporting] = useState(null);
+
+  const lvlLabel = (l) => ({ high: t('level_high'), mid_high: t('level_mid_high'), mid: t('level_mid'), low_mid: t('level_low_mid') }[l] || l || '—');
 
   const handleExport = async (format) => {
     setExporting(format);
@@ -193,7 +198,7 @@ function EvalViewModal({ ev, onClose, onDelete }) {
       <div className="card fade-in" style={{width:'min(720px,100%)',maxHeight:'85vh',overflow:'auto',padding:0}}>
         <div style={{padding:'22px 28px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'flex-start',justifyContent:'space-between',position:'sticky',top:0,background:'var(--surface)',zIndex:1}}>
           <div>
-            <div style={{fontSize:11,color:'var(--ink-3)',marginBottom:4,textTransform:'uppercase',letterSpacing:'0.07em'}}>הערכת התנסות מעשית</div>
+            <div style={{fontSize:11,color:'var(--ink-3)',marginBottom:4,textTransform:'uppercase',letterSpacing:'0.07em'}}>{t('view_eval_label')}</div>
             <h2 style={{fontFamily:'var(--font-serif)',fontSize:22,fontWeight:600,margin:'0 0 4px'}}>{student.name || '—'}</h2>
             <div style={{fontSize:13,color:'var(--ink-3)'}}>{[student.school, student.grade].filter(Boolean).join(' · ')}</div>
           </div>
@@ -213,7 +218,7 @@ function EvalViewModal({ ev, onClose, onDelete }) {
                 title="ייצוא ניתוח מלא"
               >
                 <IconDownload size={13}/>
-                {exporting ? 'מייצא...' : 'ייצוא ניתוח'}
+                {exporting ? t('exporting_label') : t('export_analysis_btn')}
               </button>
               {exportOpen && (
                 <div style={{position:'absolute',top:'calc(100% + 6px)',insetInlineEnd:0,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,boxShadow:'0 8px 24px rgba(0,0,0,0.12)',zIndex:10,minWidth:160,overflow:'hidden'}}
@@ -224,7 +229,7 @@ function EvalViewModal({ ev, onClose, onDelete }) {
                     onMouseLeave={e=>e.currentTarget.style.background='none'}
                     onClick={()=>handleExport('pdf')}
                   >
-                    <IconDownload size={13} stroke="var(--ink-3)"/> PDF (הדפסה)
+                    <IconDownload size={13} stroke="var(--ink-3)"/> {t('pdf_print')}
                   </button>
                   <button
                     style={{width:'100%',padding:'11px 16px',fontSize:13,textAlign:'end',background:'none',border:'none',cursor:'pointer',color:'var(--ink-1)',display:'flex',alignItems:'center',gap:8}}
@@ -232,13 +237,13 @@ function EvalViewModal({ ev, onClose, onDelete }) {
                     onMouseLeave={e=>e.currentTarget.style.background='none'}
                     onClick={()=>handleExport('docx')}
                   >
-                    <IconDoc size={13} stroke="var(--ink-3)"/> Word / HTML
+                    <IconDoc size={13} stroke="var(--ink-3)"/> {t('word_html')}
                   </button>
                 </div>
               )}
             </div>
             {onDelete && (
-              <button className="btn-ghost" onClick={onDelete} style={{padding:8,borderRadius:'50%',color:'var(--ink-3)'}} title="מחק הערכה" onMouseEnter={e=>e.currentTarget.style.color='var(--warn)'} onMouseLeave={e=>e.currentTarget.style.color='var(--ink-3)'}><IconTrash size={16}/></button>
+              <button className="btn-ghost" onClick={onDelete} style={{padding:8,borderRadius:'50%',color:'var(--ink-3)'}} title={t('delete_eval_btn')} onMouseEnter={e=>e.currentTarget.style.color='var(--warn)'} onMouseLeave={e=>e.currentTarget.style.color='var(--ink-3)'}><IconTrash size={16}/></button>
             )}
             <button className="btn-ghost" onClick={onClose} style={{padding:8,borderRadius:'50%'}}><IconClose size={16}/></button>
           </div>
@@ -247,7 +252,7 @@ function EvalViewModal({ ev, onClose, onDelete }) {
         <div style={{padding:'24px 28px',display:'flex',flexDirection:'column',gap:20}}>
           {draft.overallLevel && (
             <div style={{display:'inline-flex',alignItems:'center',gap:8,padding:'8px 16px',background:'var(--brand-soft)',borderRadius:100,width:'fit-content'}}>
-              <span style={{fontSize:13,color:'var(--brand)',fontWeight:600}}>רמה כללית: {levelLabel(draft.overallLevel)}</span>
+              <span style={{fontSize:13,color:'var(--brand)',fontWeight:600}}>רמה כללית: {lvlLabel(draft.overallLevel)}</span>
             </div>
           )}
 
@@ -264,14 +269,14 @@ function EvalViewModal({ ev, onClose, onDelete }) {
                         <span style={{fontSize:12,color:'var(--ink-3)'}}>{c.weight}%</span>
                       </div>
                       {c.overallLevel && (
-                        <span style={{fontSize:12.5,color:'var(--brand)',fontWeight:600,padding:'3px 10px',background:'var(--brand-soft)',borderRadius:100,flexShrink:0}}>{levelLabel(c.overallLevel)}</span>
+                        <span style={{fontSize:12.5,color:'var(--brand)',fontWeight:600,padding:'3px 10px',background:'var(--brand-soft)',borderRadius:100,flexShrink:0}}>{lvlLabel(c.overallLevel)}</span>
                       )}
                     </div>
                     {c.balance && <div style={{fontSize:13,color:'var(--ink-2)',lineHeight:1.6}}>{c.balance}</div>}
                     {(c.lessonPlanLevel || c.observationLevel) && (
                       <div style={{display:'flex',gap:16,marginTop:6,fontSize:12,color:'var(--ink-3)'}}>
-                        {c.lessonPlanLevel && <span>📘 מערך: {levelLabel(c.lessonPlanLevel)}</span>}
-                        {c.observationLevel && <span>🎯 צפייה: {levelLabel(c.observationLevel)}</span>}
+                        {c.lessonPlanLevel && <span>📘 מערך: {lvlLabel(c.lessonPlanLevel)}</span>}
+                        {c.observationLevel && <span>🎯 צפייה: {lvlLabel(c.observationLevel)}</span>}
                       </div>
                     )}
                   </div>
@@ -299,6 +304,7 @@ function EvalViewModal({ ev, onClose, onDelete }) {
 // ─── Rubrics ──────────────────────────────────────────────────────────────────
 
 export function RubricsScreen() {
+  const { t } = useLanguage();
   const [rubric, setRubric] = useState(null);
   const [rubricsList, setRubricsList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -338,8 +344,8 @@ export function RubricsScreen() {
       <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',marginBottom:'var(--gap-5)'}}>
         <div style={{textAlign:'end',width:'100%'}}>
           <div style={{fontSize:13,color:'var(--ink-3)',marginBottom:6,letterSpacing:'0.02em'}}>ספריית מחוונים · {rubricsList.length} תבניות פעילות</div>
-          <h1 style={{fontFamily:'var(--font-serif)',fontSize:36,fontWeight:600,margin:0,color:'var(--ink-1)',letterSpacing:'-0.01em',lineHeight:1.1}}>מחוונים</h1>
-          <p style={{fontSize:15,color:'var(--ink-2)',margin:'10px 0 0 0',lineHeight:1.6,float:'left',maxWidth:540,textAlign:'right'}}>תבניות הערכה זמינות בשלב יצירת הטיוטה. ניתן לערוך משקלים, להוסיף קריטריונים או לשכפל מחוון קיים.</p>
+          <h1 style={{fontFamily:'var(--font-serif)',fontSize:36,fontWeight:600,margin:0,color:'var(--ink-1)',letterSpacing:'-0.01em',lineHeight:1.1}}>{t('rubrics_title')}</h1>
+          <p style={{fontSize:15,color:'var(--ink-2)',margin:'10px 0 0 0',lineHeight:1.6,float:'left',maxWidth:540,textAlign:'right'}}>{t('rubrics_subtitle')}</p>
         </div>
       </div>
 
