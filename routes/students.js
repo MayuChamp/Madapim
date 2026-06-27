@@ -27,6 +27,21 @@ router.get('/:id', requireAuth, async (req, res) => {
   }
 });
 
+// POST /api/students/:id/cycles — add a new cycle for a student
+router.post('/:id/cycles', requireAuth, async (req, res) => {
+  try {
+    const { trackType } = req.body;
+    if (!['lesson_plan', 'observation'].includes(trackType))
+      return res.status(400).json({ error: 'trackType must be lesson_plan or observation' });
+    const student = await q.student(req.params.id, req.user.id);
+    if (!student) return res.status(404).json({ error: 'Student not found' });
+    const cycleId = await q.addCycleToStudent(req.params.id, trackType);
+    res.json({ success: true, cycleId });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // PUT /api/students/cycles/:cycleId/topic
 router.put('/cycles/:cycleId/topic', requireAuth, async (req, res) => {
   try {

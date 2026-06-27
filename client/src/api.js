@@ -62,6 +62,13 @@ export async function changePassword(currentPassword, newPassword) {
   });
 }
 
+export async function addCycle(studentId, trackType) {
+  return apiFetch(`/students/${studentId}/cycles`, {
+    method: 'POST',
+    body: JSON.stringify({ trackType }),
+  });
+}
+
 export async function getProgramSettings() {
   return apiFetch('/auth/program-settings');
 }

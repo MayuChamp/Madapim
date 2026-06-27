@@ -465,9 +465,24 @@ function CycleRow({ kind, cycle, cycleIndex, stageOrder, open, onToggle, onUploa
   );
 }
 
-function TrackSection({ kind, title, subtitle, cycles, stageOrder, openCycle, onToggle, onUpload, studentId, onFileUploaded }) {
+function TrackSection({ kind, title, subtitle, cycles, stageOrder, openCycle, onToggle, onUpload, studentId, onFileUploaded, onAddCycle }) {
   const { t } = useLanguage();
+  const [adding, setAdding] = useState(false);
   const c = TRACK_COLORS[kind]; const completeCount = cycles.filter(cy => cy.status === 'complete' || Object.values(cy.stages).some(s => s.done)).length;
+
+  async function handleAdd() {
+    setAdding(true);
+    try {
+      const trackType = kind === 'lp' ? 'lesson_plan' : 'observation';
+      await window.API_addCycle(studentId, trackType);
+      if (onAddCycle) onAddCycle();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setAdding(false);
+    }
+  }
+
   return (
     <section>
       <div style={{display:'flex',alignItems:'baseline',justifyContent:'space-between',marginBottom:14}}>
@@ -482,6 +497,9 @@ function TrackSection({ kind, title, subtitle, cycles, stageOrder, openCycle, on
       </div>
       <div style={{display:'flex',flexDirection:'column',gap:8}}>
         {cycles.map((cy,i)=><CycleRow key={cy.id} kind={kind} cycle={cy} cycleIndex={i+1} stageOrder={stageOrder} open={openCycle===cy.id} onToggle={()=>onToggle(cy.id)} onUpload={(stageKey, file) => onUpload(cy.id, stageKey, file)} studentId={studentId} onFileUploaded={onFileUploaded}/>)}
+        <button onClick={handleAdd} disabled={adding} style={{display:'flex',alignItems:'center',gap:7,padding:'9px 14px',border:`1.5px dashed ${c.fg}44`,borderRadius:'var(--r-md)',background:'transparent',color:c.fg,fontSize:13,fontWeight:500,cursor:adding?'wait':'pointer',opacity:adding?0.6:1,transition:'all .15s',alignSelf:'flex-start'}}>
+          <IconPlus size={14}/>{adding ? '...' : kind==='lp' ? t('add_lesson_plan') : t('add_observation')}
+        </button>
       </div>
     </section>
   );
@@ -699,7 +717,7 @@ function YearTimeline({ studentCycles, extraFiles }) {
   );
 }
 
-function Workspace({ student, onBack, onAnalyze, onFileUploaded }) {
+function Workspace({ student, onBack, onAnalyze, onFileUploaded, onCycleAdded }) {
   const { t } = useLanguage();
   const [openCycle, setOpenCycle] = useState(null);
 
@@ -745,8 +763,8 @@ function Workspace({ student, onBack, onAnalyze, onFileUploaded }) {
       </div>
       <div style={{display:'grid',gridTemplateColumns:'1fr 320px',gap:28,alignItems:'flex-start'}}>
         <div style={{display:'flex',flexDirection:'column',gap:28}}>
-          <TrackSection kind="lp" title={t('track_lp_title')} subtitle={t('track_lp_subtitle')} cycles={lpCycles} stageOrder={['submission','instructorNotes','revision']} openCycle={openCycle?.trackType==='lp'?openCycle.cycleId:null} onToggle={(id)=>setOpenCycle(openCycle?.cycleId===id?null:{trackType:'lp',cycleId:id})} onUpload={handleCycleUpload} studentId={student.id} onFileUploaded={onFileUploaded}/>
-          <TrackSection kind="ob" title={t('track_ob_title')} subtitle={t('track_ob_subtitle')} cycles={obCycles} stageOrder={['observation','feedback','reflection']} openCycle={openCycle?.trackType==='ob'?openCycle.cycleId:null} onToggle={(id)=>setOpenCycle(openCycle?.cycleId===id?null:{trackType:'ob',cycleId:id})} onUpload={handleCycleUpload} studentId={student.id} onFileUploaded={onFileUploaded}/>
+          <TrackSection kind="lp" title={t('track_lp_title')} subtitle={t('track_lp_subtitle')} cycles={lpCycles} stageOrder={['submission','instructorNotes','revision']} openCycle={openCycle?.trackType==='lp'?openCycle.cycleId:null} onToggle={(id)=>setOpenCycle(openCycle?.cycleId===id?null:{trackType:'lp',cycleId:id})} onUpload={handleCycleUpload} studentId={student.id} onFileUploaded={onFileUploaded} onAddCycle={onCycleAdded}/>
+          <TrackSection kind="ob" title={t('track_ob_title')} subtitle={t('track_ob_subtitle')} cycles={obCycles} stageOrder={['observation','feedback','reflection']} openCycle={openCycle?.trackType==='ob'?openCycle.cycleId:null} onToggle={(id)=>setOpenCycle(openCycle?.cycleId===id?null:{trackType:'ob',cycleId:id})} onUpload={handleCycleUpload} studentId={student.id} onFileUploaded={onFileUploaded} onAddCycle={onCycleAdded}/>
           <YearTimeline studentCycles={studentCycles} extraFiles={student.extraFiles || []}/>
           <section>
             <div style={{display:'flex',alignItems:'baseline',justifyContent:'space-between',marginBottom:14}}>

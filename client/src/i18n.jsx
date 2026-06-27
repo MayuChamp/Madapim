@@ -288,6 +288,8 @@ const translations = {
     tab_logout: 'התנתק',
 
     // Program settings
+    add_lesson_plan: '+ הוסף מערך שיעור',
+    add_observation: '+ הוסף צפייה',
     program_settings_title: 'הגדרות תכנית לימודים',
     program_settings_desc: 'קבע כמה מערכי שיעור וצפיות יידרשו מכל סטודנט בתחילת המסלול.',
     program_lesson_plans_label: 'מספר מערכי שיעור',
@@ -714,6 +716,8 @@ const translations = {
     tab_logout: 'Sign Out',
 
     // Program settings
+    add_lesson_plan: '+ Add Lesson Plan',
+    add_observation: '+ Add Observation',
     program_settings_title: 'Program Settings',
     program_settings_desc: 'Set how many lesson plans and observations each student will require at the start of the program.',
     program_lesson_plans_label: 'Number of Lesson Plans',
@@ -1140,6 +1144,8 @@ const translations = {
     tab_logout: 'تسجيل الخروج',
 
     // Program settings
+    add_lesson_plan: '+ إضافة خطة درس',
+    add_observation: '+ إضافة مراقبة',
     program_settings_title: 'إعدادات برنامج التعلم',
     program_settings_desc: 'حدد عدد خطط الدروس والمراقبات المطلوبة من كل طالب.',
     program_lesson_plans_label: 'عدد خطط الدروس',

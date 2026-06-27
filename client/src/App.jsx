@@ -93,6 +93,7 @@ function App() {
   window.API_uploadFile = API.uploadFile;
   window.API_deleteFile = API.deleteFile;
   window.API_updateCycleTopic = API.updateCycleTopic;
+  window.API_addCycle = API.addCycle;
 
   const refreshStudents = () =>
     API.getStudents().then(data => setStudents(data || [])).catch(() => {});
@@ -226,6 +227,7 @@ function App() {
             onBack={() => setScreen('dashboard')}
             onAnalyze={onAnalyze}
             onFileUploaded={() => API.getStudent(student.id).then(s => setStudent(s)).catch(() => {})}
+            onCycleAdded={() => API.getStudent(student.id).then(s => setStudent(s)).catch(() => {})}
           />
         )}
         {screen === 'analyzing' && <AnalyzingScreen />}

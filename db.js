@@ -288,6 +288,28 @@ const q = {
     await supabase.from('rubrics').delete().eq('id', id);
   },
 
+  addCycleToStudent: async (studentId, trackType) => {
+    const { data: existing } = await supabase
+      .from('cycles').select('id, position').eq('student_id', studentId).eq('track_type', trackType).order('position', { ascending: false }).limit(1);
+    const nextPos = ((existing?.[0]?.position) || 0) + 1;
+    const prefix = trackType === 'lesson_plan' ? 'lp' : 'ob';
+    const label  = trackType === 'lesson_plan' ? 'מערך שיעור' : 'תצפית';
+    const cId    = `${prefix}_${studentId}_${Date.now()}`;
+    const { error: ce } = await supabase.from('cycles').insert({
+      id: cId, student_id: studentId, track_type: trackType,
+      topic: `${label} ${nextPos}`, subject: '', date: null, status: 'not_started', position: nextPos,
+    });
+    if (ce) throw ce;
+    const stageKeys = trackType === 'lesson_plan'
+      ? [['submission', 1], ['instructorNotes', 2], ['revision', 3]]
+      : [['observation', 1], ['feedback', 2], ['reflection', 3]];
+    const { error: se } = await supabase.from('stages').insert(
+      stageKeys.map(([key, pos]) => ({ id: `st_${cId}_${pos}`, cycle_id: cId, stage_key: key, done: 0, position: pos }))
+    );
+    if (se) throw se;
+    return cId;
+  },
+
   seedDefaultCyclesForStudent: async (studentId, subjectTrack, { maxLessonPlans = 5, maxObservations = 3 } = {}) => {
     const cycles = [];
     const stages = [];
