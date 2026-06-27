@@ -292,8 +292,10 @@ const q = {
       stages.push({ id: `st_${cId}_3`, cycle_id: cId, stage_key: 'reflection',  done: 0, position: 3 });
     }
 
-    await supabase.from('cycles').insert(cycles);
-    await supabase.from('stages').insert(stages);
+    const { error: cyclesError } = await supabase.from('cycles').insert(cycles);
+    if (cyclesError) throw cyclesError;
+    const { error: stagesError } = await supabase.from('stages').insert(stages);
+    if (stagesError) throw stagesError;
   },
 
   deleteStudent: async (id) => {

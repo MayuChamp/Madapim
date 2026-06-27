@@ -95,7 +95,7 @@ function App() {
   window.API_updateCycleTopic = API.updateCycleTopic;
 
   const refreshStudents = () =>
-    API.getStudents().then(data => { if (data?.length) setStudents(data); }).catch(() => {});
+    API.getStudents().then(data => setStudents(data || [])).catch(() => {});
 
   const openStudent = async (s) => {
     setStudent(s);

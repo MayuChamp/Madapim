@@ -49,10 +49,13 @@ router.post('/', requireAuth, async (req, res) => {
     const initials = name.replace(/[^א-ת]/g, '').slice(0, 2) || name.slice(0, 2);
     const resolvedGender = gender === 'male' ? 'male' : 'female';
 
-    await supabase.from('students').insert({ id, name, school: school || '', grade: grade || '', subject_track: subject_track || '', initials, gender: resolvedGender, instructor_id: req.user.id });
+    const { error: insertError } = await supabase.from('students').insert({ id, name, school: school || '', grade: grade || '', subject_track: subject_track || '', initials, gender: resolvedGender, instructor_id: req.user.id });
+    if (insertError) throw insertError;
     await q.seedDefaultCyclesForStudent(id, subject_track);
 
-    res.json(await q.student(id, req.user.id));
+    const created = await q.student(id, req.user.id);
+    if (!created) throw new Error('Student was not found after insert');
+    res.json(created);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
