@@ -290,6 +290,8 @@ const translations = {
     // Program settings
     add_lesson_plan: '+ הוסף מערך שיעור',
     add_observation: '+ הוסף צפייה',
+    confirm_delete_cycle: 'למחוק את "{topic}"? פעולה זו אינה הפיכה.',
+    delete_cycle_title: 'מחק מחזור',
     program_settings_title: 'הגדרות תכנית לימודים',
     program_settings_desc: 'קבע כמה מערכי שיעור וצפיות יידרשו מכל סטודנט בתחילת המסלול.',
     program_lesson_plans_label: 'מספר מערכי שיעור',
@@ -718,6 +720,8 @@ const translations = {
     // Program settings
     add_lesson_plan: '+ Add Lesson Plan',
     add_observation: '+ Add Observation',
+    confirm_delete_cycle: 'Delete "{topic}"? This cannot be undone.',
+    delete_cycle_title: 'Delete cycle',
     program_settings_title: 'Program Settings',
     program_settings_desc: 'Set how many lesson plans and observations each student will require at the start of the program.',
     program_lesson_plans_label: 'Number of Lesson Plans',
@@ -1146,6 +1150,8 @@ const translations = {
     // Program settings
     add_lesson_plan: '+ إضافة خطة درس',
     add_observation: '+ إضافة مراقبة',
+    confirm_delete_cycle: 'حذف "{topic}"؟ لا يمكن التراجع عن هذا.',
+    delete_cycle_title: 'حذف الدورة',
     program_settings_title: 'إعدادات برنامج التعلم',
     program_settings_desc: 'حدد عدد خطط الدروس والمراقبات المطلوبة من كل طالب.',
     program_lesson_plans_label: 'عدد خطط الدروس',

@@ -409,7 +409,7 @@ function StageTimeline({ cycle, stageOrder, trackColor, studentId, onFileUploade
   );
 }
 
-function CycleRow({ kind, cycle, cycleIndex, stageOrder, open, onToggle, onUpload, studentId, onFileUploaded }) {
+function CycleRow({ kind, cycle, cycleIndex, stageOrder, open, onToggle, onUpload, studentId, onFileUploaded, onDelete }) {
   const { t } = useLanguage();
   const c = TRACK_COLORS[kind]; const status = CYCLE_STATUS[cycle.status];
   const [isEditing, setIsEditing] = useState(false);
@@ -430,7 +430,7 @@ function CycleRow({ kind, cycle, cycleIndex, stageOrder, open, onToggle, onUploa
 
   return (
     <div className="card" style={{padding:0,overflow:'hidden',borderColor:open?c.fg:'var(--border)',transition:'border-color .2s'}}>
-      <div onClick={onToggle} style={{width:'100%',textAlign:'start',padding:'14px 18px',display:'grid',gridTemplateColumns:'28px 1fr auto auto auto',alignItems:'center',gap:14,background:'transparent',cursor:'pointer'}}>
+      <div onClick={onToggle} style={{width:'100%',textAlign:'start',padding:'14px 18px',display:'grid',gridTemplateColumns:'28px 1fr auto auto auto auto',alignItems:'center',gap:14,background:'transparent',cursor:'pointer'}}>
         <div style={{width:24,height:24,borderRadius:6,background:c.bg,color:c.fg,display:'grid',placeItems:'center',fontFamily:'var(--font-serif)',fontSize:12,fontWeight:600}}>{cycleIndex}</div>
         <div style={{minWidth:0}} onClick={e => e.stopPropagation()}>
           {isEditing ? (
@@ -452,6 +452,7 @@ function CycleRow({ kind, cycle, cycleIndex, stageOrder, open, onToggle, onUploa
         </div>
         <StageDots cycle={cycle} stageOrder={stageOrder} trackColor={c.fg}/>
         <span className={`badge ${status.cls}`}>{t('cycle_' + cycle.status)}</span>
+        <button onClick={e=>{e.stopPropagation();if(window.confirm(t('confirm_delete_cycle',{topic:cycle.topic})))onDelete&&onDelete();}} style={{background:'none',border:'none',cursor:'pointer',color:'var(--ink-4)',padding:'4px',borderRadius:'var(--r-sm)',display:'grid',placeItems:'center'}} title={t('delete_cycle_title')} onMouseEnter={e=>e.currentTarget.style.color='var(--warn)'} onMouseLeave={e=>e.currentTarget.style.color='var(--ink-4)'}><IconTrash size={14}/></button>
         <IconChevron size={14} stroke="var(--ink-3)" style={{transform:open?'rotate(-90deg)':'rotate(0)',transition:'transform .2s'}}/>
       </div>
       {open&&<div style={{padding:'4px 18px 18px',borderTop:'1px solid var(--border)',background:'var(--surface-2)',animation:'fadeIn .25s'}}>
@@ -496,7 +497,7 @@ function TrackSection({ kind, title, subtitle, cycles, stageOrder, openCycle, on
         <div style={{fontSize:12,color:'var(--ink-3)'}}>{t('cycles_completed', { done: completeCount, total: cycles.length })}</div>
       </div>
       <div style={{display:'flex',flexDirection:'column',gap:8}}>
-        {cycles.map((cy,i)=><CycleRow key={cy.id} kind={kind} cycle={cy} cycleIndex={i+1} stageOrder={stageOrder} open={openCycle===cy.id} onToggle={()=>onToggle(cy.id)} onUpload={(stageKey, file) => onUpload(cy.id, stageKey, file)} studentId={studentId} onFileUploaded={onFileUploaded}/>)}
+        {cycles.map((cy,i)=><CycleRow key={cy.id} kind={kind} cycle={cy} cycleIndex={i+1} stageOrder={stageOrder} open={openCycle===cy.id} onToggle={()=>onToggle(cy.id)} onUpload={(stageKey, file) => onUpload(cy.id, stageKey, file)} studentId={studentId} onFileUploaded={onFileUploaded} onDelete={()=>onAddCycle&&window.API_deleteCycle(studentId,cy.id).then(onAddCycle).catch(e=>alert(e.message))}/>)}
         <button onClick={handleAdd} disabled={adding} style={{display:'flex',alignItems:'center',gap:8,padding:'10px 16px',border:`1.5px solid ${c.fg}`,borderRadius:'var(--r-md)',background:c.bg,color:c.fg,fontSize:13,fontWeight:600,cursor:adding?'wait':'pointer',opacity:adding?0.55:1,transition:'opacity .15s',width:'100%',justifyContent:'center',marginTop:4}}>
           <IconPlus size={15}/>{adding ? '...' : kind==='lp' ? t('add_lesson_plan') : t('add_observation')}
         </button>

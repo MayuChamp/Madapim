@@ -94,6 +94,7 @@ function App() {
   window.API_deleteFile = API.deleteFile;
   window.API_updateCycleTopic = API.updateCycleTopic;
   window.API_addCycle = API.addCycle;
+  window.API_deleteCycle = API.deleteCycle;
 
   const refreshStudents = () =>
     API.getStudents().then(data => setStudents(data || [])).catch(() => {});

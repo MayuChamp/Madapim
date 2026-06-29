@@ -42,6 +42,18 @@ router.post('/:id/cycles', requireAuth, async (req, res) => {
   }
 });
 
+// DELETE /api/students/:id/cycles/:cycleId
+router.delete('/:id/cycles/:cycleId', requireAuth, async (req, res) => {
+  try {
+    const student = await q.student(req.params.id, req.user.id);
+    if (!student) return res.status(404).json({ error: 'Student not found' });
+    await q.deleteCycle(req.params.cycleId);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // PUT /api/students/cycles/:cycleId/topic
 router.put('/cycles/:cycleId/topic', requireAuth, async (req, res) => {
   try {

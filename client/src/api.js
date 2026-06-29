@@ -62,6 +62,10 @@ export async function changePassword(currentPassword, newPassword) {
   });
 }
 
+export async function deleteCycle(studentId, cycleId) {
+  return apiFetch(`/students/${studentId}/cycles/${cycleId}`, { method: 'DELETE' });
+}
+
 export async function addCycle(studentId, trackType) {
   return apiFetch(`/students/${studentId}/cycles`, {
     method: 'POST',

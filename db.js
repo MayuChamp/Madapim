@@ -336,6 +336,12 @@ const q = {
     if (stagesError) throw stagesError;
   },
 
+  deleteCycle: async (cycleId) => {
+    await supabase.from('stages').delete().eq('cycle_id', cycleId);
+    await supabase.from('files').update({ cycle_id: null, stage_key: null }).eq('cycle_id', cycleId);
+    await supabase.from('cycles').delete().eq('id', cycleId);
+  },
+
   deleteStudent: async (id) => {
     const { data: cycles } = await supabase.from('cycles').select('id').eq('student_id', id);
     const cycleIds = (cycles || []).map(c => c.id);
