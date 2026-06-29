@@ -497,8 +497,8 @@ function TrackSection({ kind, title, subtitle, cycles, stageOrder, openCycle, on
       </div>
       <div style={{display:'flex',flexDirection:'column',gap:8}}>
         {cycles.map((cy,i)=><CycleRow key={cy.id} kind={kind} cycle={cy} cycleIndex={i+1} stageOrder={stageOrder} open={openCycle===cy.id} onToggle={()=>onToggle(cy.id)} onUpload={(stageKey, file) => onUpload(cy.id, stageKey, file)} studentId={studentId} onFileUploaded={onFileUploaded}/>)}
-        <button onClick={handleAdd} disabled={adding} style={{display:'flex',alignItems:'center',gap:7,padding:'9px 14px',border:`1.5px dashed ${c.fg}44`,borderRadius:'var(--r-md)',background:'transparent',color:c.fg,fontSize:13,fontWeight:500,cursor:adding?'wait':'pointer',opacity:adding?0.6:1,transition:'all .15s',alignSelf:'flex-start'}}>
-          <IconPlus size={14}/>{adding ? '...' : kind==='lp' ? t('add_lesson_plan') : t('add_observation')}
+        <button onClick={handleAdd} disabled={adding} style={{display:'flex',alignItems:'center',gap:8,padding:'10px 16px',border:`1.5px solid ${c.fg}`,borderRadius:'var(--r-md)',background:c.bg,color:c.fg,fontSize:13,fontWeight:600,cursor:adding?'wait':'pointer',opacity:adding?0.55:1,transition:'opacity .15s',width:'100%',justifyContent:'center',marginTop:4}}>
+          <IconPlus size={15}/>{adding ? '...' : kind==='lp' ? t('add_lesson_plan') : t('add_observation')}
         </button>
       </div>
     </section>
