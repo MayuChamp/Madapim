@@ -38,6 +38,7 @@ function App() {
   const [student, setStudent] = useState(null);
   const [students, setStudents] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
+  const [selectedRubricId, setSelectedRubricId] = useState(null);
   const [smartQuestions, setSmartQuestions] = useState(SMART_QUESTIONS);
   const [instructorAnswers, setInstructorAnswers] = useState({});
   const [evaluationDraft, setEvaluationDraft] = useState(null);
@@ -108,7 +109,7 @@ function App() {
     } catch {}
   };
 
-  const onAnalyze = () => { setAnalyzeError(null); setModalOpen(true); };
+  const onAnalyze = (rubricId) => { setSelectedRubricId(rubricId); setAnalyzeError(null); setModalOpen(true); };
 
   const runAnalysis = async (answers) => {
     setInstructorAnswers(answers || {});
@@ -116,7 +117,7 @@ function App() {
     setScreen('analyzing');
     setAnalyzeError(null);
     try {
-      const result = await API.analyze(student.id, answers || {});
+      const result = await API.analyze(student.id, answers || {}, selectedRubricId);
       setEvaluationId(result.evaluation_id);
       setEvaluationDraft(result.draft);
       if (result.smart_questions?.length) setSmartQuestions(result.smart_questions);

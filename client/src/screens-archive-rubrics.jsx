@@ -183,6 +183,12 @@ function EvalViewModal({ ev, onClose, onDelete }) {
   const cats = draft.categories || [];
   const [exportOpen, setExportOpen] = useState(false);
   const [exporting, setExporting] = useState(null);
+  const [rubricName, setRubricName] = useState(null);
+
+  useEffect(() => {
+    if (!ev.rubric_id) return;
+    API.getRubric(ev.rubric_id).then(r => setRubricName(r?.name || null)).catch(() => {});
+  }, [ev.rubric_id]);
 
   const lvlLabel = (l) => ({ high: t('level_high'), mid_high: t('level_mid_high'), mid: t('level_mid'), low_mid: t('level_low_mid') }[l] || l || '—');
 
@@ -250,11 +256,18 @@ function EvalViewModal({ ev, onClose, onDelete }) {
         </div>
 
         <div style={{padding:'24px 28px',display:'flex',flexDirection:'column',gap:20}}>
-          {draft.overallLevel && (
-            <div style={{display:'inline-flex',alignItems:'center',gap:8,padding:'8px 16px',background:'var(--brand-soft)',borderRadius:100,width:'fit-content'}}>
-              <span style={{fontSize:13,color:'var(--brand)',fontWeight:600}}>רמה כללית: {lvlLabel(draft.overallLevel)}</span>
-            </div>
-          )}
+          <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+            {draft.overallLevel && (
+              <div style={{display:'inline-flex',alignItems:'center',gap:8,padding:'8px 16px',background:'var(--brand-soft)',borderRadius:100,width:'fit-content'}}>
+                <span style={{fontSize:13,color:'var(--brand)',fontWeight:600}}>רמה כללית: {lvlLabel(draft.overallLevel)}</span>
+              </div>
+            )}
+            {rubricName && (
+              <div style={{display:'inline-flex',alignItems:'center',gap:6,padding:'8px 16px',background:'var(--surface-2)',border:'1px solid var(--border)',borderRadius:100,width:'fit-content'}}>
+                <span style={{fontSize:13,color:'var(--ink-2)'}}>מחוון: <b style={{color:'var(--ink-1)'}}>{rubricName}</b></span>
+              </div>
+            )}
+          </div>
 
           {cats.length > 0 && (
             <div>
@@ -311,6 +324,7 @@ export function RubricsScreen() {
   const [editOpen, setEditOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [duplicatingId, setDuplicatingId] = useState(null);
 
   const loadRubrics = () =>
     API.getRubrics()
@@ -337,6 +351,18 @@ export function RubricsScreen() {
     await loadRubrics();
   };
 
+  const handleDuplicate = async (source) => {
+    setDuplicatingId(source.id);
+    try {
+      const copy = await API.duplicateRubric(source.id);
+      await loadRubrics();
+      setRubric(copy);
+      setEditOpen(true);
+    } finally {
+      setDuplicatingId(null);
+    }
+  };
+
   if (loading) return <div className="main-inner fade-in">טוען מחוון...</div>;
 
   return (
@@ -355,9 +381,14 @@ export function RubricsScreen() {
             <div style={{padding:'24px 32px',borderBottom:'1px solid var(--border)',background:'var(--surface-2)'}}>
               <span className="badge" style={{marginBottom:12,background:'var(--brand-soft)',color:'var(--brand)',fontSize:13,padding:'4px 12px'}}>{rubric.semester || 'שנתי'}</span>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
-                <button className="btn btn-secondary" onClick={()=>setEditOpen(true)} style={{display:'flex',alignItems:'center',gap:6,flexShrink:0}}>
-                  <IconPencil size={14}/> ערוך מחוון
-                </button>
+                <div style={{display:'flex',gap:8,flexShrink:0}}>
+                  <button className="btn btn-secondary" onClick={()=>setEditOpen(true)} style={{display:'flex',alignItems:'center',gap:6}}>
+                    <IconPencil size={14}/> ערוך מחוון
+                  </button>
+                  <button className="btn btn-secondary" onClick={()=>handleDuplicate(rubric)} disabled={duplicatingId===rubric.id} style={{display:'flex',alignItems:'center',gap:6}}>
+                    <IconDoc size={14}/> {duplicatingId===rubric.id ? 'משכפל...' : 'שכפל מחוון'}
+                  </button>
+                </div>
                 <div style={{textAlign:'end'}}>
                   <h2 style={{fontFamily:'var(--font-serif)',fontSize:26,fontWeight:600,margin:'0 0 8px',letterSpacing:'-0.01em',color:'var(--ink-1)'}}>{rubric.name}</h2>
                   <p style={{fontSize:14,color:'var(--ink-2)',margin:0,lineHeight:1.6,maxWidth:480}}>{rubric.description || 'אין תיאור'}</p>
@@ -421,6 +452,16 @@ export function RubricsScreen() {
                   </div>
                   <div style={{display:'flex',alignItems:'center',gap:4,flexShrink:0}}>
                     {rubric?.id===r.id && <IconChevron size={16} stroke="var(--ink-1)" style={{transform:'rotate(90deg)'}}/>}
+                    <button
+                      onClick={(e)=>{e.stopPropagation();handleDuplicate(r);}}
+                      disabled={duplicatingId===r.id}
+                      title="שכפל מחוון"
+                      style={{padding:5,borderRadius:6,border:'none',background:'transparent',cursor:'pointer',color:'var(--ink-4)',display:'grid',placeItems:'center'}}
+                      onMouseEnter={e=>e.currentTarget.style.color='var(--brand)'}
+                      onMouseLeave={e=>e.currentTarget.style.color='var(--ink-4)'}
+                    >
+                      <IconDoc size={13}/>
+                    </button>
                     <button
                       onClick={(e)=>{e.stopPropagation();setDeleteConfirm(r);}}
                       title="מחק מחוון"

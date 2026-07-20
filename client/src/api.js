@@ -158,10 +158,10 @@ export async function getFiles(studentId) {
 }
 
 // ─── Evaluations ──────────────────────────────────────────────────────────────
-export async function analyze(studentId, instructorAnswers) {
+export async function analyze(studentId, instructorAnswers, rubricId) {
   return apiFetch('/evaluations/analyze', {
     method: 'POST',
-    body: JSON.stringify({ student_id: studentId, instructor_answers: instructorAnswers }),
+    body: JSON.stringify({ student_id: studentId, instructor_answers: instructorAnswers, rubric_id: rubricId }),
   });
 }
 
@@ -255,4 +255,8 @@ export async function updateRubric(id, data) {
 
 export async function deleteRubric(id) {
   return apiFetch(`/rubrics/${id}`, { method: 'DELETE' });
+}
+
+export async function duplicateRubric(id) {
+  return apiFetch(`/rubrics/${id}/duplicate`, { method: 'POST' });
 }

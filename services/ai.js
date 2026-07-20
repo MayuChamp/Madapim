@@ -3,16 +3,6 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const MODEL = 'gemini-2.5-flash';
 
-// ─── Rubric definition (כלי מדפים, 6 criteria) ───────────────────────────────
-const RUBRIC = [
-  { id: 'c1', name: 'שליטה בתחום הדעת',        weight: 15, channels: ['lesson_plan'],                desc: 'ידע נדרש מספק; למידה מתמדת של היסטוריה כהכנה להוראה' },
-  { id: 'c2', name: 'תפיסה מקצועית',            weight: 15, channels: ['lesson_plan'],                desc: 'הסבר מטרות ההוראה; קווים מנחים לניהול הכיתה' },
-  { id: 'c3', name: 'שליטה במיומנויות הוראה',  weight: 30, channels: ['lesson_plan', 'observation'], desc: 'בניית שיעור: שאלת מוקד, פעולת דריכה, מקורות, ביצועי הבנה, ניהול דיון; שיפור לאור משוב' },
-  { id: 'c4', name: 'עמידה בדרישות הקורס',     weight: 20, channels: [],                             desc: 'לפחות 5 מערכי שיעור עם תיקונים; רפלקציה לאחר שיחת משוב' },
-  { id: 'c5', name: 'תקשורת עם תלמידים',        weight: 10, channels: ['observation'],                desc: 'יחס מכבד וקשוב; זיהוי צרכים שונים; מעורבות ואחריות (מתצפית בלבד)' },
-  { id: 'c6', name: 'משוב',                      weight: 10, channels: ['observation'],                desc: 'פתיחות למשוב; התבוננות עצמית כנה; הסקת מסקנות (מתצפית בלבד)' },
-];
-
 const LEVELS = ['גבוהה', 'בינונית-גבוהה', 'בינונית', 'בינונית-נמוכה'];
 
 // ─── Helper: call Gemini and return text ─────────────────────────────────────
@@ -35,7 +25,8 @@ function buildDocContext(files) {
 }
 
 // ─── Main analysis ────────────────────────────────────────────────────────────
-async function analyzePortfolio(studentName, files, instructorAnswers = {}, gender = 'female') {
+async function analyzePortfolio(studentName, files, instructorAnswers = {}, gender = 'female', rubric) {
+  const criteria = rubric?.criteria || [];
   const docContext = buildDocContext(files);
   const isMale = gender === 'male';
   const studentTitle = isMale ? 'הסטודנט' : 'הסטודנטית';
@@ -52,9 +43,12 @@ async function analyzePortfolio(studentName, files, instructorAnswers = {}, gend
       }).join('\n')
     : '';
 
-  const rubricText = RUBRIC.map((c, i) =>
-    `${i + 1}. ${c.name} (${c.weight}%) — ערוצים: ${c.channels.join(', ') || 'קלט מדריך בלבד'}`
-  ).join('\n');
+  const rubricText = criteria.map((c, i) => {
+    const channels = Array.isArray(c.channels) && c.channels.length > 0
+      ? c.channels.join(', ')
+      : 'כל החומרים הרלוונטיים';
+    return `${i + 1}. ${c.id || 'c' + (i + 1)}: ${c.name} (${c.weight}%) — ערוצים: ${channels}${c.desc ? ` — ${c.desc}` : ''}`;
+  }).join('\n');
 
   const prompt = `אתה מערכת הערכה פדגוגית לסטודנטים מורים. נתח את תיק ההתנסות של ${studentTitle} והפק טיוטת הערכה מקצועית בעברית.
 השתמש בלשון ${isMale ? 'זכר' : 'נקבה'} בכל הניסוח (${pronoun}, ${possessive} וכו׳).
@@ -62,7 +56,7 @@ async function analyzePortfolio(studentName, files, instructorAnswers = {}, gend
 ## שם ${studentTitle}
 ${studentName}
 
-## מחוון ההערכה (מחוון כלי מדפים)
+## מחוון ההערכה (${rubric?.name || 'מחוון'})
 ${rubricText}
 ${answersText}
 
@@ -78,7 +72,7 @@ ${docContext}
 5. האם יש פער בין הערוצים (hasGap): true/false
 6. סיכום הפער אם קיים: משפט אחד
 
-קריטריון c7 מבוסס על קלט המדריך בלבד; אם לא ניתן קלט ציין "טעון השלמה".
+קריטריונים ללא ערוצים ("כל החומרים הרלוונטיים" בלבד) מבוססים על קלט המדריך בעיקר; אם לא ניתן קלט ציין "טעון השלמה".
 
 החזר JSON גולמי בלבד (ללא markdown, ללא הסברים):
 {
@@ -156,4 +150,4 @@ ${missing.map(c => `- חסר תיעוד: ${c.name}`).join('\n')}
   }
 }
 
-module.exports = { analyzePortfolio, generateSmartQuestions, RUBRIC };
+module.exports = { analyzePortfolio, generateSmartQuestions };

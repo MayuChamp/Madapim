@@ -61,4 +61,15 @@ router.delete('/:id', async (req, res) => {
   res.json({ ok: true });
 });
 
+// POST /api/rubrics/:id/duplicate
+router.post('/:id/duplicate', async (req, res) => {
+  try {
+    const copy = await q.duplicateRubric(req.params.id);
+    if (!copy) return res.status(404).json({ error: 'Not found' });
+    res.status(201).json(copy);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;

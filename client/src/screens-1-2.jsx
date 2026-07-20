@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import * as Icons from './icons';
 import { Icon, IconHome, IconUsers, IconArchive, IconSettings, IconFolder, IconFile, IconUpload, IconPlus, IconArrowLeft, IconArrowRight, IconChevron, IconPencil, IconMagic, IconMic, IconSearch, IconClose, IconCheck, IconDownload, IconSave, IconSend, IconSparkle, IconBookmark, IconDoc, IconWave, IconGrid, IconList, IconClock, IconArchiveBox, IconAlert, IconGraduationCap, IconEye, IconTrash } from './icons';
-import { STUDENTS, EVAL_CATEGORIES, STAGE_LABELS, CYCLE_STATUS, STATUS_META } from './data';
+import { STUDENTS, STAGE_LABELS, CYCLE_STATUS, STATUS_META } from './data';
 import { useLanguage } from './i18n';
+import * as API from './api';
 
 
 
@@ -721,6 +722,21 @@ function YearTimeline({ studentCycles, extraFiles }) {
 function Workspace({ student, onBack, onAnalyze, onFileUploaded, onCycleAdded }) {
   const { t } = useLanguage();
   const [openCycle, setOpenCycle] = useState(null);
+  const [rubrics, setRubrics] = useState([]);
+  const [rubricsLoaded, setRubricsLoaded] = useState(false);
+  const [selectedRubricId, setSelectedRubricId] = useState(null);
+
+  useEffect(() => {
+    API.getRubrics()
+      .then(data => {
+        setRubrics(data || []);
+        if (data?.length) setSelectedRubricId(prev => prev || data[0].id);
+      })
+      .catch(() => {})
+      .finally(() => setRubricsLoaded(true));
+  }, []);
+
+  const selectedRubric = rubrics.find(r => r.id === selectedRubricId) || null;
 
   const handleCycleUpload = async (cycleId, stageKey, file) => {
     try {
@@ -782,24 +798,41 @@ function Workspace({ student, onBack, onAnalyze, onFileUploaded, onCycleAdded })
             <h2 style={{fontFamily:'var(--font-serif)',fontSize:17,fontWeight:600,margin:'0 0 4px'}}>{t('eval_settings')}</h2>
             <p style={{fontSize:12,color:'var(--ink-3)',margin:'0 0 16px'}}>{t('eval_settings_desc')}</p>
             <label className="label">{t('rubric_label')}</label>
-            <div style={{padding:'12px 14px',marginBottom:16,border:'1px solid var(--brand)',background:'var(--brand-softer)',borderRadius:'var(--r-sm)'}}>
-              <div style={{display:'flex',alignItems:'center',gap:8}}><IconBookmark size={15} stroke="var(--brand)"/><div style={{fontSize:14,fontWeight:600,color:'var(--ink-1)'}}>{t('rubric_end_year')}</div><span className="badge badge-ok" style={{marginInlineStart:'auto'}}>{t('rubric_active')}</span></div>
-              <div style={{fontSize:12,color:'var(--ink-3)',marginTop:6}}>{t('rubric_criteria_info', { track: student.subjectTrack })}</div>
-              <div style={{marginTop:10,display:'flex',flexDirection:'column',gap:3}}>
-                {EVAL_CATEGORIES.map((c,i)=>(
-                  <div key={c.id} style={{display:'flex',alignItems:'center',gap:7,fontSize:11.5,color:'var(--ink-2)'}}>
-                    <span style={{color:'var(--ink-4)',minWidth:12}}>{i+1}</span>
-                    <span style={{flex:1}}>{c.name}</span>
-                    <span style={{color:'var(--ink-3)',fontFamily:'var(--font-mono)',fontSize:10.5}}>{c.weight}%</span>
-                  </div>
-                ))}
+            {rubrics.length > 0 ? (
+              <div style={{padding:'12px 14px',marginBottom:16,border:'1px solid var(--brand)',background:'var(--brand-softer)',borderRadius:'var(--r-sm)'}}>
+                <div style={{display:'flex',alignItems:'center',gap:8}}>
+                  <IconBookmark size={15} stroke="var(--brand)"/>
+                  <select className="input" value={selectedRubricId || ''} onChange={e=>setSelectedRubricId(e.target.value)} style={{fontSize:14,fontWeight:600,color:'var(--ink-1)',border:'none',background:'transparent',padding:'2px 4px',flex:1}}>
+                    {rubrics.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                  </select>
+                </div>
+                {selectedRubric && (
+                  <>
+                    <div style={{fontSize:12,color:'var(--ink-3)',marginTop:6}}>
+                      {(selectedRubric.criteria||[]).length} קריטריונים · {selectedRubric.total_points ? `${selectedRubric.total_points} נק׳` : 'משוב מעצב'} · {selectedRubric.semester || 'שנתי'}
+                    </div>
+                    <div style={{marginTop:10,display:'flex',flexDirection:'column',gap:3}}>
+                      {(selectedRubric.criteria||[]).map((c,i)=>(
+                        <div key={c.id||i} style={{display:'flex',alignItems:'center',gap:7,fontSize:11.5,color:'var(--ink-2)'}}>
+                          <span style={{color:'var(--ink-4)',minWidth:12}}>{i+1}</span>
+                          <span style={{flex:1}}>{c.name}</span>
+                          <span style={{color:'var(--ink-3)',fontFamily:'var(--font-mono)',fontSize:10.5}}>{c.weight}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
-            </div>
+            ) : (
+              <div style={{padding:'12px 14px',marginBottom:16,border:'1px solid var(--border)',background:'var(--surface-2)',borderRadius:'var(--r-sm)',fontSize:12.5,color:'var(--ink-3)'}}>
+                {rubricsLoaded ? 'אין מחוונים — יש ליצור מחוון במסך "מחוונים" לפני הניתוח' : 'טוען מחוונים...'}
+              </div>
+            )}
             <div style={{padding:'10px 12px',background:'var(--surface-2)',borderRadius:'var(--r-sm)',fontSize:12,color:'var(--ink-2)',lineHeight:1.6,marginBottom:16,display:'flex',alignItems:'flex-start',gap:8}}>
               <IconSparkle size={13} stroke="var(--brand)" style={{marginTop:2,flexShrink:0}}/>
               <span>המערכת זיהתה <b style={{color:'var(--warn)'}}>2 פערים</b> בין מערך לצפייה, וקריטריון אחד <b style={{color:'var(--warn)'}}>ללא תיעוד</b>. תישאלי <b>3 שאלות</b> השלמה.</span>
             </div>
-            <button className="btn btn-magic btn-lg" style={{width:'100%'}} onClick={()=>onAnalyze('r1')}><IconSparkle size={16}/> {t('btn_analyze')}</button>
+            <button className="btn btn-magic btn-lg" style={{width:'100%'}} disabled={!selectedRubricId} onClick={()=>onAnalyze(selectedRubricId)}><IconSparkle size={16}/> {t('btn_analyze')}</button>
             <p style={{fontSize:11.5,color:'var(--ink-3)',textAlign:'center',margin:'10px 0 0',lineHeight:1.5}}>{t('analyze_note')}</p>
           </div>
         </aside>

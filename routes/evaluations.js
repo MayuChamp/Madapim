@@ -15,17 +15,21 @@ router.get('/', async (req, res) => {
 
 // POST /api/evaluations/analyze
 router.post('/analyze', async (req, res) => {
-  const { student_id, instructor_answers } = req.body;
+  const { student_id, instructor_answers, rubric_id } = req.body;
   if (!student_id) return res.status(400).json({ error: 'student_id required' });
+  if (!rubric_id) return res.status(400).json({ error: 'rubric_id required' });
 
   const student = await q.student(student_id);
   if (!student) return res.status(404).json({ error: 'Student not found' });
 
+  const rubric = await q.rubric(rubric_id);
+  if (!rubric) return res.status(404).json({ error: 'Rubric not found' });
+
   const files = await q.studentFiles(student_id);
 
   try {
-    const draft = await analyzePortfolio(student.name, files, instructor_answers || {}, student.gender || 'female');
-    const ev = await q.upsertEvaluation(student_id, draft, draft.score || null);
+    const draft = await analyzePortfolio(student.name, files, instructor_answers || {}, student.gender || 'female', rubric);
+    const ev = await q.upsertEvaluation(student_id, draft, draft.score || null, rubric_id);
     const smartQuestions = await generateSmartQuestions(draft, student.name, student.gender || 'female');
     await q.updateStudentStatus(student_id, 'in_progress');
 

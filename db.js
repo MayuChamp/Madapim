@@ -176,10 +176,10 @@ const q = {
     if (error) throw error;
   },
 
-  upsertEvaluation: async (studentId, draftJson, score) => {
+  upsertEvaluation: async (studentId, draftJson, score, rubricId) => {
     let ev = await q.evaluation(studentId);
     if (!ev) ev = await q.createEvaluation(studentId);
-    await q.updateEvaluation(ev.id, { draft_json: draftJson, score, status: 'draft' });
+    await q.updateEvaluation(ev.id, { draft_json: draftJson, score, status: 'draft', rubric_id: rubricId || null });
     return q.getEvaluation(ev.id);
   },
 
@@ -286,6 +286,25 @@ const q = {
 
   deleteRubric: async (id) => {
     await supabase.from('rubrics').delete().eq('id', id);
+  },
+
+  duplicateRubric: async (id) => {
+    const source = await q.rubric(id);
+    if (!source) return null;
+    const newId = 'r_' + Date.now();
+    const { data, error } = await supabase.from('rubrics')
+      .insert({
+        id: newId,
+        name: `${source.name} (עותק)`,
+        description: source.description || '',
+        semester: source.semester || '',
+        total_points: source.total_points ?? null,
+        criteria: source.criteria || [],
+        instructor_id: source.instructor_id || null,
+      })
+      .select().single();
+    if (error) throw error;
+    return data;
   },
 
   addCycleToStudent: async (studentId, trackType) => {
