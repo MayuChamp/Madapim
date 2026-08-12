@@ -217,7 +217,10 @@ function CategoryCard({ cat, index, aiTone, instructorAnswers, activeEvidence, o
       {isEmpty?(
         <div style={{padding:'14px 16px',borderRadius:'var(--r-sm)',background:'var(--warn-soft)',color:'var(--warn)',fontSize:13,lineHeight:1.6,textAlign:'center'}}>{cat.emptyHint || t('empty_hint')}</div>
       ):editing?(
-        <textarea className="textarea" defaultValue={(baseText||'').replace(/\{\{e(\d+)\}\}/g,(_,n)=>`[ראיה ${n}]`).replace('{{instructor_input}}',instructorText||'...').replace('{{decision}}',decisionText||'')} style={{minHeight:140,fontSize:14,lineHeight:1.75}} onClick={e=>e.stopPropagation()} autoFocus/>
+        <div style={{position:'relative'}}>
+          <textarea className="textarea" defaultValue={(baseText||'').replace(/\{\{e(\d+)\}\}/g,(_,n)=>`[ראיה ${n}]`).replace('{{instructor_input}}',instructorText||'...').replace('{{decision}}',decisionText||'')} style={{minHeight:140,fontSize:14,lineHeight:1.75}} onClick={e=>e.stopPropagation()} autoFocus onBlur={(e) => onEditSave(e.target.value)} />
+          <div style={{position:'absolute',bottom:12,left:12}}><button onClick={(e)=>{e.stopPropagation();onEditSave(e.target.previousSibling.value);}} className="btn btn-primary btn-sm"><IconCheck size={14}/> שמור ניסוח</button></div>
+        </div>
       ):(
         <div style={{fontSize:14.5,lineHeight:1.85,color:'var(--ink-1)',opacity:refining?0.4:1,transition:'opacity .3s',position:'relative'}}>
           {rendered}
@@ -239,14 +242,31 @@ function CategoryCard({ cat, index, aiTone, instructorAnswers, activeEvidence, o
   );
 }
 
-function SummaryCard({ summary }) {
+function SummaryCard({ summary, onSummaryUpdate }) {
   const { t } = useLanguage();
+  const [editing, setEditing] = useState(false);
   const text = summary?.text || 'הסטודנטית נמצאת בנקודה טובה בשלב ההכשרה. הכוחות הבולטים: רפלקציה עמוקה, תושייה בכיתה והיכרות תוכנית מבוססת. תחומי הצמיחה: העמקת התכנון לפני השיעור. ההמלצה: מעבר עם ליווי ממוקד.';
   const score = summary?.score || '—';
+  
+  const handleSave = (val) => {
+    setEditing(false);
+    if (onSummaryUpdate) onSummaryUpdate(val);
+  };
+
   return (
     <div className="card" style={{background:'var(--surface-2)',borderColor:'var(--border)'}}>
-      <h3 style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:600,margin:'0 0 12px',color:'var(--ink-1)'}}>{t('summary_title')}</h3>
-      <p style={{fontSize:15,lineHeight:1.85,color:'var(--ink-1)',margin:0}}>{text}</p>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+        <h3 style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:600,margin:'0 0 12px',color:'var(--ink-1)'}}>{t('summary_title')}</h3>
+        <button onClick={()=>setEditing(!editing)} className="btn-ghost" title={t('edit_manually')} style={{width:30,height:30,borderRadius:6,display:'grid',placeItems:'center',color:editing?'var(--brand)':'var(--ink-3)',background:editing?'var(--brand-softer)':'transparent'}}><IconPencil size={14}/></button>
+      </div>
+      {editing ? (
+        <div style={{position:'relative'}}>
+          <textarea className="textarea" defaultValue={text} style={{minHeight:140,fontSize:14,lineHeight:1.75}} autoFocus onBlur={(e) => handleSave(e.target.value)} />
+          <div style={{position:'absolute',bottom:12,left:12}}><button onClick={(e)=>{e.stopPropagation();handleSave(e.target.previousSibling.value);}} className="btn btn-primary btn-sm"><IconCheck size={14}/> שמור סיכום</button></div>
+        </div>
+      ) : (
+        <p style={{fontSize:15,lineHeight:1.85,color:'var(--ink-1)',margin:0}}>{text}</p>
+      )}
       <div style={{marginTop:20,padding:'16px 20px',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:12,display:'flex',alignItems:'center',gap:20}}>
         <div><div style={{fontSize:12,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em'}}>{t('proposed_score')}</div><div style={{fontFamily:'var(--font-serif)',fontSize:32,fontWeight:600,color:'var(--brand)',lineHeight:1.1,marginTop:4}}>{score} <span style={{fontSize:16,color:'var(--ink-3)',fontWeight:400}}>/ 100</span></div></div>
         <div style={{width:1,height:48,background:'var(--border)'}}/>
@@ -309,7 +329,8 @@ function DraftHeader({ student, answersCount }) {
 
 function SplitEditor({ student, instructorAnswers, aiTone, onBack, onExport, evalCategories, evalSummary, evaluationId, onSave, evidenceFiles }) {
   const { t } = useLanguage();
-  const activeCategories = evalCategories || EVAL_CATEGORIES;
+  const [activeCategories, setActiveCategories] = useState(evalCategories || EVAL_CATEGORIES);
+  const [currentSummary, setCurrentSummary] = useState(evalSummary || {text:'', score:'—'});
 
   // Build live evidences from actual uploaded files
   const liveEvidences = React.useMemo(() => {
@@ -351,17 +372,48 @@ function SplitEditor({ student, instructorAnswers, aiTone, onBack, onExport, eva
     if (!onSave) return;
     setSaveStatus('saving');
     try {
-      await onSave({ categories: activeCategories, summary: evalSummary?.text, score: evalSummary?.score });
+      await onSave({ categories: activeCategories, summary: currentSummary?.text, score: currentSummary?.score });
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2500);
     } catch { setSaveStatus('idle'); }
+  };
+  const handleUpdateCategoryText = (catId, newText) => {
+    setActiveCategories(prev => prev.map(c => c.id === catId ? {...c, balance: newText} : c));
+    setEditing(null);
+  };
+  const handleUpdateSummary = (newText) => {
+    setCurrentSummary(prev => ({...prev, text: newText}));
   };
   const sendChat = (msg) => {
     if(!msg.trim())return;
     setChatMessages(prev=>[...prev,{role:'user',text:msg}]); setChatInput(''); setChatThinking(true);
     setTimeout(()=>{
-      const responses={default:'על-בסיס הראיות שהועלו, נראה שמ. מגלה רגישות גבוהה לתלמידים מתקשים. בתיעוד ההתמודדות עם ל. היא בחרה בגישה חמלתית במקום עונשית.',משמעת:'בנושא משמעת — ב-3 מתוך 5 הרפלקציות מ. מציינת רגעי הפרת משמעת. הגישה שלה: שיחה אישית במקום ענישה כיתתית.',תלמידים:'מ. מפגינה רגישות גבוהה לתלמידים מתקשים. בתיעוד ההתמודדות עם ל. בחרה בגישה חמלתית.',תכנון:'התכנון מערכי השיעור הוא תחום צמיחה. ראיה 2 מציגה תכנון בסיסי בלבד. ראיה 1 מראה שהביצוע בפועל עולה על התכנון.'};
-      let resp=responses.default; for(const k of Object.keys(responses)){if(msg.includes(k)){resp=responses[k];break;}}
+      const responses={
+        default:'על-בסיס הראיות שהועלו, נראה שמ. מגלה רגישות גבוהה לתלמידים מתקשים. בתיעוד ההתמודדות עם ל. היא בחרה בגישה חמלתית במקום עונשית.',
+        משמעת:'בנושא משמעת — ב-3 מתוך 5 הרפלקציות מ. מציינת רגעי הפרת משמעת. הגישה שלה: שיחה אישית במקום ענישה כיתתית.',
+        תלמידים:'מ. מפגינה רגישות גבוהה לתלמידים מתקשים. בתיעוד ההתמודדות עם ל. בחרה בגישה חמלתית.',
+        תכנון:'התכנון מערכי השיעור הוא תחום צמיחה. ראיה 2 מציגה תכנון בסיסי בלבד. ראיה 1 מראה שהביצוע בפועל עולה על התכנון.',
+        חיובי:'עדכנתי את הניסוחים שיהיו חיוביים ומעודדים יותר כבקשתך.',
+        קצר:'קיצרתי את הטקסטים והשארתי רק את העיקר.'
+      };
+      
+      let resp=responses.default; 
+      let isRewrite = false;
+      
+      for(const k of Object.keys(responses)){
+        if(msg.includes(k)){
+          resp=responses[k];
+          if(k === 'חיובי' || k === 'קצר') isRewrite = true;
+          break;
+        }
+      }
+      
+      if (isRewrite) {
+         // Mock update text
+         setActiveCategories(prev => prev.map(c => ({...c, balance: c.balance + (msg.includes('חיובי') ? ' ניכר כי קיימת התקדמות יפה.' : '')})));
+         setCurrentSummary(prev => ({...prev, text: prev.text + (msg.includes('חיובי') ? ' הסטודנטית מגלה מוטיבציה גבוהה ללמידה.' : '')}));
+      }
+
       setChatMessages(prev=>[...prev,{role:'ai',text:resp}]); setChatThinking(false);
     },1100);
   };
@@ -423,9 +475,9 @@ function SplitEditor({ student, instructorAnswers, aiTone, onBack, onExport, eva
           <div className="scroll" style={{flex:1,overflowY:'auto',padding:'28px 36px 80px'}}>
             <DraftHeader student={student} answersCount={instructorAnswers?Object.keys(instructorAnswers).length:0}/>
             {activeCategories.map((cat,idx)=>(
-              <CategoryCard key={cat.id} cat={cat} index={idx} aiTone={aiTone} instructorAnswers={instructorAnswers} activeEvidence={activeEvidence} onEvidenceClick={setActiveEvidence} editing={editing===cat.id} onEdit={()=>setEditing(editing===cat.id?null:cat.id)} onRefine={()=>handleRefine(cat.id)} refining={refining===cat.id} isActive={activeCat===cat.id} onSelect={()=>setActiveCat(cat.id)}/>
+              <CategoryCard key={cat.id} cat={cat} index={idx} aiTone={aiTone} instructorAnswers={instructorAnswers} activeEvidence={activeEvidence} onEvidenceClick={setActiveEvidence} editing={editing===cat.id} onEdit={()=>setEditing(editing===cat.id?null:cat.id)} onEditSave={(newText)=>handleUpdateCategoryText(cat.id, newText)} onRefine={()=>handleRefine(cat.id)} refining={refining===cat.id} isActive={activeCat===cat.id} onSelect={()=>setActiveCat(cat.id)}/>
             ))}
-            <SummaryCard summary={evalSummary}/>
+            <SummaryCard summary={currentSummary} onSummaryUpdate={handleUpdateSummary}/>
           </div>
         </div>
       </div>

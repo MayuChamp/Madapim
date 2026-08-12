@@ -329,30 +329,17 @@ const q = {
     return cId;
   },
 
-  seedDefaultCyclesForStudent: async (studentId, subjectTrack, { maxLessonPlans = 5, maxObservations = 3 } = {}) => {
+  seedDefaultCyclesForStudent: async (studentId, subjectTrack, { maxWeeks = 5 } = {}) => {
     const cycles = [];
-    const stages = [];
-
-    for (let i = 1; i <= maxLessonPlans; i++) {
-      const cId = `lp_${studentId}_${i}`;
-      cycles.push({ id: cId, student_id: studentId, track_type: 'lesson_plan', topic: `מערך שיעור ${i}`, subject: subjectTrack || '', date: null, status: 'not_started', position: i });
-      stages.push({ id: `st_${cId}_1`, cycle_id: cId, stage_key: 'submission',      done: 0, position: 1 });
-      stages.push({ id: `st_${cId}_2`, cycle_id: cId, stage_key: 'instructorNotes', done: 0, position: 2 });
-      stages.push({ id: `st_${cId}_3`, cycle_id: cId, stage_key: 'revision',        done: 0, position: 3 });
-    }
-
-    for (let i = 1; i <= maxObservations; i++) {
-      const cId = `ob_${studentId}_${i}`;
-      cycles.push({ id: cId, student_id: studentId, track_type: 'observation', topic: `תצפית ${i}`, subject: '', date: null, status: 'not_started', position: i });
-      stages.push({ id: `st_${cId}_1`, cycle_id: cId, stage_key: 'observation', done: 0, position: 1 });
-      stages.push({ id: `st_${cId}_2`, cycle_id: cId, stage_key: 'feedback',    done: 0, position: 2 });
-      stages.push({ id: `st_${cId}_3`, cycle_id: cId, stage_key: 'reflection',  done: 0, position: 3 });
+    
+    for (let i = 1; i <= maxWeeks; i++) {
+      const cId = `wk_${studentId}_${i}`;
+      cycles.push({ id: cId, student_id: studentId, track_type: 'week', topic: `שבוע ${i}`, subject: subjectTrack || '', date: null, status: 'not_started', position: i });
     }
 
     const { error: cyclesError } = await supabase.from('cycles').insert(cycles);
     if (cyclesError) throw cyclesError;
-    const { error: stagesError } = await supabase.from('stages').insert(stages);
-    if (stagesError) throw stagesError;
+    // We don't need stages for "weeks" if they just upload materials generically
   },
 
   deleteCycle: async (cycleId) => {

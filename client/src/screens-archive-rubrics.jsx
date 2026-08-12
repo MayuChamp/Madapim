@@ -439,6 +439,16 @@ export function RubricsScreen() {
         )}
 
         <div style={{display:'flex',flexDirection:'column',gap:16}}>
+          <div className="card" style={{padding:'16px 20px',background:'var(--info-soft)',border:'1px solid var(--info)',borderRadius:8}}>
+            <h3 style={{fontSize:14,fontWeight:600,color:'var(--info)',margin:'0 0 8px'}}>איך לכתוב מחוון אישי? (הנחיות קרן)</h3>
+            <ul style={{fontSize:13,color:'var(--ink-2)',margin:0,paddingInlineStart:18,lineHeight:1.6}}>
+              <li>הגדירו במדויק את המיומנות או התחום שברצונכם להעריך.</li>
+              <li>נסחו קריטריונים ברורים וניתנים למדידה.</li>
+              <li>הקפידו על משקל יחסי (באחוזים) המשקף את החשיבות של כל קריטריון, כך שהסה"כ יגיע ל-100%.</li>
+              <li>מומלץ לתת תיאור קצר לכל קריטריון שמסביר מה נחשב להצלחה (רמה גבוהה).</li>
+            </ul>
+          </div>
+
           <button className="btn btn-primary btn-lg" style={{width:'100%'}} onClick={()=>setCreateOpen(true)}>
             <IconPlus size={16}/> מחוון חדש
           </button>

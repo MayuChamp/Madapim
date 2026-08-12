@@ -158,10 +158,10 @@ export async function getFiles(studentId) {
 }
 
 // ─── Evaluations ──────────────────────────────────────────────────────────────
-export async function analyze(studentId, instructorAnswers, rubricId) {
+export async function analyze(studentId, instructorAnswers, rubricId, evalDateRange) {
   return apiFetch('/evaluations/analyze', {
     method: 'POST',
-    body: JSON.stringify({ student_id: studentId, instructor_answers: instructorAnswers, rubric_id: rubricId }),
+    body: JSON.stringify({ student_id: studentId, instructor_answers: instructorAnswers, rubric_id: rubricId, date_range: evalDateRange }),
   });
 }
 
@@ -186,11 +186,11 @@ export async function exportPdf(evalId, format = 'pdf') {
   const html = await res.text();
 
   if (format === 'docx') {
-    const blob = new Blob([html], { type: 'text/html' });
+    const blob = new Blob(['\uFEFF' + html], { type: 'application/msword' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `evaluation-${evalId}.html`;
+    a.download = `evaluation-${evalId}.doc`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

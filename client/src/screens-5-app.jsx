@@ -41,7 +41,7 @@ function DocField({ label, value }) {
   return <div><span style={{color:'#7a8295',fontSize:11}}>{label}: </span><span style={{color:'#1a1f2c',fontWeight:500}}>{value}</span></div>;
 }
 
-function A4Doc({ student, instructorAnswers, evaluationDraft }) {
+function A4Doc({ student, instructorAnswers, evaluationDraft, instructorName }) {
   const { t, lang } = useLanguage();
   const answers = instructorAnswers||{};
   // Use real AI draft categories if available
@@ -75,7 +75,7 @@ function A4Doc({ student, instructorAnswers, evaluationDraft }) {
         <h1 style={{fontFamily:'var(--font-serif)',fontSize:26,fontWeight:600,margin:0,letterSpacing:'-0.01em',color:'#1a1f2c'}}>{t('doc_eval_student')}: {student.name}</h1>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginTop:12,fontSize:12.5,padding:'12px 14px',background:'#fbfaf7',borderRadius:4}}>
           <DocField label={t('doc_field_school')} value={student.school}/><DocField label={t('doc_field_grade')} value={student.grade}/>
-          <DocField label={t('doc_field_supervisor')} value="ד״ר ר. כהן"/><DocField label={t('doc_field_cooperating')} value="גב׳ א. ש."/>
+          <DocField label={t('doc_field_supervisor')} value={instructorName || "—"}/><DocField label={t('doc_field_cooperating')} value="גב׳ א. ש."/>
           <DocField label={t('doc_field_rubric')} value={t('doc_rubric_value')}/><DocField label={t('doc_field_eval_date')} value={today}/>
         </div>
       </div>
@@ -112,7 +112,7 @@ function A4Doc({ student, instructorAnswers, evaluationDraft }) {
         </div>
       </div>
       <div style={{marginTop:40,paddingTop:18,borderTop:'1px solid #e3ddd0',display:'grid',gridTemplateColumns:'1fr 1fr',gap:28,fontSize:11.5,color:'#1a1f2c'}}>
-        <div><div style={{borderBottom:'1px solid #1a1f2c',height:30}}/><div style={{marginTop:6,color:'#7a8295'}}>{t('doc_supervisor_sig')}</div></div>
+        <div><div style={{borderBottom:'1px solid #1a1f2c',height:30,display:'flex',alignItems:'flex-end',paddingBottom:4}}>{instructorName}</div><div style={{marginTop:6,color:'#7a8295'}}>{t('doc_supervisor_sig')}</div></div>
         <div><div style={{borderBottom:'1px solid #1a1f2c',height:30}}/><div style={{marginTop:6,color:'#7a8295'}}>{t('doc_dept_head_sig')}</div></div>
       </div>
       <div style={{marginTop:32,paddingTop:14,borderTop:'1px solid #ebe8e0',fontSize:10,color:'#9aa0ad',textAlign:'center',letterSpacing:'0.02em'}}>{t('doc_footer')}</div>
@@ -123,6 +123,7 @@ function A4Doc({ student, instructorAnswers, evaluationDraft }) {
 function ExportScreen({ student, onBack, onFinish, instructorAnswers, evaluationDraft }) {
   const { t } = useLanguage();
   const [format, setFormat] = useState('pdf');
+  const [instructorName, setInstructorName] = useState('');
   return (
     <div className="fade-in" style={{display:'flex',height:'100vh',minHeight:0}}>
       <aside style={{width:340,flexShrink:0,background:'var(--surface)',borderInlineEnd:'1px solid var(--border)',display:'flex',flexDirection:'column',padding:'32px 28px',overflowY:'auto'}}>
@@ -135,6 +136,10 @@ function ExportScreen({ student, onBack, onFinish, instructorAnswers, evaluation
           <ChecklistItem ok label={t('check_2')}/>
           <ChecklistItem ok label={t('check_3')}/>
           <ChecklistItem ok label={t('check_4')}/>
+        </div>
+        <div style={{marginBottom:24}}>
+          <div style={{fontSize:12,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:10,fontWeight:600}}>שם המדריך/ה</div>
+          <input className="input" placeholder="למשל: ד״ר רחל כהן" value={instructorName} onChange={e=>setInstructorName(e.target.value)} style={{width:'100%'}} />
         </div>
         <div style={{marginBottom:22}}>
           <div style={{fontSize:12,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:10,fontWeight:600}}>{t('export_format')}</div>
@@ -157,7 +162,7 @@ function ExportScreen({ student, onBack, onFinish, instructorAnswers, evaluation
         </div>
       </aside>
       <div className="scroll" style={{flex:1,overflowY:'auto',background:'#e7e3da',padding:'32px 0'}}>
-        <A4Doc student={student} instructorAnswers={instructorAnswers} evaluationDraft={evaluationDraft}/>
+        <A4Doc student={student} instructorAnswers={instructorAnswers} evaluationDraft={evaluationDraft} instructorName={instructorName}/>
       </div>
     </div>
   );

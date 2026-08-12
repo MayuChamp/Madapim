@@ -475,7 +475,7 @@ function TrackSection({ kind, title, subtitle, cycles, stageOrder, openCycle, on
   async function handleAdd() {
     setAdding(true);
     try {
-      const trackType = kind === 'lp' ? 'lesson_plan' : 'observation';
+      const trackType = 'week';
       await window.API_addCycle(studentId, trackType);
       if (onAddCycle) onAddCycle();
     } catch (err) {
@@ -500,7 +500,7 @@ function TrackSection({ kind, title, subtitle, cycles, stageOrder, openCycle, on
       <div style={{display:'flex',flexDirection:'column',gap:8}}>
         {cycles.map((cy,i)=><CycleRow key={cy.id} kind={kind} cycle={cy} cycleIndex={i+1} stageOrder={stageOrder} open={openCycle===cy.id} onToggle={()=>onToggle(cy.id)} onUpload={(stageKey, file) => onUpload(cy.id, stageKey, file)} studentId={studentId} onFileUploaded={onFileUploaded} onDelete={()=>onAddCycle&&window.API_deleteCycle(studentId,cy.id).then(onAddCycle).catch(e=>alert(e.message))}/>)}
         <button onClick={handleAdd} disabled={adding} style={{display:'flex',alignItems:'center',gap:8,padding:'10px 16px',border:`1.5px solid ${c.fg}`,borderRadius:'var(--r-md)',background:c.bg,color:c.fg,fontSize:13,fontWeight:600,cursor:adding?'wait':'pointer',opacity:adding?0.55:1,transition:'opacity .15s',width:'100%',justifyContent:'center',marginTop:4}}>
-          <IconPlus size={15}/>{adding ? '...' : kind==='lp' ? t('add_lesson_plan') : t('add_observation')}
+          <IconPlus size={15}/>{adding ? '...' : 'הוסף שבוע / נקודת זמן'}
         </button>
       </div>
     </section>
@@ -588,11 +588,33 @@ function ExtraMaterials({ extras, studentId, cycleId, stageKey, onFileUploaded, 
           <input className="input" autoFocus value={extraDesc} onChange={e=>setExtraDesc(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')addExtra();}} placeholder={t('material_desc_ph')}/>
           <label className="label" style={{marginTop:10}}>{t('material_date_label')} <span style={{fontWeight:400,color:'var(--ink-4)'}}>({t('material_date_optional')})</span></label>
           <input type="date" className="input" value={materialDate} onChange={e=>setMaterialDate(e.target.value)} style={{direction:'ltr'}}/>
+          
           <label className="label" style={{marginTop:10}}>{t('file_label')}</label>
           <input id={`extra-file-${cycleId || 'general'}-${stageKey || 'none'}`} type="file" multiple accept=".docx,.doc,.pdf,.txt,.mp4,.mp3,.png,.jpg,.jpeg" className="input" style={{paddingTop:6}}/>
+          <div style={{fontSize:12,color:'var(--ink-3)',marginTop:4,marginBottom:8}}>
+            המלצה לתמלול שיעורים / הקלטות: <a href="https://turboscribe.ai/?ref=madapim" target="_blank" rel="noreferrer" style={{color:'var(--brand)',textDecoration:'underline'}}>TurboScribe</a>
+          </div>
+
+          <label className="label" style={{marginTop:10}}>טקסט חופשי (במקום או בנוסף לקובץ)</label>
+          <textarea id={`extra-text-${cycleId || 'general'}-${stageKey || 'none'}`} className="input" rows="4" placeholder="הקלד או הדבק טקסט חופשי כאן..." style={{fontSize:13}}></textarea>
+
           {uploadError && <div style={{fontSize:12,color:'var(--warn)',marginTop:6}}>{uploadError}</div>}
           <div style={{display:'flex',gap:8,marginTop:12}}>
-            <button className="btn btn-primary btn-sm" onClick={addExtra} disabled={uploading}>
+            <button className="btn btn-primary btn-sm" onClick={async () => {
+              const textEl = document.getElementById(`extra-text-${cycleId || 'general'}-${stageKey || 'none'}`);
+              const textVal = textEl ? textEl.value : '';
+              if (textVal.trim()) {
+                const textFile = new File([textVal], `${extraDesc || 'טקסט חופשי'}.txt`, { type: 'text/plain' });
+                const fileInput = document.getElementById(`extra-file-${cycleId || 'general'}-${stageKey || 'none'}`);
+                // Use a DataTransfer object to append the text file if possible, or just call upload directly
+                // Easier to just upload it explicitly
+                setUploading(true); setUploadError(null);
+                try {
+                  await window.API_uploadFile(studentId, textFile, cycleId || null, stageKey || null, extraDesc.trim() || 'טקסט חופשי', materialDate || null);
+                } catch (err) { setUploadError(err.message); }
+              }
+              addExtra(); // handles other files
+            }} disabled={uploading}>
               {uploading ? t('uploading') : <><IconUpload size={13}/> {t('add')}</>}
             </button>
             <button className="btn btn-ghost btn-sm" onClick={()=>{setShowExtraForm(false);setExtraDesc('');setMaterialDate('');setUploadError(null);}}>{t('cancel')}</button>
@@ -725,18 +747,33 @@ function Workspace({ student, onBack, onAnalyze, onFileUploaded, onCycleAdded })
   const [rubrics, setRubrics] = useState([]);
   const [rubricsLoaded, setRubricsLoaded] = useState(false);
   const [selectedRubricId, setSelectedRubricId] = useState(null);
+  const [evalStartDate, setEvalStartDate] = useState('');
+  const [evalEndDate, setEvalEndDate] = useState('');
+  const [selectedCriteriaIndices, setSelectedCriteriaIndices] = useState([]);
 
   useEffect(() => {
     API.getRubrics()
       .then(data => {
         setRubrics(data || []);
-        if (data?.length) setSelectedRubricId(prev => prev || data[0].id);
+        if (data?.length) {
+          const firstId = data[0].id;
+          setSelectedRubricId(prev => prev || firstId);
+          // Select all criteria by default
+          setSelectedCriteriaIndices(data[0].criteria ? data[0].criteria.map((_, i) => i) : []);
+        }
       })
       .catch(() => {})
       .finally(() => setRubricsLoaded(true));
   }, []);
 
   const selectedRubric = rubrics.find(r => r.id === selectedRubricId) || null;
+
+  // When rubric changes, re-select all criteria
+  useEffect(() => {
+    if (selectedRubric) {
+      setSelectedCriteriaIndices(selectedRubric.criteria ? selectedRubric.criteria.map((_, i) => i) : []);
+    }
+  }, [selectedRubricId]);
 
   const handleCycleUpload = async (cycleId, stageKey, file) => {
     try {
@@ -780,8 +817,7 @@ function Workspace({ student, onBack, onAnalyze, onFileUploaded, onCycleAdded })
       </div>
       <div style={{display:'grid',gridTemplateColumns:'1fr 320px',gap:28,alignItems:'flex-start'}}>
         <div style={{display:'flex',flexDirection:'column',gap:28}}>
-          <TrackSection kind="lp" title={t('track_lp_title')} subtitle={t('track_lp_subtitle')} cycles={lpCycles} stageOrder={['submission','instructorNotes','revision']} openCycle={openCycle?.trackType==='lp'?openCycle.cycleId:null} onToggle={(id)=>setOpenCycle(openCycle?.cycleId===id?null:{trackType:'lp',cycleId:id})} onUpload={handleCycleUpload} studentId={student.id} onFileUploaded={onFileUploaded} onAddCycle={onCycleAdded}/>
-          <TrackSection kind="ob" title={t('track_ob_title')} subtitle={t('track_ob_subtitle')} cycles={obCycles} stageOrder={['observation','feedback','reflection']} openCycle={openCycle?.trackType==='ob'?openCycle.cycleId:null} onToggle={(id)=>setOpenCycle(openCycle?.cycleId===id?null:{trackType:'ob',cycleId:id})} onUpload={handleCycleUpload} studentId={student.id} onFileUploaded={onFileUploaded} onAddCycle={onCycleAdded}/>
+          <TrackSection kind="lp" title="תהליך ההערכה (שבועות)" subtitle="הזנת חומרים ותיעוד לפי ציר הזמן / שבועות" cycles={studentCycles} stageOrder={[]} openCycle={openCycle?.cycleId} onToggle={(id)=>setOpenCycle(openCycle?.cycleId===id?null:{trackType:'week',cycleId:id})} onUpload={handleCycleUpload} studentId={student.id} onFileUploaded={onFileUploaded} onAddCycle={onCycleAdded}/>
           <YearTimeline studentCycles={studentCycles} extraFiles={student.extraFiles || []}/>
           <section>
             <div style={{display:'flex',alignItems:'baseline',justifyContent:'space-between',marginBottom:14}}>
@@ -797,7 +833,10 @@ function Workspace({ student, onBack, onAnalyze, onFileUploaded, onCycleAdded })
           <div className="card">
             <h2 style={{fontFamily:'var(--font-serif)',fontSize:17,fontWeight:600,margin:'0 0 4px'}}>{t('eval_settings')}</h2>
             <p style={{fontSize:12,color:'var(--ink-3)',margin:'0 0 16px'}}>{t('eval_settings_desc')}</p>
-            <label className="label">{t('rubric_label')}</label>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
+              <label className="label">{t('rubric_label')}</label>
+              <a href="/rubrics" target="_blank" style={{fontSize:11.5,color:'var(--brand)',textDecoration:'underline'}}>הנחיות ומחוונים</a>
+            </div>
             {rubrics.length > 0 ? (
               <div style={{padding:'12px 14px',marginBottom:16,border:'1px solid var(--brand)',background:'var(--brand-softer)',borderRadius:'var(--r-sm)'}}>
                 <div style={{display:'flex',alignItems:'center',gap:8}}>
@@ -811,13 +850,17 @@ function Workspace({ student, onBack, onAnalyze, onFileUploaded, onCycleAdded })
                     <div style={{fontSize:12,color:'var(--ink-3)',marginTop:6}}>
                       {(selectedRubric.criteria||[]).length} קריטריונים · {selectedRubric.total_points ? `${selectedRubric.total_points} נק׳` : 'משוב מעצב'} · {selectedRubric.semester || 'שנתי'}
                     </div>
-                    <div style={{marginTop:10,display:'flex',flexDirection:'column',gap:3}}>
+                    <div style={{fontSize:11.5,color:'var(--ink-2)',marginTop:12,marginBottom:6,fontWeight:600}}>בחירת קריטריונים להערכה:</div>
+                    <div style={{marginTop:4,display:'flex',flexDirection:'column',gap:5}}>
                       {(selectedRubric.criteria||[]).map((c,i)=>(
-                        <div key={c.id||i} style={{display:'flex',alignItems:'center',gap:7,fontSize:11.5,color:'var(--ink-2)'}}>
-                          <span style={{color:'var(--ink-4)',minWidth:12}}>{i+1}</span>
+                        <label key={c.id||i} style={{display:'flex',alignItems:'flex-start',gap:8,fontSize:11.5,color:'var(--ink-2)',cursor:'pointer'}}>
+                          <input type="checkbox" checked={selectedCriteriaIndices.includes(i)} onChange={(e)=>{
+                            if(e.target.checked) setSelectedCriteriaIndices([...selectedCriteriaIndices, i]);
+                            else setSelectedCriteriaIndices(selectedCriteriaIndices.filter(idx=>idx!==i));
+                          }} style={{marginTop:2}}/>
                           <span style={{flex:1}}>{c.name}</span>
                           <span style={{color:'var(--ink-3)',fontFamily:'var(--font-mono)',fontSize:10.5}}>{c.weight}%</span>
-                        </div>
+                        </label>
                       ))}
                     </div>
                   </>
@@ -828,11 +871,17 @@ function Workspace({ student, onBack, onAnalyze, onFileUploaded, onCycleAdded })
                 {rubricsLoaded ? 'אין מחוונים — יש ליצור מחוון במסך "מחוונים" לפני הניתוח' : 'טוען מחוונים...'}
               </div>
             )}
+            
+            <label className="label">תקופת הערכה (אופציונלי)</label>
+            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap: 8, marginBottom: 16}}>
+              <input type="date" className="input" value={evalStartDate} onChange={e=>setEvalStartDate(e.target.value)} placeholder="מ-" style={{direction:'ltr'}} />
+              <input type="date" className="input" value={evalEndDate} onChange={e=>setEvalEndDate(e.target.value)} placeholder="עד-" style={{direction:'ltr'}} />
+            </div>
             <div style={{padding:'10px 12px',background:'var(--surface-2)',borderRadius:'var(--r-sm)',fontSize:12,color:'var(--ink-2)',lineHeight:1.6,marginBottom:16,display:'flex',alignItems:'flex-start',gap:8}}>
               <IconSparkle size={13} stroke="var(--brand)" style={{marginTop:2,flexShrink:0}}/>
               <span>המערכת זיהתה <b style={{color:'var(--warn)'}}>2 פערים</b> בין מערך לצפייה, וקריטריון אחד <b style={{color:'var(--warn)'}}>ללא תיעוד</b>. תישאלי <b>3 שאלות</b> השלמה.</span>
             </div>
-            <button className="btn btn-magic btn-lg" style={{width:'100%'}} disabled={!selectedRubricId} onClick={()=>onAnalyze(selectedRubricId)}><IconSparkle size={16}/> {t('btn_analyze')}</button>
+            <button className="btn btn-magic btn-lg" style={{width:'100%'}} disabled={!selectedRubricId} onClick={()=>onAnalyze(selectedRubricId, { startDate: evalStartDate, endDate: evalEndDate, selectedCriteriaIndices })}><IconSparkle size={16}/> {t('btn_analyze')}</button>
             <p style={{fontSize:11.5,color:'var(--ink-3)',textAlign:'center',margin:'10px 0 0',lineHeight:1.5}}>{t('analyze_note')}</p>
           </div>
         </aside>

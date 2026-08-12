@@ -11,6 +11,7 @@ import { IconMenu } from './icons';
 import { Login } from './Login';
 import * as API from './api';
 import { useLanguage } from './i18n';
+import { IconCheck } from './icons';
 
 // ─── Convert AI draft → editor categories ─────────────────────────────────────
 function draftToCategories(draftCats, emptyHintText) {
@@ -49,6 +50,7 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
+  const [privacyAccepted, setPrivacyAccepted] = useState(localStorage.getItem('madapim_privacy_accepted') === 'true');
 
   // ── Check saved token on mount ────────────────────────────────────────────
   useEffect(() => {
@@ -109,7 +111,14 @@ function App() {
     } catch {}
   };
 
-  const onAnalyze = (rubricId) => { setSelectedRubricId(rubricId); setAnalyzeError(null); setModalOpen(true); };
+  const [evalDateRange, setEvalDateRange] = useState(null);
+
+  const onAnalyze = (rubricId, dateRange) => { 
+    setSelectedRubricId(rubricId); 
+    setEvalDateRange(dateRange);
+    setAnalyzeError(null); 
+    setModalOpen(true); 
+  };
 
   const runAnalysis = async (answers) => {
     setInstructorAnswers(answers || {});
@@ -117,7 +126,7 @@ function App() {
     setScreen('analyzing');
     setAnalyzeError(null);
     try {
-      const result = await API.analyze(student.id, answers || {}, selectedRubricId);
+      const result = await API.analyze(student.id, answers || {}, selectedRubricId, evalDateRange);
       setEvaluationId(result.evaluation_id);
       setEvaluationDraft(result.draft);
       if (result.smart_questions?.length) setSmartQuestions(result.smart_questions);
@@ -257,6 +266,29 @@ function App() {
           />
         )}
       </main>
+
+      {/* Privacy & Terms Modal */}
+      {!privacyAccepted && user && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="card fade-in" style={{ width: 500, padding: 32, background: 'var(--surface-1)' }}>
+            <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 24, fontWeight: 600, margin: '0 0 16px', color: 'var(--ink-1)' }}>ברוכים הבאים למדפים</h2>
+            <div style={{ fontSize: 15, color: 'var(--ink-2)', lineHeight: 1.6, marginBottom: 24 }}>
+              <p style={{ marginBottom: 12 }}><strong>פרטיות מעל הכל:</strong> אנא הקפידו להזין אך ורק <b>שם פרטי</b> של הסטודנטים או המעורבים בשיעור. אין להזין פרטים מזהים כגון תעודת זהות, אימייל, טלפון או שם משפחה.</p>
+              <p style={{ marginBottom: 12 }}><strong>איך זה עובד?</strong> המערכת מאפשרת להעלות חומרים מתצפיות ומערכי שיעור (או טקסט ותמלולים). לאחר מכן, מתבצע ניתוח ראשוני מבוסס מחוונים. באפשרותך לערוך את הניתוח, לאשר אותו, ולייצר משוב מנוסח המיועד ישירות לסטודנט/ית.</p>
+              <p style={{ marginBottom: 12 }}><strong>זכויות יוצרים:</strong> התוצרים נוצרים בסיוע בינה מלאכותית ויש לעבור עליהם ולאשרם בטרם שליחה. אין להעלות חומרים המוגנים בזכויות יוצרים ללא אישור.</p>
+              <p style={{ marginBottom: 0, fontSize: 13, color: 'var(--ink-3)' }}>פותח ע״י דוד ילין. תודה לועדת ההיגוי: (שמות חברי הועדה יתווספו בהמשך).</p>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="btn btn-primary btn-lg" onClick={() => {
+                localStorage.setItem('madapim_privacy_accepted', 'true');
+                setPrivacyAccepted(true);
+              }}>
+                <IconCheck size={18} /> קראתי ואני מאשר/ת
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <HumanNodeModal
         open={modalOpen}
