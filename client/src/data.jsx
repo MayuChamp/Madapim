@@ -47,12 +47,30 @@ const SMART_QUESTIONS = [
 const RUBRICS = [
   {id:'r1',name:'מחוון כלי מדפים',desc:'מחוון להערכת סטודנטים מורים, 6 קריטריונים'},
 ];
+// Performance levels of the main rubric (מחוון הערכה מסכם להתנסות מעשית בהוראה).
 const LEVELS = {
-  high:{label:'רמה גבוהה',cls:'badge-ok'},
-  mid_high:{label:'בינונית-גבוהה',cls:'badge-info'},
-  mid:{label:'בינונית',cls:'badge-neutral'},
-  low_mid:{label:'בינונית-נמוכה',cls:'badge-warn'},
+  high:{label:'מצטיין',cls:'badge-ok',range:'90–100',min:90},
+  mid_high:{label:'טוב / שולט',cls:'badge-info',range:'75–89',min:75},
+  mid:{label:'מספק / בהתפתחות',cls:'badge-neutral',range:'60–74',min:60},
+  low_mid:{label:'טעון שיפור משמעותי',cls:'badge-warn',range:'מתחת ל-60',min:0},
 };
+const LEVEL_KEYS = ['high','mid_high','mid','low_mid'];
+
+const hasScore = (v) => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
+
+function levelFromScore(score) {
+  if (!hasScore(score)) return null;
+  const n = Number(score);
+  return LEVEL_KEYS.find(k => n >= LEVELS[k].min) || 'low_mid';
+}
+
+// Σ(score × weight) / Σ(weight) — for the main rubric: C1×0.25 + C2×0.15 + C3×0.30 + C4×0.30
+function weightedScore(categories) {
+  const scored = (categories || []).filter(c => hasScore(c.score) && Number(c.weight) > 0);
+  const totalWeight = scored.reduce((a, c) => a + Number(c.weight), 0);
+  if (totalWeight === 0) return null;
+  return Math.round(scored.reduce((a, c) => a + Number(c.score) * Number(c.weight), 0) / totalWeight);
+}
 const EVAL_CATEGORIES = [
   {id:'c1',name:'שליטה בתחום הדעת',weight:15,overallLevel:'mid_high',lessonPlan:{level:'mid_high',note:'ניכרת היכרות עם התחום; המערכים מבוססים על ידע מעמיק.',ev:'e2'},observation:null,gap:null,balance:''},
   {id:'c2',name:'תפיסה מקצועית',weight:15,overallLevel:'mid_high',lessonPlan:{level:'mid_high',note:'ניכר גיבוש תפיסה פדגוגית; הסברת מטרות ועקרונות.',ev:'e2'},observation:null,gap:null,balance:''},
@@ -94,4 +112,5 @@ const RUBRIC_DETAILS = {
 };
 
 export { ARCHIVED, RUBRIC_DETAILS };
+export { LEVEL_KEYS, hasScore, levelFromScore, weightedScore };
 export {  STUDENTS, STATUS_META, RUBRICS, LEVELS, EVAL_CATEGORIES, EVIDENCES, QA_SUGGESTIONS, LEVEL_SCORE, LESSON_PLAN_CYCLES, OBSERVATION_CYCLES, STAGE_LABELS, CYCLE_STATUS, SMART_QUESTIONS  };

@@ -6,13 +6,13 @@ const DEFAULTS = { font: '100', contrast: false, grayscale: false, motion: false
 
 const A11Y_PANEL_STYLE = `
   .a11y-btn{position:fixed;bottom:16px;left:16px;z-index:2147483645;width:40px;height:40px;
-    border-radius:50%;border:none;background:rgba(255,255,255,.9);
-    box-shadow:0 2px 8px rgba(0,0,0,.18),0 0 0 .5px rgba(0,0,0,.1);
+    border-radius:50%;border:none;background:#1a2a63;color:#fff;
+    box-shadow:0 0 0 3px #1fb6c1,0 4px 12px rgba(0,0,0,.25);
     cursor:pointer;display:flex;align-items:center;justify-content:center;
     font-size:18px;-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);
     transition:transform .15s,box-shadow .15s}
-  .a11y-btn:hover{transform:scale(1.08);box-shadow:0 4px 16px rgba(0,0,0,.22)}
-  .a11y-btn:focus-visible{outline:2px solid #1e3a5f;outline-offset:2px}
+  .a11y-btn:hover{transform:scale(1.08);box-shadow:0 0 0 3px #1fb6c1,0 6px 18px rgba(0,0,0,.3)}
+  .a11y-btn:focus-visible{outline:3px solid #058fcb;outline-offset:4px}
   .a11y-panel{position:fixed;bottom:64px;left:16px;z-index:2147483645;width:256px;
     background:rgba(250,249,247,.95);
     -webkit-backdrop-filter:blur(24px) saturate(160%);backdrop-filter:blur(24px) saturate(160%);
@@ -31,7 +31,7 @@ const A11Y_PANEL_STYLE = `
   .a11y-lbl{font-weight:500;font-size:12px;color:rgba(41,38,27,.72)}
   .a11y-toggle{position:relative;width:32px;height:18px;border:0;border-radius:999px;
     background:rgba(0,0,0,.15);transition:background .15s;cursor:pointer;padding:0;flex-shrink:0}
-  .a11y-toggle[data-on="1"]{background:#34c759}
+  .a11y-toggle[data-on="1"]{background:#007a82}
   .a11y-toggle i{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;
     background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s;pointer-events:none}
   .a11y-toggle[data-on="1"] i{transform:translateX(14px)}
@@ -124,7 +124,12 @@ export function AccessibilityBar() {
         aria-expanded={open}
         title={t('a11y_title')}
       >
-        ♿
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <circle cx="12" cy="4.5" r="1.8" fill="currentColor" stroke="none"/>
+          <path d="M5 8.5c2.3.7 4.6 1 7 1s4.7-.3 7-1"/>
+          <path d="M12 9.5v5"/>
+          <path d="M12 14.5l-3 6M12 14.5l3 6"/>
+        </svg>
       </button>
       {open && (
         <div className="a11y-panel" role="dialog" aria-label={t('a11y_title')}>

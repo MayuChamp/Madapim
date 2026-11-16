@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLanguage } from './i18n';
 import * as Icons from './icons';
 import { Icon, IconHome, IconUsers, IconArchive, IconSettings, IconFolder, IconFile, IconUpload, IconPlus, IconArrowLeft, IconArrowRight, IconChevron, IconPencil, IconMagic, IconMic, IconSearch, IconClose, IconCheck, IconDownload, IconSave, IconSend, IconSparkle, IconBookmark, IconDoc, IconWave, IconGrid, IconList, IconClock, IconArchiveBox, IconAlert, IconGraduationCap } from './icons';
-import { EVAL_CATEGORIES } from './data';
+import { EVAL_CATEGORIES, hasScore } from './data';
 
 
 
@@ -38,7 +38,7 @@ function CheckRow({ label, defaultChecked }) {
 }
 
 function DocField({ label, value }) {
-  return <div><span style={{color:'#7a8295',fontSize:11}}>{label}: </span><span style={{color:'#1a1f2c',fontWeight:500}}>{value}</span></div>;
+  return <div><span style={{color:'#687476',fontSize:11}}>{label}: </span><span style={{color:'#293233',fontWeight:500}}>{value}</span></div>;
 }
 
 function A4Doc({ student, instructorAnswers, evaluationDraft, instructorName }) {
@@ -55,6 +55,10 @@ function A4Doc({ student, instructorAnswers, evaluationDraft, instructorName }) 
     return txt.replace(/\{\{e(\d+)\}\}/g,(_,n)=>`[${t('doc_evidence_ref')} ${n}]`).replace('{{instructor_input}}',instr||`[${t('doc_instructor_awaiting')}]`).replace('{{decision}}',dec||'');
   };
   const today = new Date().toLocaleDateString(lang === 'ar' ? 'ar' : lang === 'en' ? 'en-US' : 'he-IL');
+  const scoredCats = cats && cats.some(c => hasScore(c.score));
+  const strengths = evaluationDraft?.strengths || [];
+  const goals = evaluationDraft?.goals || [];
+  const cellStyle = {border:'1px solid #d5dddf',padding:'6px 8px',textAlign:'start',verticalAlign:'top'};
   const lvlLabel = (l) => ({
     high: t('level_high'),
     mid_high: t('level_mid_high'),
@@ -62,60 +66,97 @@ function A4Doc({ student, instructorAnswers, evaluationDraft, instructorName }) 
     low_mid: t('level_low_mid'),
   }[l] || l || '—');
   return (
-    <div style={{width:794,minHeight:1123,margin:'0 auto',background:'#fff',color:'#1a1f2c',padding:'64px 72px',boxShadow:'0 4px 32px rgba(0,0,0,0.12)',fontFamily:'var(--font-sans)',direction:'rtl'}}>
-      <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',paddingBottom:18,borderBottom:'2px solid #1e3a5f'}}>
+    <div style={{width:794,minHeight:1123,margin:'0 auto',background:'#fff',color:'#293233',padding:'64px 72px',boxShadow:'0 4px 32px rgba(0,0,0,0.12)',fontFamily:'var(--font-sans)',direction:'rtl'}}>
+      <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',paddingBottom:18,borderBottom:'3px solid #1fb6c1'}}>
         <div style={{display:'flex',alignItems:'center',gap:10}}>
-          <div style={{width:42,height:42,background:'#1e3a5f',color:'#fff',display:'grid',placeItems:'center',fontFamily:'var(--font-serif)',fontSize:22,fontWeight:700,borderRadius:4}}>ה</div>
-          <div><div style={{fontFamily:'var(--font-serif)',fontSize:18,fontWeight:600,lineHeight:1.1,color:'#1a1f2c'}}>{t('doc_institution')}</div><div style={{fontSize:11.5,color:'#7a8295',marginTop:2,letterSpacing:'0.02em'}}>{t('doc_institution_sub')}</div></div>
+          <div style={{width:42,height:42,background:'#1a2a63',color:'#fff',display:'grid',placeItems:'center',fontFamily:'var(--font-serif)',fontSize:22,fontWeight:700,borderRadius:4}}>ה</div>
+          <div><div style={{fontFamily:'var(--font-serif)',fontSize:18,fontWeight:600,lineHeight:1.1,color:'#293233'}}>{t('doc_institution')}</div><div style={{fontSize:11.5,color:'#687476',marginTop:2,letterSpacing:'0.02em'}}>{t('doc_institution_sub')}</div></div>
         </div>
-        <div style={{textAlign:'start',fontSize:11,color:'#7a8295',lineHeight:1.6}}>{t('doc_date_label')}: {today}<br/>{t('doc_ref_no')}: HE-2026-1142<br/>{t('doc_form_no')}: 14-ב/הת"מ</div>
+        <div style={{textAlign:'start',fontSize:11,color:'#687476',lineHeight:1.6}}>{t('doc_date_label')}: {today}<br/>{t('doc_ref_no')}: HE-2026-1142<br/>{t('doc_form_no')}: 14-ב/הת"מ</div>
       </div>
       <div style={{marginTop:28}}>
-        <div style={{fontSize:11.5,color:'#7a8295',textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:6}}>{t('doc_eval_type')}</div>
-        <h1 style={{fontFamily:'var(--font-serif)',fontSize:26,fontWeight:600,margin:0,letterSpacing:'-0.01em',color:'#1a1f2c'}}>{t('doc_eval_student')}: {student.name}</h1>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginTop:12,fontSize:12.5,padding:'12px 14px',background:'#fbfaf7',borderRadius:4}}>
+        <div style={{fontSize:11.5,color:'#687476',textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:6}}>{t('doc_eval_type')}</div>
+        <h1 style={{fontFamily:'var(--font-serif)',fontSize:26,fontWeight:600,margin:0,letterSpacing:'-0.01em',color:'#293233'}}>{t('doc_eval_student')}: {student.name}</h1>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginTop:12,fontSize:12.5,padding:'12px 14px',background:'#f4f9fa',borderRadius:4}}>
           <DocField label={t('doc_field_school')} value={student.school}/><DocField label={t('doc_field_grade')} value={student.grade}/>
           <DocField label={t('doc_field_supervisor')} value={instructorName || "—"}/><DocField label={t('doc_field_cooperating')} value="גב׳ א. ש."/>
-          <DocField label={t('doc_field_rubric')} value={t('doc_rubric_value')}/><DocField label={t('doc_field_eval_date')} value={today}/>
+          <DocField label={t('doc_field_rubric')} value={evaluationDraft?.rubricName || t('doc_rubric_value')}/><DocField label={t('doc_field_eval_date')} value={today}/>
         </div>
       </div>
+      {scoredCats&&(
+        <div style={{marginTop:28}}>
+          <h3 style={{fontFamily:'var(--font-serif)',fontSize:15,fontWeight:600,margin:'0 0 8px',color:'#1a2a63'}}>{t('doc_weighting_title')}</h3>
+          <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
+            <thead><tr>{[t('doc_col_criterion'),t('doc_col_weight'),t('doc_col_score'),t('doc_col_weighted')].map((h,i)=><th key={h} style={{...cellStyle,background:'#eef8f9',fontWeight:600,textAlign:i?'center':'start'}}>{h}</th>)}</tr></thead>
+            <tbody>
+              {cats.map((c,i)=>(
+                <tr key={c.id||i}>
+                  <td style={cellStyle}>{i+1}. {c.name}</td>
+                  <td style={{...cellStyle,textAlign:'center'}}>{c.weight}%</td>
+                  <td style={{...cellStyle,textAlign:'center'}}>{hasScore(c.score)?c.score:'—'}</td>
+                  <td style={{...cellStyle,textAlign:'center'}}>{hasScore(c.score)?Math.round(Number(c.score)*Number(c.weight)/10)/10:'—'}</td>
+                </tr>
+              ))}
+              <tr style={{fontWeight:700,background:'#eef8f9'}}>
+                <td style={cellStyle}>{t('doc_final_row')}</td>
+                <td style={{...cellStyle,textAlign:'center'}}>100%</td>
+                <td style={{...cellStyle,textAlign:'center'}}>—</td>
+                <td style={{...cellStyle,textAlign:'center'}}>{evaluationDraft?.score??'—'}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
       <div style={{marginTop:28}}>
         {(cats || EVAL_CATEGORIES).map((cat,idx)=>{
           // Support both AI draft format and mock EVAL_CATEGORIES format
           const isAiCat = !!cats;
           const text = isAiCat ? (cat.balance||'') : resolveText(cat);
           const overallKey = cat.overallLevel || 'mid_high';
-          const lpLevel = isAiCat ? cat.lessonPlanLevel : cat.lessonPlan?.level;
-          const obLevel = isAiCat ? cat.observationLevel : cat.observation?.level;
+          // Saved editor drafts keep channel levels as { lessonPlan: { level } }
+          const lpLevel = (isAiCat && cat.lessonPlanLevel) || cat.lessonPlan?.level;
+          const obLevel = (isAiCat && cat.observationLevel) || cat.observation?.level;
+          const inds = (cat.indicators || []).filter(ind => ind.level || ind.note);
           return (
             <div key={cat.id||idx} style={{marginBottom:22}}>
               <div style={{display:'flex',alignItems:'baseline',justifyContent:'space-between',marginBottom:8}}>
                 <div style={{display:'flex',alignItems:'baseline',gap:8}}>
-                  <span style={{fontFamily:'var(--font-serif)',fontSize:13,color:'#7a8295'}}>{idx+1}.</span>
+                  <span style={{fontFamily:'var(--font-serif)',fontSize:13,color:'#687476'}}>{idx+1}.</span>
                   <h3 style={{fontFamily:'var(--font-serif)',fontSize:15,fontWeight:600,margin:0}}>{cat.name}</h3>
                 </div>
-                <div style={{fontSize:11.5,color:'#1e3a5f',fontWeight:500}}>{lvlLabel(overallKey)} · {cat.weight}%</div>
+                <div style={{fontSize:11.5,color:'#1a2a63',fontWeight:500}}>{lvlLabel(overallKey)}{hasScore(cat.score)?` · ${cat.score}/100`:''} · {cat.weight}%</div>
               </div>
-              {(lpLevel||obLevel)&&<div style={{display:'flex',gap:16,marginBottom:6,fontSize:11,color:'#7a8295'}}>{lpLevel&&<span>📘 מערך: {lvlLabel(lpLevel)}</span>}{obLevel&&<span>🎯 צפייה: {lvlLabel(obLevel)}</span>}</div>}
-              <p style={{fontSize:12.5,lineHeight:1.75,margin:0,color:'#1a1f2c',textAlign:'justify'}}>{text}</p>
+              {(lpLevel||obLevel)&&<div style={{display:'flex',gap:16,marginBottom:6,fontSize:11,color:'#687476'}}>{lpLevel&&<span>📘 מערך: {lvlLabel(lpLevel)}</span>}{obLevel&&<span>🎯 צפייה: {lvlLabel(obLevel)}</span>}</div>}
+              <p style={{fontSize:12.5,lineHeight:1.75,margin:0,color:'#293233',textAlign:'justify'}}>{text}</p>
+              {inds.length>0&&(
+                <ul style={{margin:'6px 0 0',paddingInlineStart:18,fontSize:11.5,lineHeight:1.6,color:'#4a5658'}}>
+                  {inds.map(ind=><li key={ind.id}><b>{ind.id} {ind.name}</b> — {lvlLabel(ind.level)}{ind.note?`: ${ind.note}`:''}</li>)}
+                </ul>
+              )}
             </div>
           );
         })}
       </div>
-      <div style={{marginTop:14,padding:'16px 18px',background:'#f3f6fa',borderInlineStart:'3px solid #1e3a5f',borderRadius:4}}>
+      {strengths.length+goals.length>0&&(
+        <table style={{width:'100%',borderCollapse:'collapse',fontSize:12,marginTop:8,marginBottom:8}}>
+          <thead><tr>{[t('doc_strengths'),t('doc_goals')].map(h=><th key={h} style={{...cellStyle,background:'#eef8f9',fontWeight:600,width:'50%'}}>{h}</th>)}</tr></thead>
+          <tbody><tr>{[strengths,goals].map((items,i)=><td key={i} style={cellStyle}>{items.length?<ul style={{margin:0,paddingInlineStart:18}}>{items.map((x,j)=><li key={j}>{x}</li>)}</ul>:'—'}</td>)}</tr></tbody>
+        </table>
+      )}
+      <div style={{marginTop:14,padding:'16px 18px',background:'#eef8f9',borderInlineStart:'3px solid #1a2a63',borderRadius:4}}>
         <h3 style={{fontFamily:'var(--font-serif)',fontSize:15,fontWeight:600,margin:'0 0 8px'}}>{t('doc_summary_title')}</h3>
-        <p style={{fontSize:12.5,lineHeight:1.75,margin:0,color:'#1a1f2c',textAlign:'justify'}}>{evaluationDraft?.summary || `${student.name} נמצאת בנקודה טובה בשלב ההכשרה.`}</p>
+        <p style={{fontSize:12.5,lineHeight:1.75,margin:0,color:'#293233',textAlign:'justify'}}>{evaluationDraft?.summary || `${student.name} נמצאת בנקודה טובה בשלב ההכשרה.`}</p>
         <div style={{marginTop:14,display:'flex',alignItems:'center',gap:18}}>
-          <div><div style={{fontSize:10.5,color:'#7a8295',textTransform:'uppercase',letterSpacing:'0.06em'}}>{t('doc_total_score')}</div><div style={{fontFamily:'var(--font-serif)',fontSize:32,fontWeight:600,color:'#1e3a5f',lineHeight:1,marginTop:2}}>{evaluationDraft?.score||'—'} <span style={{fontSize:14,color:'#7a8295',fontWeight:400}}>/ 100</span></div></div>
-          <div style={{width:1,height:40,background:'#cfc7b3'}}/>
-          <div><div style={{fontSize:10.5,color:'#7a8295',textTransform:'uppercase',letterSpacing:'0.06em'}}>{t('doc_overall_assessment')}</div><div style={{fontFamily:'var(--font-serif)',fontSize:18,fontWeight:600,color:'#1a1f2c',marginTop:4}}>{lvlLabel(evaluationDraft?.overallLevel) || t('level_mid_high')}</div></div>
+          <div><div style={{fontSize:10.5,color:'#687476',textTransform:'uppercase',letterSpacing:'0.06em'}}>{t('doc_total_score')}</div><div style={{fontFamily:'var(--font-serif)',fontSize:32,fontWeight:600,color:'#1a2a63',lineHeight:1,marginTop:2}}>{evaluationDraft?.score??'—'} <span style={{fontSize:14,color:'#687476',fontWeight:400}}>/ 100</span></div></div>
+          <div style={{width:1,height:40,background:'#c8d1d3'}}/>
+          <div><div style={{fontSize:10.5,color:'#687476',textTransform:'uppercase',letterSpacing:'0.06em'}}>{t('doc_overall_assessment')}</div><div style={{fontFamily:'var(--font-serif)',fontSize:18,fontWeight:600,color:'#293233',marginTop:4}}>{lvlLabel(evaluationDraft?.overallLevel) || t('level_mid_high')}</div></div>
         </div>
       </div>
-      <div style={{marginTop:40,paddingTop:18,borderTop:'1px solid #e3ddd0',display:'grid',gridTemplateColumns:'1fr 1fr',gap:28,fontSize:11.5,color:'#1a1f2c'}}>
-        <div><div style={{borderBottom:'1px solid #1a1f2c',height:30,display:'flex',alignItems:'flex-end',paddingBottom:4}}>{instructorName}</div><div style={{marginTop:6,color:'#7a8295'}}>{t('doc_supervisor_sig')}</div></div>
-        <div><div style={{borderBottom:'1px solid #1a1f2c',height:30}}/><div style={{marginTop:6,color:'#7a8295'}}>{t('doc_dept_head_sig')}</div></div>
+      <div style={{marginTop:40,paddingTop:18,borderTop:'1px solid #e2e7e8',display:'grid',gridTemplateColumns:'1fr 1fr',gap:28,fontSize:11.5,color:'#293233'}}>
+        <div><div style={{borderBottom:'1px solid #293233',height:30,display:'flex',alignItems:'flex-end',paddingBottom:4}}>{instructorName}</div><div style={{marginTop:6,color:'#687476'}}>{t('doc_supervisor_sig')}</div></div>
+        <div><div style={{borderBottom:'1px solid #293233',height:30}}/><div style={{marginTop:6,color:'#687476'}}>{t('doc_student_sig')}</div></div>
       </div>
-      <div style={{marginTop:32,paddingTop:14,borderTop:'1px solid #ebe8e0',fontSize:10,color:'#9aa0ad',textAlign:'center',letterSpacing:'0.02em'}}>{t('doc_footer')}</div>
+      <div style={{marginTop:32,paddingTop:14,borderTop:'1px solid #edf0f1',fontSize:10,color:'#9aa0ad',textAlign:'center',letterSpacing:'0.02em'}}>{t('doc_footer')}</div>
     </div>
   );
 }
@@ -161,7 +202,7 @@ function ExportScreen({ student, onBack, onFinish, instructorAnswers, evaluation
           <button className="btn btn-secondary btn-lg" style={{borderRadius:100}}><IconSave size={14}/> {t('btn_save_finish')}</button>
         </div>
       </aside>
-      <div className="scroll" style={{flex:1,overflowY:'auto',background:'#e7e3da',padding:'32px 0'}}>
+      <div className="scroll" style={{flex:1,overflowY:'auto',background:'var(--surface-3)',padding:'32px 0'}}>
         <A4Doc student={student} instructorAnswers={instructorAnswers} evaluationDraft={evaluationDraft} instructorName={instructorName}/>
       </div>
     </div>
@@ -190,7 +231,7 @@ function AnalyzingScreen() {
   return (
     <div className="fade-in" style={{position:'fixed',inset:0,zIndex:50,background:'var(--bg)',display:'grid',placeItems:'center'}}>
       <div style={{width:420,maxWidth:'calc(100vw - 32px)',textAlign:'center'}}>
-        <div style={{width:64,height:64,margin:'0 auto 20px',borderRadius:16,background:'var(--brand)',color:'#fff',display:'grid',placeItems:'center',boxShadow:'0 8px 32px rgba(30,58,95,.3)'}}><IconSparkle size={28} style={{animation:'pulse 1.5s infinite'}}/></div>
+        <div style={{width:64,height:64,margin:'0 auto 20px',borderRadius:16,background:'var(--brand)',color:'#fff',display:'grid',placeItems:'center',boxShadow:'0 8px 32px rgba(26,42,99,.3)'}}><IconSparkle size={28} style={{animation:'pulse 1.5s infinite'}}/></div>
         <h2 style={{fontFamily:'var(--font-serif)',fontSize:22,fontWeight:600,margin:'0 0 8px'}}>{t('analyzing_title')}</h2>
         <p style={{fontSize:14,color:'var(--ink-2)',margin:'0 0 24px'}}>{label}</p>
         <div style={{height:4,background:'var(--surface-3)',borderRadius:100,overflow:'hidden'}}><div style={{height:'100%',width:`${pct}%`,background:'linear-gradient(90deg,var(--brand),var(--brand-3))',transition:'width .4s ease-out',borderRadius:100}}/></div>

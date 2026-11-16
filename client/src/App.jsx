@@ -20,17 +20,20 @@ function draftToCategories(draftCats, emptyHintText) {
     id: c.id,
     name: c.name,
     weight: c.weight,
+    score: c.score ?? null,
+    indicators: Array.isArray(c.indicators) ? c.indicators : null,
     overallLevel: c.overallLevel,
-    lessonPlan: c.lessonPlanLevel ? { level: c.lessonPlanLevel, note: c.lessonPlanNote || '', ev: null } : null,
-    observation: c.observationLevel ? { level: c.observationLevel, note: c.observationNote || '', ev: null } : null,
-    gap: c.hasGap ? { summary: c.gapSummary || '', decisionKey: null, resolution: null } : null,
+    // Raw AI drafts carry flat fields; drafts saved from the editor carry these objects.
+    lessonPlan: c.lessonPlanLevel ? { level: c.lessonPlanLevel, note: c.lessonPlanNote || '', ev: null } : (c.lessonPlan || null),
+    observation: c.observationLevel ? { level: c.observationLevel, note: c.observationNote || '', ev: null } : (c.observation || null),
+    gap: c.hasGap ? { summary: c.gapSummary || '', decisionKey: null, resolution: null } : (c.gap || null),
     balance: c.balance || '',
     emptyHint: c.overallLevel ? undefined : emptyHintText,
   }));
 }
 
 // ─── Tweaks config ─────────────────────────────────────────────────────────────
-const TWEAK_DEFAULTS = { density: 'comfortable', theme: 'honey', dark: false };
+const TWEAK_DEFAULTS = { density: 'comfortable', theme: 'yellin', dark: false };
 
 function App() {
   const { t, lang } = useLanguage();
@@ -43,6 +46,8 @@ function App() {
   const [smartQuestions, setSmartQuestions] = useState(SMART_QUESTIONS);
   const [instructorAnswers, setInstructorAnswers] = useState({});
   const [evaluationDraft, setEvaluationDraft] = useState(null);
+  // Latest editor state (instructor edits to text/scores), merged over the AI draft.
+  const [editedDraft, setEditedDraft] = useState(null);
   const [evaluationId, setEvaluationId] = useState(null);
   const [, setAnalyzeError] = useState(null);
   const [toast, setToast] = useState(null);
@@ -84,8 +89,8 @@ function App() {
 
     // Arabic font
     if (lang === 'ar') {
-      document.documentElement.style.setProperty('--font-sans', "'Cairo', 'Rubik', sans-serif");
-      document.documentElement.style.setProperty('--font-serif', "'Cairo', 'Rubik', sans-serif");
+      document.documentElement.style.setProperty('--font-sans', "'Cairo', 'Heebo', sans-serif");
+      document.documentElement.style.setProperty('--font-serif', "'Cairo', 'Heebo', sans-serif");
     } else {
       document.documentElement.style.removeProperty('--font-sans');
       document.documentElement.style.removeProperty('--font-serif');
@@ -129,6 +134,7 @@ function App() {
       const result = await API.analyze(student.id, answers || {}, selectedRubricId, evalDateRange);
       setEvaluationId(result.evaluation_id);
       setEvaluationDraft(result.draft);
+      setEditedDraft(null);
       if (result.smart_questions?.length) setSmartQuestions(result.smart_questions);
       const files = await API.getFiles(student.id).catch(() => []);
       setStudentFiles(files.filter(f => f.has_text));
@@ -161,19 +167,28 @@ function App() {
       }
     }
     setToast(t('export_success'));
-    setTimeout(() => { setScreen('dashboard'); setStudent(null); setEvaluationDraft(null); setEvaluationId(null); setStudentFiles([]); }, 600);
+    setTimeout(() => { setScreen('dashboard'); setStudent(null); setEvaluationDraft(null); setEditedDraft(null); setEvaluationId(null); setStudentFiles([]); }, 600);
   };
 
   const handleLogout = () => { API.logout(); setUser(null); setScreen('dashboard'); };
 
-  const editorCategories = evaluationDraft ? draftToCategories(evaluationDraft.categories, t('empty_hint')) : EVAL_CATEGORIES;
-  const editorSummary    = evaluationDraft ? { text: evaluationDraft.summary, score: evaluationDraft.score } : null;
+  const currentDraft     = editedDraft || evaluationDraft;
+  const editorCategories = currentDraft ? draftToCategories(currentDraft.categories, t('empty_hint')) : EVAL_CATEGORIES;
+  const editorSummary    = currentDraft ? { text: currentDraft.summary, score: currentDraft.score, strengths: currentDraft.strengths || [], goals: currentDraft.goals || [] } : null;
+
+  const saveEditorDraft = async (draft) => {
+    const merged = { ...evaluationDraft, ...draft };
+    setEditedDraft(merged);
+    const updates = { draft_json: merged };
+    if (Number.isFinite(Number(merged.score)) && merged.score !== null && merged.score !== '') updates.score = Number(merged.score);
+    return API.saveEvaluation(evaluationId, updates);
+  };
 
   const showSidebar = ['dashboard', 'workspace', 'archive', 'rubrics', 'settings'].includes(screen);
   const tabBtnStyle = (active) => ({
     padding: '6px 8px', fontSize: 11,
-    border: `1px solid ${active ? '#1e3a5f' : 'rgba(0,0,0,.1)'}`,
-    background: active ? '#1e3a5f' : 'rgba(255,255,255,.6)',
+    border: `1px solid ${active ? '#1a2a63' : 'rgba(0,0,0,.1)'}`,
+    background: active ? '#1a2a63' : 'rgba(255,255,255,.6)',
     color: active ? '#fff' : '#29261b',
     borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center',
   });
@@ -249,18 +264,19 @@ function App() {
             aiTone="formal"
             evalCategories={editorCategories}
             evalSummary={editorSummary}
+            rubricName={evaluationDraft?.rubricName || null}
             evaluationId={evaluationId}
             evidenceFiles={studentFiles}
             onBack={() => setScreen('workspace')}
             onExport={onExport}
-            onSave={evaluationId ? (draft) => API.saveEvaluation(evaluationId, { draft_json: draft }) : null}
+            onSave={evaluationId ? saveEditorDraft : null}
           />
         )}
         {screen === 'export' && student && (
           <ExportScreen
             student={student}
             instructorAnswers={instructorAnswers}
-            evaluationDraft={evaluationDraft}
+            evaluationDraft={currentDraft}
             onBack={() => setScreen('editor')}
             onFinish={onFinishExport}
           />
@@ -305,7 +321,7 @@ function App() {
         <TweakRadio label={t('tweaks_density')} value={tweaks.density} options={[{ value: 'compact', label: t('tweaks_compact') }, { value: 'comfortable', label: t('tweaks_comfortable') }]} onChange={(v) => setTweak('density', v)} />
         <TweakToggle label={t('tweaks_dark_mode')} value={!!tweaks.dark} onChange={(v) => setTweak('dark', v)} />
         <TweakSection label={t('tweaks_theme')} />
-        <TweakRadio label={t('tweaks_theme')} value={tweaks.theme} options={[{ value: 'honey', label: 'Honey' }, { value: 'mist', label: 'Mist' }, { value: 'clay', label: 'Clay' }]} onChange={(v) => setTweak('theme', v)} />
+        <TweakRadio label={t('tweaks_theme')} value={tweaks.theme} options={[{ value: 'yellin', label: 'David Yellin' }, { value: 'honey', label: 'Honey' }, { value: 'mist', label: 'Mist' }, { value: 'clay', label: 'Clay' }]} onChange={(v) => setTweak('theme', v)} />
         <TweakSection label={t('tweaks_nav')} />
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, padding: '4px 0' }}>
           <button onClick={() => setScreen('dashboard')}                                                  style={tabBtnStyle(screen === 'dashboard')}>1 · {t('tweaks_home')}</button>

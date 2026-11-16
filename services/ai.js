@@ -1,4 +1,5 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { PERFORMANCE_LEVELS, EVALUATION_PROTOCOL, levelFromScore, weightedScore } = require('../rubrics/mainRubric');
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const MODEL = 'gemini-2.5-flash';
@@ -43,12 +44,27 @@ async function analyzePortfolio(studentName, files, instructorAnswers = {}, gend
       }).join('\n')
     : '';
 
+  const hasIndicators = criteria.some(c => Array.isArray(c.indicators) && c.indicators.length > 0);
+
   const rubricText = criteria.map((c, i) => {
     const channels = Array.isArray(c.channels) && c.channels.length > 0
       ? c.channels.join(', ')
       : 'כל החומרים הרלוונטיים';
-    return `${i + 1}. ${c.id || 'c' + (i + 1)}: ${c.name} (${c.weight}%) — ערוצים: ${channels}${c.desc ? ` — ${c.desc}` : ''}`;
+    const lines = [`${i + 1}. ${c.id || 'c' + (i + 1)}: ${c.name} (${c.weight}%) — ערוצים: ${channels}${c.desc ? ` — ${c.desc}` : ''}`];
+    if (c.evidence) lines.push(`   עדויות מרכזיות: ${c.evidence}`);
+    for (const ind of (c.indicators || [])) {
+      lines.push(`   מדד ${ind.id} — ${ind.name}:`);
+      for (const lvl of PERFORMANCE_LEVELS) {
+        if (ind.levels?.[lvl.key]) lines.push(`     • ${lvl.key} = ${lvl.label} (${lvl.range}): ${ind.levels[lvl.key]}`);
+      }
+    }
+    return lines.join('\n');
   }).join('\n');
+
+  const scaleText = PERFORMANCE_LEVELS.map(l => `${l.key} = ${l.label} (${l.range})`).join(' · ');
+  const protocolText = hasIndicators
+    ? '\n## פרוטוקול הערכה מבוססת עדויות\n' + EVALUATION_PROTOCOL.map(p => `שלב ${p.stage}' – ${p.title}: ${p.text}`).join('\n') + '\n'
+    : '';
 
   const prompt = `אתה מערכת הערכה פדגוגית לסטודנטים מורים. נתח את תיק ההתנסות של ${studentTitle} והפק טיוטת הערכה מקצועית בעברית.
 השתמש בלשון ${isMale ? 'זכר' : 'נקבה'} בכל הניסוח (${pronoun}, ${possessive} וכו׳).
@@ -57,34 +73,43 @@ async function analyzePortfolio(studentName, files, instructorAnswers = {}, gend
 ${studentName}
 
 ## מחוון ההערכה (${rubric?.name || 'מחוון'})
+סולם רמות הביצוע: ${scaleText}
 ${rubricText}
-${answersText}
+${protocolText}${answersText}
 
 ## חומרי התיק שהועלו
 ${docContext}
 
 ## הוראות
 עבור כל קריטריון במחוון ספק:
-1. רמה למערך שיעור (📘): אחד מהקודים האנגליים הבאים בדיוק: high / mid_high / mid / low_mid — או null אם אין מסמכים רלוונטיים
-2. רמה לצפייה (🎯): אחד מהקודים האנגליים הבאים בדיוק: high / mid_high / mid / low_mid — או null
-3. רמה כוללת: אחד מהקודים האנגליים הבאים בדיוק: high / mid_high / mid / low_mid
-4. פסקת איזון: 2–3 משפטים המשלבים את שני הערוצים על בסיס הראיות
-5. האם יש פער בין הערוצים (hasGap): true/false
-6. סיכום הפער אם קיים: משפט אחד
+1. ציון (score): מספר שלם 0–100, התואם את סולם רמות הביצוע ואת מדדי הקריטריון — או null אם אין שום עדות לקריטריון
+2. רמה כוללת: אחד מהקודים האנגליים הבאים בדיוק: high / mid_high / mid / low_mid (חייבת להתאים לטווח הציון)
+3. רמה למערך שיעור (📘): high / mid_high / mid / low_mid — או null אם אין מסמכים רלוונטיים
+4. רמה לצפייה (🎯): high / mid_high / mid / low_mid — או null
+5. פסקת איזון: 2–3 משפטים המשלבים את שני הערוצים, עם הפניה לעדויות ספציפיות (מערכים, תצפיות, רפלקציות)
+6. האם יש פער בין הערוצים (hasGap): true/false
+7. סיכום הפער אם קיים: משפט אחד${hasIndicators ? `
+8. indicators: לכל מדד של הקריטריון (לפי המזהה שלו, למשל "1.1") — רמה (high / mid_high / mid / low_mid, או null אם אין עדות) ומשפט נימוק קצר מבוסס עדויות. בחר את הרמה שתיאורה במחוון תואם ביותר את העדויות.` : ''}
 
+בנוסף ספק ברמת ההערכה כולה:
+- strengths: 2–4 חוזקות מרכזיות הבאות לידי ביטוי בעדויות לאורך הסמסטר
+- goals: 2–4 יעדים מרכזיים להמשך ההתפתחות המקצועית
+
+אל תחשב ציון סופי — הוא מחושב אוטומטית לפי משקלי הקריטריונים.
 קריטריונים ללא ערוצים ("כל החומרים הרלוונטיים" בלבד) מבוססים על קלט המדריך בעיקר; אם לא ניתן קלט ציין "טעון השלמה".
 
 החזר JSON גולמי בלבד (ללא markdown, ללא הסברים):
 {
   "studentName": "${studentName}",
-  "score": <מספר 60-100>,
-  "overallLevel": "<high|mid_high|mid|low_mid>",
   "summary": "<פסקת סיכום והמלצות>",
+  "strengths": ["..."],
+  "goals": ["..."],
   "categories": [
     {
       "id": "c1",
       "name": "...",
-      "weight": 15,
+      "weight": 25,
+      "score": <0-100|null>,
       "overallLevel": "<high|mid_high|mid|low_mid>",
       "lessonPlanLevel": "<high|mid_high|mid|low_mid|null>",
       "lessonPlanNote": "...",
@@ -92,7 +117,8 @@ ${docContext}
       "observationNote": "...",
       "balance": "<פסקת איזון>",
       "hasGap": <true|false>,
-      "gapSummary": "..."
+      "gapSummary": "..."${hasIndicators ? `,
+      "indicators": [{ "id": "1.1", "level": "<high|mid_high|mid|low_mid|null>", "note": "..." }]` : ''}
     }
   ]
 }`;
@@ -111,7 +137,62 @@ ${docContext}
     throw new Error('תגובת ה-AI לא הייתה ב-JSON תקין — בדוק את מפתח ה-API');
   }
 
-  return parsed;
+  return normalizeDraft(parsed, rubric);
+}
+
+// ─── Align the AI draft with the rubric and compute the weighted score ────────
+// Names, weights and indicator names always come from the rubric, never from the
+// model. The level of a scored criterion follows its score band, and the final
+// score is Σ(score × weight) / Σ(weight) — for the main rubric:
+// C1×0.25 + C2×0.15 + C3×0.30 + C4×0.30.
+const VALID_LEVELS = new Set(PERFORMANCE_LEVELS.map(l => l.key));
+
+function normalizeDraft(draft, rubric) {
+  const criteria = rubric?.criteria || [];
+  const aiCats = Array.isArray(draft.categories) ? draft.categories : [];
+  if (criteria.length === 0) return draft;
+
+  const categories = criteria.map((c, i) => {
+    const id = c.id || `c${i + 1}`;
+    const ai = aiCats.find(x => x && x.id === id) || aiCats[i] || {};
+    const rawScore = ai.score === null || ai.score === undefined || ai.score === '' ? NaN : Number(ai.score);
+    const score = Number.isFinite(rawScore) ? Math.max(0, Math.min(100, Math.round(rawScore))) : null;
+    const level = v => (VALID_LEVELS.has(v) ? v : null);
+
+    const cat = {
+      ...ai,
+      id,
+      name: c.name,
+      weight: c.weight,
+      score,
+      overallLevel: score !== null ? levelFromScore(score) : level(ai.overallLevel),
+      lessonPlanLevel: level(ai.lessonPlanLevel),
+      observationLevel: level(ai.observationLevel),
+    };
+
+    if (Array.isArray(c.indicators) && c.indicators.length > 0) {
+      const aiInds = Array.isArray(ai.indicators) ? ai.indicators : [];
+      cat.indicators = c.indicators.map((ind, j) => {
+        const a = aiInds.find(x => x && String(x.id) === String(ind.id)) || aiInds[j] || {};
+        return { id: ind.id, name: ind.name, level: level(a.level), note: a.note || '' };
+      });
+    } else {
+      delete cat.indicators;
+    }
+    return cat;
+  });
+
+  const score = weightedScore(categories);
+  return {
+    ...draft,
+    rubricId: rubric?.id || null,
+    rubricName: rubric?.name || null,
+    categories,
+    score,
+    overallLevel: score !== null ? levelFromScore(score) : (VALID_LEVELS.has(draft.overallLevel) ? draft.overallLevel : null),
+    strengths: Array.isArray(draft.strengths) ? draft.strengths.filter(Boolean) : [],
+    goals: Array.isArray(draft.goals) ? draft.goals.filter(Boolean) : [],
+  };
 }
 
 // ─── Smart gap questions ──────────────────────────────────────────────────────
@@ -150,4 +231,4 @@ ${missing.map(c => `- חסר תיעוד: ${c.name}`).join('\n')}
   }
 }
 
-module.exports = { analyzePortfolio, generateSmartQuestions };
+module.exports = { analyzePortfolio, generateSmartQuestions, normalizeDraft };

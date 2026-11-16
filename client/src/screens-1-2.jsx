@@ -12,9 +12,18 @@ function TopbarNav({ activeScreen, onNav, instructorName, onLogout, studentCount
   const initials = (instructorName || 'מ').slice(0, 1);
   return (
     <nav className="topnav">
+      <div className="topstrip">
+        <span className="topstrip-title">{t('college_name')}</span>
+        <div className="lang-switch" role="group" aria-label="Language">
+          {[{code:'he',label:'עברית'},{code:'en',label:'English'},{code:'ar',label:'العربية'}].map(l=>(
+            <button key={l.code} lang={l.code} className={`lang-btn ${lang===l.code?'active':''}`} aria-pressed={lang===l.code} onClick={()=>setLang(l.code)}>{l.label}</button>
+          ))}
+        </div>
+      </div>
       <div className="topnav-bar">
         <div className="brand-mark">
-          <div className="brand-glyph">ה</div>
+          <img className="brand-emblem" src="/dyellin-emblem.png" alt={t('college_name')} />
+          <span className="brand-divider" aria-hidden="true" />
           <div className="brand-text"><b>הערכה</b><span>{t('brand_tagline')}</span></div>
         </div>
         <div className="topnav-pills">
@@ -29,11 +38,6 @@ function TopbarNav({ activeScreen, onNav, instructorName, onLogout, studentCount
           </button>
         </div>
         <div className="topnav-actions">
-          <div style={{display:'flex',alignItems:'center',gap:2,padding:'4px 6px',borderRadius:'var(--r-sm)',background:'var(--surface-2)',border:'1px solid var(--border)'}}>
-            {[{code:'he',label:'עב'},{code:'en',label:'EN'},{code:'ar',label:'ع'}].map(l=>(
-              <button key={l.code} onClick={()=>setLang(l.code)} style={{padding:'2px 6px',borderRadius:4,border:'none',fontSize:11,fontWeight:lang===l.code?700:400,background:lang===l.code?'var(--brand)':'transparent',color:lang===l.code?'#fff':'var(--ink-2)',cursor:'pointer',lineHeight:1.4}}>{l.label}</button>
-            ))}
-          </div>
           <button className="icon-btn" onClick={() => onNav('settings')} title={t('nav_settings_title')}><Icons.IconSettings size={18} /></button>
           {onLogout && <button className="icon-btn" onClick={onLogout} title={t('nav_logout')}><Icons.IconArrowLeft size={18} /></button>}
           <div className="user-pill">
@@ -233,7 +237,7 @@ function StudentsGrid({ students = STUDENTS, onOpen, onDelete }) {
 }
 
 function TrackProgressMini({ kind, label, complete, total }) {
-  const colors = { lp:{fg:'#1e3a5f',bg:'rgba(30,58,95,0.08)'}, ob:{fg:'#2f7a4e',bg:'rgba(47,122,78,0.10)'} };
+  const colors = { lp:{fg:'var(--lp)',bg:'var(--lp-soft)'}, ob:{fg:'var(--ob)',bg:'var(--ob-soft)'} };
   const c = colors[kind]; const pct = total===0?0:(complete/total)*100; const isFull = complete===total&&total>0;
   return (
     <div style={{display:'flex',alignItems:'center',gap:8,fontSize:11.5}}>
@@ -308,7 +312,7 @@ function StudentsList({ students = STUDENTS, onOpen, onDelete }) {
   );
 }
 
-const TRACK_COLORS = { lp:{fg:'#1e3a5f',bg:'#e8eef5',name:'מערכי שיעור',Icon:IconDoc}, ob:{fg:'#2f7a4e',bg:'#e3f0e8',name:'צפיות',Icon:IconEye} };
+const TRACK_COLORS = { lp:{fg:'var(--lp)',bg:'var(--lp-soft)',name:'מערכי שיעור',Icon:IconDoc}, ob:{fg:'var(--ob)',bg:'var(--ob-soft)',name:'צפיות',Icon:IconEye} };
 
 // Format ISO date string or "DD.MM" to display as "DD.MM.YY"
 function formatDateDisplay(dateStr) {
@@ -842,13 +846,13 @@ function Workspace({ student, onBack, onAnalyze, onFileUploaded, onCycleAdded })
                 <div style={{display:'flex',alignItems:'center',gap:8}}>
                   <IconBookmark size={15} stroke="var(--brand)"/>
                   <select className="input" value={selectedRubricId || ''} onChange={e=>setSelectedRubricId(e.target.value)} style={{fontSize:14,fontWeight:600,color:'var(--ink-1)',border:'none',background:'transparent',padding:'2px 4px',flex:1}}>
-                    {rubrics.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                    {rubrics.map(r => <option key={r.id} value={r.id}>{r.is_main ? `★ ${r.name}` : r.name}</option>)}
                   </select>
                 </div>
                 {selectedRubric && (
                   <>
                     <div style={{fontSize:12,color:'var(--ink-3)',marginTop:6}}>
-                      {(selectedRubric.criteria||[]).length} קריטריונים · {selectedRubric.total_points ? `${selectedRubric.total_points} נק׳` : 'משוב מעצב'} · {selectedRubric.semester || 'שנתי'}
+                      {selectedRubric.is_main && <b style={{color:'var(--ok)',fontWeight:600}}>מחוון ראשי · </b>}{(selectedRubric.criteria||[]).length} קריטריונים · {selectedRubric.total_points ? `${selectedRubric.total_points} נק׳` : 'משוב מעצב'} · {selectedRubric.semester || 'שנתי'}
                     </div>
                     <div style={{fontSize:11.5,color:'var(--ink-2)',marginTop:12,marginBottom:6,fontWeight:600}}>בחירת קריטריונים להערכה:</div>
                     <div style={{marginTop:4,display:'flex',flexDirection:'column',gap:5}}>

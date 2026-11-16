@@ -21,7 +21,7 @@ class EditorErrorBoundary extends Component {
 }
 import * as Icons from './icons';
 import { Icon, IconHome, IconUsers, IconArchive, IconSettings, IconFolder, IconFile, IconUpload, IconPlus, IconArrowLeft, IconArrowRight, IconChevron, IconPencil, IconMagic, IconMic, IconSearch, IconClose, IconCheck, IconDownload, IconSave, IconSend, IconSparkle, IconBookmark, IconDoc, IconWave, IconGrid, IconList, IconClock, IconArchiveBox, IconAlert, IconGraduationCap, IconEye } from './icons';
-import { SMART_QUESTIONS, EVAL_CATEGORIES, EVIDENCES, LEVELS, QA_SUGGESTIONS } from './data';
+import { SMART_QUESTIONS, EVAL_CATEGORIES, EVIDENCES, LEVELS, QA_SUGGESTIONS, levelFromScore, weightedScore } from './data';
 
 
 
@@ -42,7 +42,7 @@ function HumanNodeModal({ open, onComplete, onSkip, questions }) {
   const currentNote = isDecision?(rawVal?rawVal.note||'':''):(typeof rawVal==='string'?rawVal:'');
   const setCurrentNote = (val) => setAnswers(prev=>({...prev,[Q.id]:isDecision?{...(prev[Q.id]||{}),note:val}:val}));
   const setChoice = (opt) => setAnswers(prev=>({...prev,[Q.id]:{value:opt.value,label:opt.label,note:(prev[Q.id]&&prev[Q.id].note)||''}}));
-  const gapTone = Q.gap==='lessonPlan'?{fg:'#1e3a5f',bg:'#e8eef5'}:Q.gap==='observation'?{fg:'#2f7a4e',bg:'#e3f0e8'}:{fg:'#b08552',bg:'#f4ecdf'};
+  const gapTone = Q.gap==='lessonPlan'?{fg:'var(--lp)',bg:'var(--lp-soft)'}:Q.gap==='observation'?{fg:'var(--ob)',bg:'var(--ob-soft)'}:{fg:'var(--gold)',bg:'var(--gold-soft)'};
   return (
     <div style={{position:'fixed',inset:0,zIndex:100,display:'grid',placeItems:'center',animation:'overlayIn .25s',background:'rgba(20,23,31,0.42)',backdropFilter:'blur(6px)',WebkitBackdropFilter:'blur(6px)'}}>
       <div style={{width:620,maxWidth:'calc(100vw - 32px)',background:'var(--surface)',borderRadius:16,boxShadow:'var(--shadow-modal)',overflow:'hidden',animation:'fadeInScale .3s cubic-bezier(.2,.9,.3,1.2)',border:'1px solid var(--border)'}}>
@@ -75,7 +75,7 @@ function HumanNodeModal({ open, onComplete, onSkip, questions }) {
               {Q.options.map(opt=>{
                 const sel=currentChoice===opt.value;
                 return (
-                  <button key={opt.value} onClick={()=>setChoice(opt)} style={{textAlign:'start',padding:'12px 14px',border:`1px solid ${sel?gapTone.fg:'var(--border)'}`,background:sel?gapTone.bg+'88':'var(--surface)',borderRadius:'var(--r-sm)',display:'flex',alignItems:'flex-start',gap:12,transition:'all .15s',width:'100%',cursor:'pointer'}}>
+                  <button key={opt.value} onClick={()=>setChoice(opt)} style={{textAlign:'start',padding:'12px 14px',border:`1px solid ${sel?gapTone.fg:'var(--border)'}`,background:sel?`color-mix(in srgb, ${gapTone.bg} 55%, var(--surface))`:'var(--surface)',borderRadius:'var(--r-sm)',display:'flex',alignItems:'flex-start',gap:12,transition:'all .15s',width:'100%',cursor:'pointer'}}>
                     <div style={{width:16,height:16,borderRadius:'50%',marginTop:2,flexShrink:0,border:`1.5px solid ${sel?gapTone.fg:'var(--border-strong)'}`,background:sel?gapTone.fg:'transparent',display:'grid',placeItems:'center'}}>
                       {sel&&<span style={{width:6,height:6,borderRadius:'50%',background:'#fff'}}/>}
                     </div>
@@ -117,8 +117,8 @@ function HumanNodeModal({ open, onComplete, onSkip, questions }) {
 }
 
 const TRACK_TONE = {
-  lesson_plan:{bg:'#e8eef5',fg:'#1e3a5f',activeBg:'#1e3a5f',Icon:IconDoc,label:'מערך שיעור'},
-  observation:{bg:'#e3f0e8',fg:'#2f7a4e',activeBg:'#2f7a4e',Icon:IconEye,label:'צפייה בשיעור'},
+  lesson_plan:{bg:'var(--lp-soft)',fg:'var(--lp)',activeBg:'var(--lp)',Icon:IconDoc,label:'מערך שיעור'},
+  observation:{bg:'var(--ob-soft)',fg:'var(--ob)',activeBg:'var(--ob)',Icon:IconEye,label:'צפייה בשיעור'},
 };
 
 function resolveCategoryInputs(cat, answers) {
@@ -163,13 +163,13 @@ function SourceCell({ track, dim, activeEvidence, onEvidenceClick }) {
   );
   const lvl = LEVELS[dim.level] || { label: dim.level || '—', cls: 'badge-neutral' };
   return (
-    <div style={{flex:1,padding:'10px 12px',borderRadius:'var(--r-sm)',background:tone.bg+'66',border:`1px solid ${tone.bg}`}}>
+    <div style={{flex:1,padding:'10px 12px',borderRadius:'var(--r-sm)',background:`color-mix(in srgb, ${tone.bg} 40%, var(--surface))`,border:`1px solid ${tone.bg}`}}>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:6}}>
         <div style={{display:'flex',alignItems:'center',gap:6,fontSize:12,fontWeight:600,color:tone.fg}}>{tone.Icon&&<tone.Icon size={12}/>}<span>{trackLabel}</span></div>
-        <span style={{fontSize:11,fontWeight:600,color:tone.fg,background:'#fff',padding:'1px 7px',borderRadius:100,border:`1px solid ${tone.bg}`}}>{lvl.label}</span>
+        <span style={{fontSize:11,fontWeight:600,color:tone.fg,background:'var(--surface)',padding:'1px 7px',borderRadius:100,border:`1px solid ${tone.bg}`}}>{lvl.label}</span>
       </div>
       <div style={{fontSize:12.5,color:'var(--ink-2)',marginTop:6,lineHeight:1.55}}>{dim.note}</div>
-      {dim.ev&&<button onClick={(e)=>{e.stopPropagation();onEvidenceClick(dim.ev);}} className="tag" style={{marginTop:8,cursor:'pointer',background:activeEvidence===dim.ev?tone.activeBg:'#fff',color:activeEvidence===dim.ev?'#fff':tone.fg,border:`1px solid ${tone.bg}`}}>{EVIDENCES[dim.ev]?.label} ›</button>}
+      {dim.ev&&<button onClick={(e)=>{e.stopPropagation();onEvidenceClick(dim.ev);}} className="tag" style={{marginTop:8,cursor:'pointer',background:activeEvidence===dim.ev?tone.activeBg:'var(--surface)',color:activeEvidence===dim.ev?'#fff':tone.fg,border:`1px solid ${tone.bg}`}}>{EVIDENCES[dim.ev]?.label} ›</button>}
     </div>
   );
 }
@@ -187,7 +187,7 @@ function GapInsight({ cat, answered }) {
   );
 }
 
-function CategoryCard({ cat, index, aiTone, instructorAnswers, activeEvidence, onEvidenceClick, editing, onEdit, onRefine, refining, isActive, onSelect }) {
+function CategoryCard({ cat, index, aiTone, instructorAnswers, activeEvidence, onEvidenceClick, editing, onEdit, onEditSave, onScoreChange, onRefine, refining, isActive, onSelect }) {
   const { t } = useLanguage();
   const {instructorText,decisionText} = resolveCategoryInputs(cat,instructorAnswers);
   const baseText = aiTone==='friendly'&&cat.balanceFriendly?cat.balanceFriendly:cat.balance;
@@ -208,6 +208,12 @@ function CategoryCard({ cat, index, aiTone, instructorAnswers, activeEvidence, o
           </div>
         </div>
         <div style={{display:'flex',alignItems:'center',gap:8}}>
+          {cat.score!==undefined&&onScoreChange&&(
+            <label onClick={e=>e.stopPropagation()} title={t('criterion_score')} style={{display:'flex',alignItems:'center',gap:4,fontSize:12,color:'var(--ink-3)'}}>
+              <input type="number" min="0" max="100" aria-label={`${t('criterion_score')} — ${cat.name}`} value={cat.score??''} onChange={e=>onScoreChange(e.target.value)} className="input" style={{width:62,padding:'4px 6px',fontSize:14,fontWeight:600,textAlign:'center',color:'var(--ink-1)'}}/>
+              <span>/100</span>
+            </label>
+          )}
           {lvl?<span className={`badge ${lvl.cls}`}>{lvl.label}</span>:<span className="badge badge-warn">{t('needs_completion')}</span>}
           <button onClick={(e)=>{e.stopPropagation();onEdit();}} className="btn-ghost" title={t('edit_manually')} style={{width:30,height:30,borderRadius:6,display:'grid',placeItems:'center',color:editing?'var(--brand)':'var(--ink-3)',background:editing?'var(--brand-softer)':'transparent'}}><IconPencil size={14}/></button>
           <button onClick={(e)=>{e.stopPropagation();onRefine();}} className="btn-ghost" title={t('ai_rephrase')} style={{width:30,height:30,borderRadius:6,display:'grid',placeItems:'center',color:'var(--brand)',background:refining?'var(--brand-softer)':'transparent'}}><IconMagic size={14}/></button>
@@ -228,6 +234,23 @@ function CategoryCard({ cat, index, aiTone, instructorAnswers, activeEvidence, o
         </div>
       )}
       <GapInsight cat={cat} answered={answered}/>
+      {Array.isArray(cat.indicators)&&cat.indicators.length>0&&(
+        <div style={{marginTop:14,paddingTop:12,borderTop:'1px solid var(--border)'}}>
+          <div style={{fontSize:11.5,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:8}}>{t('indicators_title')}</div>
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            {cat.indicators.map(ind=>{
+              const il=LEVELS[ind.level];
+              return (
+                <div key={ind.id} style={{display:'grid',gridTemplateColumns:'1fr auto',gap:'2px 10px',alignItems:'baseline'}}>
+                  <div style={{fontSize:13,color:'var(--ink-1)',fontWeight:500}}><span style={{color:'var(--ink-3)',fontFamily:'var(--font-mono)',fontSize:11.5,marginInlineEnd:6}}>{ind.id}</span>{ind.name}</div>
+                  {il?<span className={`badge ${il.cls}`} style={{fontSize:11}}>{il.label}</span>:<span className="badge badge-neutral" style={{fontSize:11}}>{t('no_evidence')}</span>}
+                  {ind.note&&<div style={{gridColumn:'1 / -1',fontSize:12.5,color:'var(--ink-3)',lineHeight:1.55}}>{ind.note}</div>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
       {extractEvidenceIds(baseText||'').length>0&&(
         <div style={{marginTop:14,display:'flex',alignItems:'center',gap:8,paddingTop:12,borderTop:'1px solid var(--border)',flexWrap:'wrap'}}>
           <span style={{fontSize:11.5,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em'}}>{t('supporting_evidence')}</span>
@@ -246,7 +269,9 @@ function SummaryCard({ summary, onSummaryUpdate }) {
   const { t } = useLanguage();
   const [editing, setEditing] = useState(false);
   const text = summary?.text || 'הסטודנטית נמצאת בנקודה טובה בשלב ההכשרה. הכוחות הבולטים: רפלקציה עמוקה, תושייה בכיתה והיכרות תוכנית מבוססת. תחומי הצמיחה: העמקת התכנון לפני השיעור. ההמלצה: מעבר עם ליווי ממוקד.';
-  const score = summary?.score || '—';
+  const score = summary?.score ?? '—';
+  const strengths = summary?.strengths || [];
+  const goals = summary?.goals || [];
   
   const handleSave = (val) => {
     setEditing(false);
@@ -272,6 +297,18 @@ function SummaryCard({ summary, onSummaryUpdate }) {
         <div style={{width:1,height:48,background:'var(--border)'}}/>
         <div style={{fontSize:13.5,color:'var(--ink-2)',lineHeight:1.5}}>{t('score_note_1')}<br/>{t('score_note_2')}</div>
       </div>
+      {(strengths.length>0||goals.length>0)&&(
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,marginTop:16}}>
+          {[['doc_strengths',strengths,'var(--ok)'],['doc_goals',goals,'var(--brand)']].map(([key,items,color])=>(
+            <div key={key} style={{padding:'14px 16px',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:12}}>
+              <div style={{fontSize:12.5,fontWeight:600,color,marginBottom:6}}>{t(key)}</div>
+              {items.length>0
+                ? <ul style={{margin:0,paddingInlineStart:18,fontSize:13.5,lineHeight:1.65,color:'var(--ink-1)'}}>{items.map((x,i)=><li key={i}>{x}</li>)}</ul>
+                : <div style={{fontSize:13,color:'var(--ink-4)'}}>—</div>}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -308,16 +345,16 @@ function ChatBox({ messages, thinking, value, onChange, onSend, student }) {
   );
 }
 
-function DraftHeader({ student, answersCount }) {
+function DraftHeader({ student, answersCount, rubricName }) {
   const { t } = useLanguage();
   const legendItems = [
-    {Ic:IconDoc, label:t('track_lesson_plan'), fg:'#1e3a5f', bg:'#e8eef5'},
-    {Ic:IconEye, label:t('track_observation_label'), fg:'#2f7a4e', bg:'#e3f0e8'},
-    {Ic:IconSparkle, label:t('gap_decided'), fg:'#b08552', bg:'#f4ecdf'},
+    {Ic:IconDoc, label:t('track_lesson_plan'), fg:'var(--lp)', bg:'var(--lp-soft)'},
+    {Ic:IconEye, label:t('track_observation_label'), fg:'var(--ob)', bg:'var(--ob-soft)'},
+    {Ic:IconSparkle, label:t('gap_decided'), fg:'var(--gold)', bg:'var(--gold-soft)'},
   ];
   return (
     <div style={{marginBottom:24}}>
-      <div style={{fontSize:12,color:'var(--ink-3)',marginBottom:6,display:'flex',alignItems:'center',gap:8}}><IconSparkle size={12} stroke="var(--brand)"/>{t('rubric_info')}</div>
+      <div style={{fontSize:12,color:'var(--ink-3)',marginBottom:6,display:'flex',alignItems:'center',gap:8}}><IconSparkle size={12} stroke="var(--brand)"/>{rubricName&&<><b style={{color:'var(--ink-2)',fontWeight:600}}>{rubricName}</b> · </>}{t('rubric_info')}</div>
       <h1 style={{fontFamily:'var(--font-serif)',fontSize:28,fontWeight:600,margin:0,letterSpacing:'-0.01em'}}>{t('eval_draft_title_prefix')} {student.name}</h1>
       <div style={{marginTop:10,display:'flex',gap:8,flexWrap:'wrap'}}>
         {legendItems.map(c=><span key={c.label} style={{display:'inline-flex',alignItems:'center',gap:5,padding:'3px 9px',borderRadius:100,background:c.bg,color:c.fg,fontSize:11.5,fontWeight:500}}><c.Ic size={12}/>{c.label}</span>)}
@@ -327,7 +364,7 @@ function DraftHeader({ student, answersCount }) {
   );
 }
 
-function SplitEditor({ student, instructorAnswers, aiTone, onBack, onExport, evalCategories, evalSummary, evaluationId, onSave, evidenceFiles }) {
+function SplitEditor({ student, instructorAnswers, aiTone, onBack, onExport, evalCategories, evalSummary, rubricName, evaluationId, onSave, evidenceFiles }) {
   const { t } = useLanguage();
   const [activeCategories, setActiveCategories] = useState(evalCategories || EVAL_CATEGORIES);
   const [currentSummary, setCurrentSummary] = useState(evalSummary || {text:'', score:'—'});
@@ -372,10 +409,27 @@ function SplitEditor({ student, instructorAnswers, aiTone, onBack, onExport, eva
     if (!onSave) return;
     setSaveStatus('saving');
     try {
-      await onSave({ categories: activeCategories, summary: currentSummary?.text, score: currentSummary?.score });
+      const draft = { categories: activeCategories, summary: currentSummary?.text, score: currentSummary?.score };
+      const overall = levelFromScore(currentSummary?.score);
+      if (overall) draft.overallLevel = overall;
+      await onSave(draft);
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2500);
     } catch { setSaveStatus('idle'); }
+  };
+  // A criterion score sets its level by the rubric's bands and re-weights the final grade.
+  const handleScoreChange = (catId, raw) => {
+    const n = Number(raw);
+    if (raw !== '' && !Number.isFinite(n)) return;
+    const val = raw === '' ? null : Math.max(0, Math.min(100, Math.round(n)));
+    const next = activeCategories.map(c => c.id === catId ? { ...c, score: val, overallLevel: val === null ? c.overallLevel : levelFromScore(val) } : c);
+    setActiveCategories(next);
+    const total = weightedScore(next);
+    if (total !== null) setCurrentSummary(prev => ({ ...prev, score: total }));
+  };
+  const handleExport = async () => {
+    if (onSave) await handleSave();
+    onExport();
   };
   const handleUpdateCategoryText = (catId, newText) => {
     setActiveCategories(prev => prev.map(c => c.id === catId ? {...c, balance: newText} : c));
@@ -430,7 +484,7 @@ function SplitEditor({ student, instructorAnswers, aiTone, onBack, onExport, eva
           <button onClick={handleSave} disabled={saveStatus==='saving'} className="btn btn-secondary btn-sm" style={{borderRadius:100,padding:'6px 16px',minWidth:90}}>
             {saveStatus==='saving'?<><IconSparkle size={13} style={{animation:'pulse 1s infinite'}}/> {t('editor_saving')}</>:saveStatus==='saved'?<><IconCheck size={13} stroke="var(--ok)"/> {t('editor_saved')}</>:<><IconSave size={14}/> {t('editor_save')}</>}
           </button>
-          <button className="btn btn-primary btn-sm" onClick={onExport} style={{borderRadius:100,padding:'6px 16px',background:'var(--brand)'}}>{t('editor_export')} <IconArrowLeft size={14}/></button>
+          <button className="btn btn-primary btn-sm" onClick={handleExport} style={{padding:'6px 16px'}}>{t('editor_export')} <IconArrowLeft size={14}/></button>
         </div>
       </div>
       <div style={{display:'grid',gridTemplateColumns:'36% 64%',flex:1,minHeight:0}}>
@@ -439,7 +493,7 @@ function SplitEditor({ student, instructorAnswers, aiTone, onBack, onExport, eva
             {Object.values(liveEvidences).length === 0
               ? <span style={{padding:'0 14px',fontSize:12,color:'var(--ink-4)'}}>{t('no_documents')}</span>
               : Object.values(liveEvidences).map(ev=>{
-                  const tc=ev.track==='lesson_plan'?'#1e3a5f':ev.track==='observation'?'#2f7a4e':'var(--brand)';
+                  const tc=ev.track==='lesson_plan'?'var(--lp)':ev.track==='observation'?'var(--ob)':'var(--brand)';
                   const TrackIc=ev.track==='lesson_plan'?IconDoc:ev.track==='observation'?IconEye:null;
                   const isActive=activeEvidence===ev.id;
                   return <button key={ev.id} onClick={()=>setActiveEvidence(ev.id)} style={{padding:'12px 14px',fontSize:12.5,color:isActive?tc:'var(--ink-3)',fontWeight:isActive?600:400,whiteSpace:'nowrap',display:'flex',alignItems:'center',gap:6,cursor:'pointer',background:'transparent',border:'none',borderBottom:`2px solid ${isActive?tc:'transparent'}`}}>{TrackIc&&<TrackIc size={12}/>}{ev.label}</button>;
@@ -473,9 +527,9 @@ function SplitEditor({ student, instructorAnswers, aiTone, onBack, onExport, eva
         </div>
         <div style={{display:'flex',flexDirection:'column',minHeight:0,background:'var(--bg)'}}>
           <div className="scroll" style={{flex:1,overflowY:'auto',padding:'28px 36px 80px'}}>
-            <DraftHeader student={student} answersCount={instructorAnswers?Object.keys(instructorAnswers).length:0}/>
+            <DraftHeader student={student} rubricName={rubricName} answersCount={instructorAnswers?Object.keys(instructorAnswers).length:0}/>
             {activeCategories.map((cat,idx)=>(
-              <CategoryCard key={cat.id} cat={cat} index={idx} aiTone={aiTone} instructorAnswers={instructorAnswers} activeEvidence={activeEvidence} onEvidenceClick={setActiveEvidence} editing={editing===cat.id} onEdit={()=>setEditing(editing===cat.id?null:cat.id)} onEditSave={(newText)=>handleUpdateCategoryText(cat.id, newText)} onRefine={()=>handleRefine(cat.id)} refining={refining===cat.id} isActive={activeCat===cat.id} onSelect={()=>setActiveCat(cat.id)}/>
+              <CategoryCard key={cat.id} cat={cat} index={idx} aiTone={aiTone} instructorAnswers={instructorAnswers} activeEvidence={activeEvidence} onEvidenceClick={setActiveEvidence} editing={editing===cat.id} onEdit={()=>setEditing(editing===cat.id?null:cat.id)} onEditSave={(newText)=>handleUpdateCategoryText(cat.id, newText)} onScoreChange={(v)=>handleScoreChange(cat.id, v)} onRefine={()=>handleRefine(cat.id)} refining={refining===cat.id} isActive={activeCat===cat.id} onSelect={()=>setActiveCat(cat.id)}/>
             ))}
             <SummaryCard summary={currentSummary} onSummaryUpdate={handleUpdateSummary}/>
           </div>

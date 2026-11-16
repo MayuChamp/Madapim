@@ -1,4 +1,10 @@
-# Design Handoff — "Honey & Ink" UI
+# Design Handoff — "David Yellin" UI
+
+> **Current default theme: `yellin`** — brand palette and style taken from
+> dyellin.ac.il (turquoise `#1FB6C1` strip, white header, light-cyan pill CTAs
+> `#66D8E6` with dark text, navy `#1A2A63`, yellow `#FBCA27`, Heebo, 8px card radii,
+> section titles with a blue dot + yellow underline). `honey` / `mist` / `clay`
+> remain as alternates. Primary buttons now use `--cta`, not `--ink-dark`.
 
 Answers to Antigravity's questions, plus everything it needs to match the mockup.
 
@@ -38,7 +44,7 @@ Colors live in 3 themes + dark mode, switched by **data attributes on `<html>`**
 no JS color objects, no prop drilling:
 
 ```js
-document.documentElement.dataset.theme   = 'honey'; // 'honey' | 'mist' | 'clay'  (default: mist)
+document.documentElement.dataset.theme   = 'yellin'; // 'yellin' | 'honey' | 'mist' | 'clay'  (default: yellin)
 document.documentElement.dataset.dark    = 'true';  // dark mode on
 document.documentElement.dataset.density = 'compact'; // optional denser spacing
 ```

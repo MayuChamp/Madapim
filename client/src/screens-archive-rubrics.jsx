@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { IconDownload, IconDoc, IconSearch, IconPlus, IconChevron, IconPencil, IconClose, IconCheck, IconTrash } from './icons';
 import * as API from './api';
 import { useLanguage } from './i18n';
+import { LEVELS, LEVEL_KEYS } from './data';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -165,7 +166,7 @@ export function ArchiveScreen() {
             <p style={{fontSize:14,color:'var(--ink-2)',lineHeight:1.6,margin:'0 0 24px'}}>{t('delete_eval_confirm', { name: confirmDelete.student?.name || '—' })}</p>
             <div style={{display:'flex',gap:10,justifyContent:'center'}}>
               <button className="btn btn-ghost" onClick={()=>setConfirmDelete(null)} disabled={deleting}>{t('cancel')}</button>
-              <button className="btn btn-primary" style={{background:'var(--warn)',borderColor:'var(--warn)'}} onClick={()=>handleDelete(confirmDelete)} disabled={deleting}>
+              <button className="btn btn-primary" style={{background:'var(--warn)',borderColor:'var(--warn)',color:'#fff'}} onClick={()=>handleDelete(confirmDelete)} disabled={deleting}>
                 {deleting ? t('deleting_label') : t('delete_btn_label')}
               </button>
             </div>
@@ -379,7 +380,10 @@ export function RubricsScreen() {
         {rubric ? (
           <div className="card" style={{padding:0,overflow:'hidden'}}>
             <div style={{padding:'24px 32px',borderBottom:'1px solid var(--border)',background:'var(--surface-2)'}}>
-              <span className="badge" style={{marginBottom:12,background:'var(--brand-soft)',color:'var(--brand)',fontSize:13,padding:'4px 12px'}}>{rubric.semester || 'שנתי'}</span>
+              <div style={{display:'flex',gap:8,marginBottom:12,justifyContent:'flex-end'}}>
+                {rubric.is_main && <span className="badge badge-ok" style={{fontSize:13,padding:'4px 12px'}}>מחוון ראשי</span>}
+                <span className="badge" style={{background:'var(--brand-soft)',color:'var(--brand)',fontSize:13,padding:'4px 12px'}}>{rubric.semester || 'שנתי'}</span>
+              </div>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
                 <div style={{display:'flex',gap:8,flexShrink:0}}>
                   <button className="btn btn-secondary" onClick={()=>setEditOpen(true)} style={{display:'flex',alignItems:'center',gap:6}}>
@@ -417,19 +421,22 @@ export function RubricsScreen() {
               )}
               <div style={{display:'flex',flexDirection:'column',gap:12}}>
                 {(rubric.criteria||[]).map((c,i) => (
-                  <div key={i} style={{display:'grid',gridTemplateColumns:'60px 1fr 40px',alignItems:'center',gap:16,padding:'16px 20px',background:'var(--surface-2)',borderRadius:12}}>
-                    <div style={{textAlign:'start'}}>
-                      <span style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:600,color:'var(--ink-1)'}}>{c.weight}</span>
-                      <span style={{fontSize:13,color:'var(--ink-3)'}}>%</span>
-                    </div>
-                    <div style={{textAlign:'end'}}>
-                      <div style={{fontSize:15,fontWeight:600,color:'var(--ink-1)'}}>{c.name}</div>
-                      <div style={{fontSize:13,color:'var(--ink-3)',marginTop:4}}>{c.desc}</div>
-                    </div>
-                    <div style={{width:32,height:32,borderRadius:8,background:'var(--surface)',color:'var(--ink-1)',border:'1px solid var(--border)',display:'grid',placeItems:'center',fontFamily:'var(--font-serif)',fontSize:14,fontWeight:600}}>{i+1}</div>
-                  </div>
+                  <CriterionRow key={c.id||i} c={c} index={i}/>
                 ))}
               </div>
+              {Array.isArray(rubric.protocol) && rubric.protocol.length > 0 && (
+                <div style={{marginTop:28,paddingTop:24,borderTop:'1px solid var(--border)'}}>
+                  <h3 style={{fontFamily:'var(--font-serif)',fontSize:18,fontWeight:600,margin:'0 0 14px',color:'var(--ink-1)'}}>פרוטוקול הערכה מבוססת עדויות</h3>
+                  <ol style={{listStyle:'none',margin:0,padding:0,display:'flex',flexDirection:'column',gap:10}}>
+                    {rubric.protocol.map(p => (
+                      <li key={p.stage} style={{display:'grid',gridTemplateColumns:'32px 1fr',gap:12,alignItems:'start'}}>
+                        <span style={{width:28,height:28,borderRadius:8,background:'var(--brand-soft)',color:'var(--brand)',display:'grid',placeItems:'center',fontFamily:'var(--font-serif)',fontWeight:600,fontSize:14}}>{p.stage}</span>
+                        <div style={{fontSize:13.5,lineHeight:1.65,color:'var(--ink-2)'}}><b style={{color:'var(--ink-1)'}}>{p.title}:</b> {withLtrFormulas(p.text)}</div>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
             </div>
           </div>
         ) : (
@@ -457,8 +464,8 @@ export function RubricsScreen() {
               {rubricsList.map((r,i) => (
                 <div key={r.id||i} onClick={()=>setRubric(r)} className="card card-hover" style={{padding:'16px 20px',border:rubric?.id===r.id?'1px solid var(--ink-1)':'1px solid transparent',background:rubric?.id===r.id?'var(--surface-2)':'var(--surface)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
                   <div style={{minWidth:0,flex:1}}>
-                    <div style={{fontFamily:'var(--font-serif)',fontSize:16,fontWeight:600,color:'var(--ink-1)',marginBottom:4,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.name}</div>
-                    <div style={{fontSize:13,color:'var(--ink-3)'}}>{r.criteria?.length||0} קריטריונים · {r.semester||'שנתי'}</div>
+                    <div style={{fontFamily:'var(--font-serif)',fontSize:16,fontWeight:600,color:'var(--ink-1)',marginBottom:4,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}} title={r.name}>{r.name}</div>
+                    <div style={{fontSize:13,color:'var(--ink-3)'}}>{r.is_main && <b style={{color:'var(--ok)',fontWeight:600}}>ראשי · </b>}{r.criteria?.length||0} קריטריונים · {r.semester||'שנתי'}</div>
                   </div>
                   <div style={{display:'flex',alignItems:'center',gap:4,flexShrink:0}}>
                     {rubric?.id===r.id && <IconChevron size={16} stroke="var(--ink-1)" style={{transform:'rotate(90deg)'}}/>}
@@ -472,7 +479,7 @@ export function RubricsScreen() {
                     >
                       <IconDoc size={13}/>
                     </button>
-                    <button
+                    {!r.is_main && <button
                       onClick={(e)=>{e.stopPropagation();setDeleteConfirm(r);}}
                       title="מחק מחוון"
                       style={{padding:5,borderRadius:6,border:'none',background:'transparent',cursor:'pointer',color:'var(--ink-4)',display:'grid',placeItems:'center'}}
@@ -480,7 +487,7 @@ export function RubricsScreen() {
                       onMouseLeave={e=>e.currentTarget.style.color='var(--ink-4)'}
                     >
                       <IconTrash size={13}/>
-                    </button>
+                    </button>}
                   </div>
                 </div>
               ))}
@@ -527,6 +534,88 @@ export function RubricsScreen() {
   );
 }
 
+// Keeps Latin formulas such as "(C1×0.25 + C2×0.15 …)" in LTR order inside Hebrew text.
+function withLtrFormulas(text) {
+  return String(text || '').split(/(\([A-Z][A-Z0-9×.+\s]*\))/).map((part, i) =>
+    i % 2 ? <bdi key={i} dir="ltr" style={{whiteSpace:'nowrap'}}>{part}</bdi> : part
+  );
+}
+
+const LEVEL_COLOR = { high:'var(--ok)', mid_high:'var(--info)', mid:'var(--ink-2)', low_mid:'var(--warn)' };
+
+// One rubric criterion. Criteria with indicators (the main rubric) expand into
+// focus, anchoring, key evidence and an indicator × performance-level grid.
+function CriterionRow({ c, index }) {
+  const [open, setOpen] = useState(false);
+  const indicators = Array.isArray(c.indicators) ? c.indicators : [];
+  const expandable = indicators.length > 0 || c.anchor || c.evidence;
+  return (
+    <div style={{background:'var(--surface-2)',borderRadius:12,overflow:'hidden'}}>
+      <button
+        type="button"
+        onClick={()=>expandable && setOpen(o=>!o)}
+        aria-expanded={expandable ? open : undefined}
+        style={{width:'100%',display:'grid',gridTemplateColumns:'60px 1fr 40px',alignItems:'center',gap:16,padding:'16px 20px',background:'transparent',border:'none',cursor:expandable?'pointer':'default',font:'inherit',color:'inherit',textAlign:'inherit'}}
+      >
+        <div style={{textAlign:'start'}}>
+          <span style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:600,color:'var(--ink-1)'}}>{c.weight}</span>
+          <span style={{fontSize:13,color:'var(--ink-3)'}}>%</span>
+        </div>
+        <div style={{textAlign:'end'}}>
+          <div style={{fontSize:15,fontWeight:600,color:'var(--ink-1)'}}>{c.name}</div>
+          <div style={{fontSize:13,color:'var(--ink-3)',marginTop:4,lineHeight:1.55}}>{c.desc}</div>
+          {expandable && (
+            <div style={{fontSize:12.5,color:'var(--brand)',marginTop:8,display:'inline-flex',alignItems:'center',gap:4,fontWeight:500}}>
+              {indicators.length > 0 ? `${indicators.length} מדדי הערכה ורמות ביצוע` : 'פרטים'}
+              <IconChevron size={13} style={{transform:open?'rotate(90deg)':'rotate(-90deg)',transition:'transform .15s'}}/>
+            </div>
+          )}
+        </div>
+        <div style={{width:32,height:32,borderRadius:8,background:'var(--surface)',color:'var(--ink-1)',border:'1px solid var(--border)',display:'grid',placeItems:'center',fontFamily:'var(--font-serif)',fontSize:14,fontWeight:600}}>{index+1}</div>
+      </button>
+
+      {open && (
+        <div style={{padding:'0 20px 20px',display:'flex',flexDirection:'column',gap:14}}>
+          {(c.anchor || c.evidence) && (
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:10}}>
+              {c.anchor && (
+                <div style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,padding:'10px 14px'}}>
+                  <div style={{fontSize:11.5,color:'var(--ink-3)',marginBottom:4,fontWeight:600}}>מקור העיגון (קורס + ראמ"ה)</div>
+                  <div style={{fontSize:13,color:'var(--ink-1)',lineHeight:1.55}}>{c.anchor}</div>
+                </div>
+              )}
+              {c.evidence && (
+                <div style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,padding:'10px 14px'}}>
+                  <div style={{fontSize:11.5,color:'var(--ink-3)',marginBottom:4,fontWeight:600}}>עדויות מרכזיות מהסמסטר</div>
+                  <div style={{fontSize:13,color:'var(--ink-1)',lineHeight:1.55}}>{c.evidence}</div>
+                </div>
+              )}
+            </div>
+          )}
+          {indicators.map(ind => (
+            <div key={ind.id} style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,padding:'12px 14px'}}>
+              <div style={{fontSize:14,fontWeight:600,color:'var(--ink-1)',marginBottom:10}}>
+                <span style={{fontFamily:'var(--font-mono)',fontSize:12.5,color:'var(--ink-3)',marginInlineEnd:8}}>{ind.id}</span>{ind.name}
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(170px,1fr))',gap:8}}>
+                {LEVEL_KEYS.map(k => ind.levels?.[k] ? (
+                  <div key={k} style={{borderRadius:8,padding:'8px 10px',background:'var(--surface-2)',borderTop:`3px solid ${LEVEL_COLOR[k]}`}}>
+                    <div style={{display:'flex',flexWrap:'wrap',alignItems:'baseline',gap:'0 6px',marginBottom:4}}>
+                      <span style={{fontSize:12,fontWeight:700,color:LEVEL_COLOR[k]}}>{LEVELS[k].label}</span>
+                      <span style={{fontSize:11,color:'var(--ink-3)'}}>{/^\d/.test(LEVELS[k].range) ? <bdi dir="ltr">{LEVELS[k].range}</bdi> : LEVELS[k].range}</span>
+                    </div>
+                    <div style={{fontSize:12.5,color:'var(--ink-2)',lineHeight:1.55}}>{ind.levels[k]}</div>
+                  </div>
+                ) : null)}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DeleteConfirmModal({ rubric, onClose, onConfirm }) {
   const [deleting, setDeleting] = useState(false);
   const handleConfirm = async () => {
@@ -542,7 +631,7 @@ function DeleteConfirmModal({ rubric, onClose, onConfirm }) {
         </p>
         <div style={{display:'flex',gap:10,justifyContent:'flex-end'}}>
           <button className="btn btn-ghost" onClick={onClose} disabled={deleting}>ביטול</button>
-          <button className="btn btn-primary" onClick={handleConfirm} disabled={deleting} style={{background:'var(--warn)',borderColor:'var(--warn)'}}>
+          <button className="btn btn-primary" onClick={handleConfirm} disabled={deleting} style={{background:'var(--warn)',borderColor:'var(--warn)',color:'#fff'}}>
             <IconTrash size={14}/> {deleting ? 'מוחק...' : 'מחק'}
           </button>
         </div>

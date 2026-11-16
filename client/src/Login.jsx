@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { login } from './api';
-import { IconGraduationCap, IconArrowLeft } from './icons';
+import { IconArrowLeft } from './icons';
 import { useLanguage } from './i18n';
 
 export function Login({ onLogin }) {
@@ -25,13 +25,14 @@ export function Login({ onLogin }) {
   };
 
   return (
-    <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', direction: isRTL ? 'rtl' : 'ltr' }}>
-      <div className="card fade-in" style={{ width: 400, padding: '40px 32px' }}>
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ width: 48, height: 48, background: 'var(--brand)', color: '#fff', borderRadius: 'var(--r-md)', display: 'grid', placeItems: 'center', margin: '0 auto 16px' }}>
-            <IconGraduationCap size={24} />
-          </div>
-          <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 28, fontWeight: 600, color: 'var(--ink-1)', margin: '0 0 8px' }}>{t('login_title')}</h1>
+    <div className="login-page" style={{ direction: isRTL ? 'rtl' : 'ltr' }}>
+      <div className="topstrip"><span className="topstrip-title">{t('college_name')}</span></div>
+      <div className="login-body">
+      <div className="corner-frame fade-in">
+      <div className="card" style={{ width: 400, maxWidth: 'calc(100vw - 50px)', padding: '36px 32px', boxShadow: 'var(--shadow-2)' }}>
+        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+          <img src="/dyellin-emblem.png" alt={t('college_name')} width={76} height={76} style={{ display: 'block', margin: '0 auto 16px', objectFit: 'contain' }} />
+          <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 28, fontWeight: 700, color: 'var(--ink-1)', margin: '0 0 8px' }}>{t('login_title')}</h1>
           <p style={{ fontSize: 14, color: 'var(--ink-3)', margin: 0 }}>{t('login_subtitle')}</p>
         </div>
 
@@ -69,6 +70,8 @@ export function Login({ onLogin }) {
           </button>
         </form>
 
+      </div>
+      </div>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { q } = require('../db');
+const { MAIN_RUBRIC_ID } = require('../rubrics/mainRubric');
 
 // GET /api/rubrics
 router.get('/', async (_req, res) => {
@@ -57,6 +58,9 @@ router.put('/:id', async (req, res) => {
 
 // DELETE /api/rubrics/:id
 router.delete('/:id', async (req, res) => {
+  if (req.params.id === MAIN_RUBRIC_ID) {
+    return res.status(400).json({ error: 'לא ניתן למחוק את המחוון הראשי. ניתן לשכפל אותו וליצור גרסה משלך.' });
+  }
   await q.deleteRubric(req.params.id);
   res.json({ ok: true });
 });

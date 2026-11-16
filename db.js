@@ -7,6 +7,7 @@ const supabase = createClient(
 );
 
 const BUCKET = 'student-files';
+const { MAIN_RUBRIC, MAIN_RUBRIC_ID, decorateRubric } = require('./rubrics/mainRubric');
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -39,28 +40,17 @@ async function seed() {
     });
     console.log('✓ Pilot user created: yearad@dyellin.ac.il / pilot2026');
   }
+}
 
-  const { data: rubrics } = await supabase.from('rubrics').select('id').limit(1);
-  if (!rubrics || rubrics.length === 0) {
-    await supabase.from('rubrics').insert({
-      id: 'r1',
-      name: 'מחוון כלי מדפים',
-      description: 'מחוון להערכת סטודנטים מורים — הכנה לקראת הוראה, יישום ותצפית.',
-      semester: 'שנתי',
-      total_points: 100,
-      criteria: [
-        { name: 'שליטה בתחום הדעת',        weight: 15, desc: 'ידע נדרש מספק; למידה מתמדת של היסטוריה כהכנה להוראה' },
-        { name: 'תפיסה מקצועית',            weight: 15, desc: 'הסבר מטרות ההוראה; קווים מנחים לניהול הכיתה' },
-        { name: 'שליטה במיומנויות הוראה',  weight: 30, desc: 'בניית שיעור: שאלת מוקד, פעולת דריכה, מקורות, ביצועי הבנה, ניהול דיון; שיפור לאור משוב' },
-        { name: 'עמידה בדרישות הקורס',     weight: 20, desc: 'לפחות 5 מערכי שיעור עם תיקונים; רפלקציה לאחר שיחת משוב' },
-        { name: 'תקשורת עם תלמידים',        weight: 10, desc: 'יחס מכבד וקשוב; זיהוי צרכים שונים; מעורבות ואחריות (מתצפית בלבד)' },
-        { name: 'משוב',                      weight: 10, desc: 'פתיחות למשוב; התבוננות עצמית כנה; הסקת מסקנות (מתצפית בלבד)' },
-      ],
-      instructor_id: 'u1',
-    });
-    console.log('✓ Rubric seeded: מחוון כלי מדפים');
-  }
-
+// The main rubric (מחוון הערכה מסכם להתנסות מעשית בהוראה) must always exist.
+// Inserted only when missing, so edits made through the UI are kept.
+async function ensureMainRubric() {
+  const { data: existing, error } = await supabase.from('rubrics').select('id').eq('id', MAIN_RUBRIC_ID).maybeSingle();
+  if (error) { console.error('Main rubric check failed:', error.message); return; }
+  if (existing) return;
+  const { error: insErr } = await supabase.from('rubrics').insert({ ...MAIN_RUBRIC, instructor_id: 'u1' });
+  if (insErr) console.error('Main rubric seed failed:', insErr.message);
+  else console.log(`✓ Main rubric seeded: ${MAIN_RUBRIC.name}`);
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
@@ -68,6 +58,7 @@ async function seed() {
 async function initDB() {
   await supabase.storage.createBucket(BUCKET, { public: false }).catch(() => {});
   await seed();
+  await ensureMainRubric();
   // Ensure the pilot user is an admin (handles existing DBs seeded before the role was set)
   await supabase.from('users').update({ role: 'admin' }).eq('id', 'u1').neq('role', 'admin');
 }
@@ -254,14 +245,18 @@ const q = {
     await supabase.from('users').delete().eq('id', id);
   },
 
+  // Main rubric first (it is the default in every rubric picker), then newest first.
   allRubrics: async () => {
     const { data } = await supabase.from('rubrics').select('*').order('created_at', { ascending: false });
-    return data || [];
+    const list = data || [];
+    const main = list.filter(r => r.id === MAIN_RUBRIC_ID);
+    const rest = list.filter(r => r.id !== MAIN_RUBRIC_ID);
+    return [...main, ...rest].map(decorateRubric);
   },
 
   rubric: async (id) => {
     const { data } = await supabase.from('rubrics').select('*').eq('id', id).single();
-    return data || null;
+    return decorateRubric(data) || null;
   },
 
   createRubric: async ({ name, description, semester, total_points, criteria, instructor_id }) => {
