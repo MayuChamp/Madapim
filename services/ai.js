@@ -1,16 +1,64 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const Anthropic = require('@anthropic-ai/sdk');
 const { PERFORMANCE_LEVELS, EVALUATION_PROTOCOL, levelFromScore, weightedScore } = require('../rubrics/mainRubric');
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const MODEL = 'gemini-2.5-flash';
+const MODEL = 'claude-opus-5-5';
 
 const LEVELS = ['גבוהה', 'בינונית-גבוהה', 'בינונית', 'בינונית-נמוכה'];
 
-// ─── Helper: call Gemini and return text ─────────────────────────────────────
-async function callGemini(prompt) {
-  const model = genAI.getGenerativeModel({ model: MODEL });
-  const result = await model.generateContent(prompt);
-  return result.response.text().trim();
+// Created on first use so the server still starts when the key is missing.
+let client;
+function getClient() {
+  if (!client) client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  return client;
+}
+
+// ─── Helper: call Claude and return text ─────────────────────────────────────
+// Streams (long Hebrew portfolios can produce long JSON drafts) and returns only
+// the text blocks. If the model declines, the API retries on a fallback model.
+async function callClaude(prompt, { effort = 'high' } = {}) {
+  let message;
+  try {
+    message = await getClient().beta.messages.stream({
+      model: MODEL,
+      max_tokens: 64000,
+      output_config: { effort },
+      betas: ['server-side-fallback-2026-07-01'],
+      fallbacks: 'default',
+      messages: [{ role: 'user', content: prompt }],
+    }).finalMessage();
+  } catch (err) {
+    if (err instanceof Anthropic.AuthenticationError) {
+      throw new Error('מפתח ה-API של Claude אינו תקין — בדוק את ANTHROPIC_API_KEY');
+    }
+    throw err;
+  }
+
+  if (message.stop_reason === 'refusal') {
+    throw new Error('ה-AI סירב לנתח את החומרים — נסה שוב או בדוק את תוכן הקבצים');
+  }
+  if (message.stop_reason === 'max_tokens') {
+    throw new Error('תגובת ה-AI נקטעה לפני הסוף — נסה שוב');
+  }
+
+  return message.content
+    .filter(b => b.type === 'text')
+    .map(b => b.text)
+    .join('')
+    .trim();
+}
+
+// ─── Helper: parse a JSON object/array out of the model's text ───────────────
+function parseJson(raw, open, close) {
+  const stripped = raw.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '').trim();
+  try {
+    return JSON.parse(stripped);
+  } catch {
+    // Fall back to the outermost {...} / [...] in case of stray prose around it.
+    const start = stripped.indexOf(open);
+    const end = stripped.lastIndexOf(close);
+    if (start === -1 || end <= start) throw new SyntaxError('No JSON found');
+    return JSON.parse(stripped.slice(start, end + 1));
+  }
 }
 
 // ─── Build document context from uploaded files ───────────────────────────────
@@ -123,18 +171,14 @@ ${docContext}
   ]
 }`;
 
-  const raw = await callGemini(prompt);
-  const jsonStr = raw
-    .replace(/^```(?:json)?\n?/i, '')
-    .replace(/\n?```$/i, '')
-    .trim();
+  const raw = await callClaude(prompt, { effort: 'high' });
 
   let parsed;
   try {
-    parsed = JSON.parse(jsonStr);
+    parsed = parseJson(raw, '{', '}');
   } catch (err) {
-    console.error('Gemini non-JSON response:\n', raw.slice(0, 600));
-    throw new Error('תגובת ה-AI לא הייתה ב-JSON תקין — בדוק את מפתח ה-API');
+    console.error('Claude non-JSON response:\n', raw.slice(0, 600));
+    throw new Error('תגובת ה-AI לא הייתה ב-JSON תקין — נסה שוב');
   }
 
   return normalizeDraft(parsed, rubric);
@@ -220,12 +264,9 @@ ${missing.map(c => `- חסר תיעוד: ${c.name}`).join('\n')}
 (options רלוונטי ל-decision בלבד. מערך ריק [] אם אין שאלות.)`;
 
   try {
-    const raw = await callGemini(prompt);
-    const jsonStr = raw
-      .replace(/^```(?:json)?\n?/i, '')
-      .replace(/\n?```$/i, '')
-      .trim();
-    return JSON.parse(jsonStr);
+    const raw = await callClaude(prompt, { effort: 'low' });
+    const questions = parseJson(raw, '[', ']');
+    return Array.isArray(questions) ? questions : [];
   } catch {
     return [];
   }

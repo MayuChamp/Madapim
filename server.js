@@ -58,8 +58,9 @@ async function start() {
   app.listen(PORT, () => {
     console.log(`\n✓ כלי הערכה פדגוגית running at http://localhost:${PORT}`);
     console.log(`  API: http://localhost:${PORT}/api`);
-    if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'your_key_here') {
-      console.log(`\n  ⚠️  GEMINI_API_KEY not set — AI analysis will fail.`);
+    const key = process.env.ANTHROPIC_API_KEY;
+    if (!key || key === 'your_key_here' || key.startsWith('your_')) {
+      console.log(`\n  ⚠️  ANTHROPIC_API_KEY not set — AI analysis will fail.`);
     }
   });
 }
