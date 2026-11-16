@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { TweaksPanel, TweakSection, TweakRadio, TweakToggle, TweakColor, TweakSelect, useTweaks } from './tweaks-panel';
 import { AccessibilityBar } from './accessibility-bar';
 import { TopbarNav, Dashboard, Workspace } from './screens-1-2';
@@ -6,7 +6,7 @@ import { HumanNodeModal, SplitEditor } from './screens-3-4';
 import { ArchiveScreen, RubricsScreen } from './screens-archive-rubrics';
 import { SettingsScreen } from './screens-settings';
 import { ExportScreen, AnalyzingScreen, Toast } from './screens-5-app';
-import { STUDENTS, EVAL_CATEGORIES, SMART_QUESTIONS } from './data';
+import { STUDENTS, EVAL_CATEGORIES } from './data';
 import { IconMenu } from './icons';
 import { Login, SetPassword } from './Login';
 import { MapaiLogo } from './MapaiLogo';
@@ -44,8 +44,11 @@ function App() {
   const [students, setStudents] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedRubricId, setSelectedRubricId] = useState(null);
-  const [smartQuestions, setSmartQuestions] = useState(SMART_QUESTIONS);
-  const [instructorAnswers, setInstructorAnswers] = useState({});
+  // "השלמת מידע": the prescan result and its loading state ('idle' | 'loading' | 'ready' | 'error').
+  const [prescan, setPrescan] = useState(null);
+  const [prescanStatus, setPrescanStatus] = useState('idle');
+  const prescanRequest = useRef(0);
+  const [instructorAnswers, setInstructorAnswers] = useState([]);
   const [evaluationDraft, setEvaluationDraft] = useState(null);
   // Latest editor state (instructor edits to text/scores), merged over the AI draft.
   const [editedDraft, setEditedDraft] = useState(null);
@@ -130,24 +133,44 @@ function App() {
 
   const [evalDateRange, setEvalDateRange] = useState(null);
 
-  const onAnalyze = (rubricId, dateRange) => { 
-    setSelectedRubricId(rubricId); 
+  // Analyze → scan the portfolio → questions → full analysis with the answers.
+  const onAnalyze = async (rubricId, dateRange) => {
+    setSelectedRubricId(rubricId);
     setEvalDateRange(dateRange);
-    setAnalyzeError(null); 
-    setModalOpen(true); 
+    setAnalyzeError(null);
+    setPrescan(null);
+    setPrescanStatus('loading');
+    setModalOpen(true);
+    const request = ++prescanRequest.current;
+    try {
+      const result = await API.prescan(student.id, rubricId, dateRange);
+      if (request !== prescanRequest.current) return; // cancelled meanwhile
+      setPrescan(result);
+      setPrescanStatus('ready');
+    } catch (err) {
+      if (request !== prescanRequest.current) return;
+      setPrescan({ error: err.message });
+      setPrescanStatus('error');
+    }
+  };
+
+  const onModalCancel = () => {
+    prescanRequest.current++;
+    setModalOpen(false);
+    setPrescanStatus('idle');
   };
 
   const runAnalysis = async (answers) => {
-    setInstructorAnswers(answers || {});
+    setInstructorAnswers(answers || []);
     setModalOpen(false);
+    setPrescanStatus('idle');
     setScreen('analyzing');
     setAnalyzeError(null);
     try {
-      const result = await API.analyze(student.id, answers || {}, selectedRubricId, evalDateRange);
+      const result = await API.analyze(student.id, answers || [], selectedRubricId, evalDateRange);
       setEvaluationId(result.evaluation_id);
       setEvaluationDraft(result.draft);
       setEditedDraft(null);
-      if (result.smart_questions?.length) setSmartQuestions(result.smart_questions);
       const files = await API.getFiles(student.id).catch(() => []);
       setStudentFiles(files.filter(f => f.has_text));
       refreshStudents();
@@ -160,7 +183,6 @@ function App() {
   };
 
   const onModalComplete = (answers) => runAnalysis(answers);
-  const onModalSkip    = ()         => runAnalysis({});
 
   const onExport = () => setScreen('export');
 
@@ -324,9 +346,10 @@ function App() {
 
       <HumanNodeModal
         open={modalOpen}
-        questions={smartQuestions}
+        status={prescanStatus}
+        data={prescan}
         onComplete={onModalComplete}
-        onSkip={onModalSkip}
+        onCancel={onModalCancel}
       />
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
 

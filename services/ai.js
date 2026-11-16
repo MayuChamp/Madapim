@@ -64,35 +64,113 @@ function parseJson(raw, open, close) {
 }
 
 // ─── Build document context from uploaded files ───────────────────────────────
+// `track_type` and `cycle_topic` come from the file's cycle (q.studentFiles).
+const STAGE_LABELS = {
+  lesson_plan: { submission: 'מערך שיעור', instructorNotes: 'הערות המדריך/ה למערך', revision: 'מערך שיעור · גרסה מתוקנת' },
+  observation: { observation: 'תצפית', feedback: 'משוב על התצפית', reflection: 'רפלקציה אחרי שיחת משוב' },
+};
+
+function docLabel(f) {
+  if (f.track_type === 'lesson_plan') return `📘 ${STAGE_LABELS.lesson_plan[f.stage_key] || 'מערך שיעור'}`;
+  if (f.track_type === 'observation') return `🎯 ${STAGE_LABELS.observation[f.stage_key] || 'תצפית'}`;
+  return '📎 חומר נוסף';
+}
+
 function buildDocContext(files) {
-  if (!files || files.length === 0) return 'לא הועלו מסמכים עדיין.';
-  return files
-    .filter(f => f.parsed_text && f.parsed_text.length > 20)
+  const docs = (files || []).filter(f => f.parsed_text && f.parsed_text.length > 20);
+  if (docs.length === 0) return 'לא הועלו מסמכים עדיין.';
+  return docs
     .map((f, i) => {
-      const label = f.track_type === 'lesson_plan' ? '📘 מערך שיעור' : '🎯 תצפית/רפלקציה';
-      return `--- מסמך ${i + 1}: ${label} | ${f.original_name} ---\n${f.parsed_text.slice(0, 3000)}\n`;
+      const where = f.cycle_topic ? ` | ${f.cycle_topic}` : '';
+      const desc = f.description ? ` | ${f.description}` : '';
+      return `--- מסמך ${i + 1}: ${docLabel(f)}${where} | ${f.original_name}${desc} ---\n${f.parsed_text.slice(0, 3000)}\n`;
     })
     .join('\n');
 }
 
+// ─── Pre-scan (before the "השלמת מידע" questions) ─────────────────────────────
+// A short pass over the portfolio that only gathers what services/questions.js
+// needs to decide which questions to ask. It writes no evaluation.
+const VALID_SCAN_LEVELS = new Set(['high', 'mid_high', 'mid', 'low_mid']);
+
+async function prescanPortfolio(student, files, rubric) {
+  const indicators = (rubric?.criteria || []).flatMap(c =>
+    (c.indicators || []).map(ind => ({ ...ind, id: String(ind.id), criterionName: c.name }))
+  );
+  const empty = { indicators: [], contentErrors: [], revisedLessonPlans: 0, reflections: 0 };
+  if (indicators.length === 0) return empty;
+
+  const hasDocs = (files || []).some(f => f.parsed_text && f.parsed_text.length > 20);
+  if (!hasDocs) {
+    return { ...empty, indicators: indicators.map(i => ({ id: i.id, evidenceCount: 0, lookFor: null })) };
+  }
+
+  const isMale = (student.gender || 'female') === 'male';
+  const studentTitle = isMale ? 'הסטודנט' : 'הסטודנטית';
+  const c3Codes = indicators.filter(i => i.id.startsWith('3.')).map(i => i.id);
+  const indicatorList = indicators.map(i =>
+    `- ${i.id} — ${i.name} (${i.criterionName})${i.levels?.mid_high ? `\n  ברמה "טוב / שולט": ${i.levels.mid_high}` : ''}`
+  ).join('\n');
+
+  const prompt = `סרוק את תיק ההתנסות של ${studentTitle} ${student.name} והחזר נתונים שיעזרו להחליט אילו שאלות לשאול את המדריך/ה הפדגוגי/ת לפני ההערכה. אל תכתוב הערכה.
+
+## תתי-המדדים במחוון
+${indicatorList}
+
+## חומרי התיק
+${buildDocContext(files)}
+
+## מה להחזיר
+1. indicators — לכל תת-מדד ברשימה:
+   - id
+   - evidenceCount: כמה עדויות נפרדות יש בחומרים לתת-המדד (מסמכים או אירועים שונים; 0 אם אין)
+   - lookFor: רק אם evidenceCount קטן מ-2 — התנהגות נצפית קצרה (עד 12 מילים) מתוך תיאור הרמה "טוב / שולט", בלשון ${isMale ? 'זכר' : 'נקבה'} בזמן הווה, שמשלימה את המשפט "האם ראית את ${student.name} ..." (למשל: "${isMale ? 'מתאים' : 'מתאימה'} מענה לתלמיד או לקבוצה מסוימים"). אחרת null.
+   - planLevel / executionLevel: ${c3Codes.length ? `רק לתתי-המדדים ${c3Codes.join(', ')} — הרמה לפי מערכי השיעור (📘) והרמה לפי התצפיות (🎯), כל אחת בנפרד: high / mid_high / mid / low_mid, או null אם אין עדות באותו ערוץ. לשאר תתי-המדדים null.` : 'null לכל תתי-המדדים.'}
+   - planSource / executionSource: שם הקובץ העיקרי שעליו מבוססת כל אחת מהרמות, או null.
+2. contentErrors — טעויות ברורות בתוכן הדיסציפלינרי (לא ניסוח או סגנון) במערכים או בתצפיות: [{"source": "<שם הקובץ>", "example": "<תיאור קצר של הטעות, עד 12 מילים>"}]. מערך ריק אם אין.
+3. revisedLessonPlans — לכמה מערכי שיעור יש בחומרים גרסה מתוקנת.
+4. reflections — כמה רפלקציות של ${studentTitle} אחרי שיחות משוב יש בחומרים.
+
+החזר JSON גולמי בלבד (ללא markdown):
+{"indicators":[{"id":"1.1","evidenceCount":0,"lookFor":null,"planLevel":null,"executionLevel":null,"planSource":null,"executionSource":null}],"contentErrors":[],"revisedLessonPlans":0,"reflections":0}`;
+
+  const raw = await callClaude(prompt, { effort: 'medium', maxTokens: 8000 });
+  const parsed = parseJson(raw, '{', '}');
+
+  const known = new Set(indicators.map(i => i.id));
+  const level = v => (VALID_SCAN_LEVELS.has(v) ? v : null);
+  const text = (v, n) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, n) : null);
+  return {
+    indicators: (Array.isArray(parsed.indicators) ? parsed.indicators : [])
+      .filter(s => s && known.has(String(s.id)))
+      .map(s => ({
+        id: String(s.id),
+        evidenceCount: Number.isFinite(Number(s.evidenceCount)) ? Number(s.evidenceCount) : null,
+        lookFor: text(s.lookFor, 160),
+        planLevel: level(s.planLevel),
+        executionLevel: level(s.executionLevel),
+        planSource: text(s.planSource, 120),
+        executionSource: text(s.executionSource, 120),
+      })),
+    contentErrors: (Array.isArray(parsed.contentErrors) ? parsed.contentErrors : [])
+      .filter(e => e && (e.source || e.example))
+      .slice(0, 5)
+      .map(e => ({ source: text(e.source, 120), example: text(e.example, 160) })),
+    revisedLessonPlans: Number(parsed.revisedLessonPlans) || 0,
+    reflections: Number(parsed.reflections) || 0,
+  };
+}
+
 // ─── Main analysis ────────────────────────────────────────────────────────────
-async function analyzePortfolio(studentName, files, instructorAnswers = {}, gender = 'female', rubric) {
+// `instructorSection` is the prompt text built from the "השלמת מידע" answers
+// (services/questions.js → answersPromptSection).
+async function analyzePortfolio({ studentName, files, gender = 'female', rubric, instructorSection = '' }) {
   const criteria = rubric?.criteria || [];
   const docContext = buildDocContext(files);
   const isMale = gender === 'male';
   const studentTitle = isMale ? 'הסטודנט' : 'הסטודנטית';
   const pronoun = isMale ? 'הוא' : 'היא';
   const possessive = isMale ? 'שלו' : 'שלה';
-
-  const answersText = Object.keys(instructorAnswers).length > 0
-    ? '\n## תובנות המדריך הפדגוגי\n' +
-      Object.entries(instructorAnswers).map(([, val]) => {
-        const answer = typeof val === 'object'
-          ? `${val.label || ''}${val.note ? ' — ' + val.note : ''}`
-          : val;
-        return `- ${answer}`;
-      }).join('\n')
-    : '';
 
   const hasIndicators = criteria.some(c => Array.isArray(c.indicators) && c.indicators.length > 0);
 
@@ -125,7 +203,7 @@ ${studentName}
 ## מחוון ההערכה (${rubric?.name || 'מחוון'})
 סולם רמות הביצוע: ${scaleText}
 ${rubricText}
-${protocolText}${answersText}
+${protocolText}${instructorSection}
 
 ## חומרי התיק שהועלו
 ${docContext}
@@ -300,37 +378,4 @@ ${buildDraftContext(draft)}
   return { reply: raw, updates: null };
 }
 
-// ─── Smart gap questions ──────────────────────────────────────────────────────
-async function generateSmartQuestions(analysisResult, studentName, gender = 'female') {
-  const gaps    = (analysisResult.categories || []).filter(c => c.hasGap);
-  const missing = (analysisResult.categories || []).filter(
-    c => !c.overallLevel || (!c.lessonPlanLevel && !c.observationLevel)
-  );
-
-  if (gaps.length === 0 && missing.length === 0) return [];
-
-  const isMale = gender === 'male';
-  const studentTitle = isMale ? 'הסטודנט' : 'הסטודנטית';
-
-  const prompt = `בהתבסס על ניתוח התיק של ${studentTitle} ${studentName} זוהו:
-${gaps.map(c => `- פער ב${c.name}: ${c.gapSummary || ''}`).join('\n')}
-${missing.map(c => `- חסר תיעוד: ${c.name}`).join('\n')}
-
-צור עד 3 שאלות ממוקדות למדריך הפדגוגי.
-- פערים בין מערך לצפייה → type: "decision" עם 3 options
-- חומרים חסרים → type: "text"
-
-החזר JSON גולמי בלבד:
-[{"id":"q1","type":"decision|text","badge":"...","context":"...","question":"...","options":[{"value":"...","label":"...","detail":"..."}],"placeholder":"..."}]
-(options רלוונטי ל-decision בלבד. מערך ריק [] אם אין שאלות.)`;
-
-  try {
-    const raw = await callClaude(prompt, { effort: 'low' });
-    const questions = parseJson(raw, '[', ']');
-    return Array.isArray(questions) ? questions : [];
-  } catch {
-    return [];
-  }
-}
-
-module.exports = { analyzePortfolio, generateSmartQuestions, normalizeDraft, chatPortfolio };
+module.exports = { analyzePortfolio, prescanPortfolio, normalizeDraft, chatPortfolio };

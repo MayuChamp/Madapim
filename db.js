@@ -167,10 +167,12 @@ const q = {
     if (error) throw error;
   },
 
-  upsertEvaluation: async (studentId, draftJson, score, rubricId) => {
+  upsertEvaluation: async (studentId, draftJson, score, rubricId, instructorAnswers) => {
     let ev = await q.evaluation(studentId);
     if (!ev) ev = await q.createEvaluation(studentId);
-    await q.updateEvaluation(ev.id, { draft_json: draftJson, score, status: 'draft', rubric_id: rubricId || null });
+    const fields = { draft_json: draftJson, score, status: 'draft', rubric_id: rubricId || null };
+    if (instructorAnswers !== undefined) fields.instructor_answers = instructorAnswers;
+    await q.updateEvaluation(ev.id, fields);
     return q.getEvaluation(ev.id);
   },
 
@@ -187,9 +189,17 @@ const q = {
     await supabase.from('files').delete().eq('id', id);
   },
 
+  // Files carry no track of their own; it comes from the cycle they were uploaded to.
   studentFiles: async (studentId) => {
-    const { data } = await supabase.from('files').select('*').eq('student_id', studentId);
-    return data || [];
+    const [{ data: files }, { data: cycles }] = await Promise.all([
+      supabase.from('files').select('*').eq('student_id', studentId),
+      supabase.from('cycles').select('id, track_type, topic').eq('student_id', studentId),
+    ]);
+    const byId = new Map((cycles || []).map(c => [c.id, c]));
+    return (files || []).map(f => {
+      const cycle = f.cycle_id ? byId.get(f.cycle_id) : null;
+      return { ...f, track_type: cycle?.track_type || null, cycle_topic: cycle?.topic || null };
+    });
   },
 
   updateStudentStatus: async (id, status) => {
@@ -225,6 +235,12 @@ const q = {
 
   updateUserQuota: async (id, maxLessonPlans, maxObservations) => {
     await supabase.from('users').update({ max_lesson_plans: maxLessonPlans, max_observations: maxObservations }).eq('id', id);
+  },
+
+  // Fails until migration 20261116_add_plan_vs_execution.sql has been run.
+  updatePlanVsExecution: async (id, value) => {
+    const { error } = await supabase.from('users').update({ plan_vs_execution: value }).eq('id', id);
+    if (error) throw error;
   },
 
   // `pending` = invited but has not set a password yet. The hash never leaves here.

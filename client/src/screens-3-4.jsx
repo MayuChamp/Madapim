@@ -21,97 +21,222 @@ class EditorErrorBoundary extends Component {
 }
 import * as Icons from './icons';
 import { Icon, IconHome, IconUsers, IconArchive, IconSettings, IconFolder, IconFile, IconUpload, IconPlus, IconArrowLeft, IconArrowRight, IconChevron, IconPencil, IconMagic, IconMic, IconSearch, IconClose, IconCheck, IconDownload, IconSave, IconSend, IconSparkle, IconBookmark, IconDoc, IconWave, IconGrid, IconList, IconClock, IconArchiveBox, IconAlert, IconGraduationCap, IconEye } from './icons';
-import { SMART_QUESTIONS, EVAL_CATEGORIES, EVIDENCES, LEVELS, LEVEL_KEYS, QA_SUGGESTIONS, levelFromScore, weightedScore } from './data';
+import { EVAL_CATEGORIES, EVIDENCES, LEVELS, LEVEL_KEYS, QA_SUGGESTIONS, levelFromScore, weightedScore } from './data';
 import { chatEvaluation } from './api';
 
 
 
-function HumanNodeModal({ open, onComplete, onSkip, questions }) {
+// ─── "השלמת מידע" — questions before the analysis ─────────────────────────────
+// The questions come from POST /evaluations/prescan (services/questions.js).
+// Each answer goes back with its question, so the analysis sees what was asked.
+// A question left without an answer counts as skipped.
+const QUESTION_TONE = {
+  gap:          { fg: 'var(--lp)',    bg: 'var(--lp-soft)' },
+  evidence:     { fg: 'var(--ob)',    bg: 'var(--ob-soft)' },
+  requirements: { fg: 'var(--gold)',  bg: 'var(--gold-soft)' },
+  content:      { fg: 'var(--gold)',  bg: 'var(--gold-soft)' },
+  fixed:        { fg: 'var(--brand)', bg: 'var(--brand-soft)' },
+};
+
+function hasAnswer(a) {
+  if (!a || a.skipped) return false;
+  return !!(a.value || (a.note || '').trim() || a.indicatorId || (a.items && Object.values(a.items).some(Boolean)));
+}
+
+function noteMissing(Q, a) {
+  if (!Q || !a || a.skipped || !a.value) return false;
+  return (Q.note?.requiredFor || []).includes(a.value) && !(a.note || '').trim();
+}
+
+function resolveAnswers(questions, answers, skipAll) {
+  return questions.map(Q => {
+    const a = answers[Q.id] || {};
+    const skipped = skipAll || !hasAnswer(a);
+    const option = (Q.options || []).find(o => o.value === a.value);
+    return {
+      id: Q.id, kind: Q.kind, codes: Q.codes || [], topic: Q.topic, question: Q.question, context: Q.context || null,
+      skipped,
+      value: skipped ? null : (a.value || null),
+      answer: skipped ? null : (option?.label || null),
+      note: skipped ? '' : (a.note || '').trim(),
+      items: skipped ? [] : (Q.items || [])
+        .map(it => ({ label: it.label, answer: it.options.find(o => o.value === a.items?.[it.key])?.label || null }))
+        .filter(i => i.answer),
+      indicator: skipped ? null : ((Q.indicatorOptions || []).find(i => i.id === a.indicatorId) || null),
+    };
+  });
+}
+
+function HumanNodeModal({ open, status, data, onComplete, onCancel }) {
   const { t } = useLanguage();
-  const SMART_QUESTIONS_ACTIVE = questions && questions.length > 0 ? questions : SMART_QUESTIONS;
+  const questions = data?.questions || [];
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState({});
-  const [recording, setRecording] = useState(false);
-  const [recordTime, setRecordTime] = useState(0);
-  const intervalRef = useRef(null);
-  useEffect(()=>{ if(open){setStep(0);setAnswers({});setRecording(false);setRecordTime(0);} },[open]);
-  useEffect(()=>{ if(recording){intervalRef.current=setInterval(()=>setRecordTime(t=>t+1),1000);}else{clearInterval(intervalRef.current);} return()=>clearInterval(intervalRef.current); },[recording]);
+  const [showRequired, setShowRequired] = useState(false);
+  useEffect(() => { if (open) { setStep(0); setAnswers({}); setShowRequired(false); } }, [open, data]);
   if (!open) return null;
-  const Q = SMART_QUESTIONS_ACTIVE[step]; const isLast = step===SMART_QUESTIONS_ACTIVE.length-1;
-  const rawVal = answers[Q.id]; const isDecision = Q.type==='decision';
-  const currentChoice = isDecision&&rawVal?rawVal.value:null;
-  const currentNote = isDecision?(rawVal?rawVal.note||'':''):(typeof rawVal==='string'?rawVal:'');
-  const setCurrentNote = (val) => setAnswers(prev=>({...prev,[Q.id]:isDecision?{...(prev[Q.id]||{}),note:val}:val}));
-  const setChoice = (opt) => setAnswers(prev=>({...prev,[Q.id]:{value:opt.value,label:opt.label,note:(prev[Q.id]&&prev[Q.id].note)||''}}));
-  const gapTone = Q.gap==='lessonPlan'?{fg:'var(--lp)',bg:'var(--lp-soft)'}:Q.gap==='observation'?{fg:'var(--ob)',bg:'var(--ob-soft)'}:{fg:'var(--gold)',bg:'var(--gold-soft)'};
+
+  const ready = status === 'ready' && questions.length > 0;
+  const Q = ready ? questions[Math.min(step, questions.length - 1)] : null;
+  const a = (Q && answers[Q.id]) || {};
+  const tone = (Q && QUESTION_TONE[Q.kind]) || QUESTION_TONE.fixed;
+  const isLast = ready && step >= questions.length - 1;
+  const noteRequired = !!Q && (Q.note?.requiredFor || []).includes(a.value);
+  const missing = showRequired && noteMissing(Q, a);
+
+  const update = patch => setAnswers(prev => ({ ...prev, [Q.id]: { ...(prev[Q.id] || {}), ...patch, skipped: false } }));
+  const setItem = (key, value) => setAnswers(prev => {
+    const cur = prev[Q.id] || {};
+    return { ...prev, [Q.id]: { ...cur, skipped: false, items: { ...(cur.items || {}), [key]: value } } };
+  });
+  const finish = (next, skipAll = false) => onComplete(resolveAnswers(questions, next, skipAll));
+  const goNext = () => {
+    if (noteMissing(Q, a)) { setShowRequired(true); return; }
+    setShowRequired(false);
+    if (isLast) finish(answers); else setStep(step + 1);
+  };
+  const skipQuestion = () => {
+    const next = { ...answers, [Q.id]: { ...(answers[Q.id] || {}), skipped: true } };
+    setAnswers(next);
+    setShowRequired(false);
+    if (isLast) finish(next); else setStep(step + 1);
+  };
+
+  const footer = { padding: '14px 24px', background: 'var(--surface-2)', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' };
+
   return (
     <div style={{position:'fixed',inset:0,zIndex:100,display:'grid',placeItems:'center',animation:'overlayIn .25s',background:'rgba(20,23,31,0.42)',backdropFilter:'blur(6px)',WebkitBackdropFilter:'blur(6px)'}}>
-      <div style={{width:620,maxWidth:'calc(100vw - 32px)',background:'var(--surface)',borderRadius:16,boxShadow:'var(--shadow-modal)',overflow:'hidden',animation:'fadeInScale .3s cubic-bezier(.2,.9,.3,1.2)',border:'1px solid var(--border)'}}>
+      <div role="dialog" aria-modal="true" aria-labelledby="hn-title" style={{width:640,maxWidth:'calc(100vw - 32px)',maxHeight:'calc(100vh - 32px)',display:'flex',flexDirection:'column',background:'var(--surface)',borderRadius:16,boxShadow:'var(--shadow-modal)',overflow:'hidden',animation:'fadeInScale .3s cubic-bezier(.2,.9,.3,1.2)',border:'1px solid var(--border)'}}>
         <div style={{padding:'20px 24px 18px',background:'linear-gradient(180deg,var(--brand-softer),var(--surface))',borderBottom:'1px solid var(--border)'}}>
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
             <div style={{display:'flex',alignItems:'center',gap:10}}>
               <div style={{width:32,height:32,borderRadius:8,background:'var(--brand)',color:'#fff',display:'grid',placeItems:'center'}}><IconSparkle size={16}/></div>
-              <div><div style={{fontFamily:'var(--font-serif)',fontSize:17,fontWeight:600,color:'var(--ink-1)'}}>{t('modal_title')}</div><div style={{fontSize:12,color:'var(--ink-3)'}}>{t('modal_subtitle')}</div></div>
+              <div><div id="hn-title" style={{fontFamily:'var(--font-serif)',fontSize:17,fontWeight:600,color:'var(--ink-1)'}}>{t('modal_title')}</div><div style={{fontSize:12,color:'var(--ink-3)'}}>{t('modal_subtitle')}</div></div>
             </div>
-            <button onClick={onSkip} className="btn-ghost" style={{padding:6,borderRadius:6,color:'var(--ink-3)'}}><IconClose size={18}/></button>
+            <button onClick={onCancel} className="btn-ghost" aria-label={t('btn_cancel_analysis')} title={t('btn_cancel_analysis')} style={{padding:6,borderRadius:6,color:'var(--ink-3)'}}><IconClose size={18}/></button>
           </div>
-          <div style={{marginTop:16,display:'flex',gap:4}}>
-            {SMART_QUESTIONS_ACTIVE.map((q,i)=>(
-              <div key={q.id} style={{flex:1,display:'flex',flexDirection:'column',gap:4}}>
-                <div style={{height:3,borderRadius:2,background:i<=step?'var(--brand)':'var(--border)',transition:'background .3s'}}/>
-                <div style={{fontSize:10.5,color:i===step?'var(--brand)':'var(--ink-3)',textAlign:'center',fontWeight:i===step?600:400}}>{t('question_label', { n: i+1 })}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div style={{padding:'22px 24px'}}>
-          <div style={{display:'inline-flex',alignItems:'center',gap:6,padding:'4px 10px',background:gapTone.bg,color:gapTone.fg,borderRadius:100,fontSize:11.5,fontWeight:500,marginBottom:12}}>{Q.badge}</div>
-          <div style={{padding:'12px 14px',background:'var(--surface-2)',borderInlineStart:`3px solid ${gapTone.fg}`,borderRadius:6,fontSize:13,color:'var(--ink-2)',lineHeight:1.6,marginBottom:16}}>
-            <div style={{fontSize:11,color:gapTone.fg,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:4}}>{t('system_detected_label')}</div>
-            {Q.context}
-          </div>
-          <div style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:600,color:'var(--ink-1)',lineHeight:1.4,marginBottom:16,letterSpacing:'-0.005em'}}>{Q.question}</div>
-          {isDecision&&(
-            <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:14}}>
-              {Q.options.map(opt=>{
-                const sel=currentChoice===opt.value;
+          {ready && (
+            <div style={{marginTop:16,display:'flex',gap:4}}>
+              {questions.map((q,i)=>{
+                const done = hasAnswer(answers[q.id]); const skipped = answers[q.id]?.skipped;
                 return (
-                  <button key={opt.value} onClick={()=>setChoice(opt)} style={{textAlign:'start',padding:'12px 14px',border:`1px solid ${sel?gapTone.fg:'var(--border)'}`,background:sel?`color-mix(in srgb, ${gapTone.bg} 55%, var(--surface))`:'var(--surface)',borderRadius:'var(--r-sm)',display:'flex',alignItems:'flex-start',gap:12,transition:'all .15s',width:'100%',cursor:'pointer'}}>
-                    <div style={{width:16,height:16,borderRadius:'50%',marginTop:2,flexShrink:0,border:`1.5px solid ${sel?gapTone.fg:'var(--border-strong)'}`,background:sel?gapTone.fg:'transparent',display:'grid',placeItems:'center'}}>
-                      {sel&&<span style={{width:6,height:6,borderRadius:'50%',background:'#fff'}}/>}
-                    </div>
-                    <div><div style={{fontSize:14,fontWeight:600,color:'var(--ink-1)'}}>{opt.label}</div><div style={{fontSize:12,color:'var(--ink-3)',marginTop:2}}>{opt.detail}</div></div>
-                  </button>
+                  <div key={q.id} style={{flex:1,display:'flex',flexDirection:'column',gap:4}}>
+                    <div style={{height:3,borderRadius:2,background:i===step||done?'var(--brand)':skipped?'var(--border-strong)':'var(--border)',transition:'background .3s'}}/>
+                    <div style={{fontSize:10.5,color:i===step?'var(--brand)':'var(--ink-3)',textAlign:'center',fontWeight:i===step?600:400}}>{skipped&&i!==step?t('question_skipped_label',{n:i+1}):t('question_label',{n:i+1})}</div>
+                  </div>
                 );
               })}
             </div>
           )}
-          <div style={{position:'relative'}}>
-            <textarea className="textarea" value={currentNote} onChange={e=>setCurrentNote(e.target.value)} placeholder={Q.placeholder} style={{minHeight:isDecision?64:100,paddingInlineEnd:56}}/>
-            <button onClick={()=>{ if(recording){setRecording(false);const t={q1:'הביצוע בכיתה משקף את היכולת האמיתית שלה. התכנון עוד יתפתח.',q2:'יש לה אחריות מעל ומעבר — נשארת אחרי הצלצול עם תלמידים שמתקשים, מגיעה בבוקר 15 דקות מוקדם. האווירה בכיתה נינוחה.',q3:'מקפידה מאוד — נכחה בשני ימי ההורים, הגישה ציונים בזמן ואף יזמה תיאום עם הורה מודאג.'};setCurrentNote((currentNote?currentNote+' ':'')+(t[Q.id]||''));}else{setRecording(true);setRecordTime(0);}}}
-              style={{position:'absolute',insetInlineStart:10,top:10,width:40,height:40,borderRadius:'50%',background:recording?'#c0392b':'var(--brand)',color:'#fff',display:'grid',placeItems:'center',boxShadow:recording?'0 0 0 4px rgba(192,57,43,0.18)':'0 2px 8px rgba(30,58,95,.2)',transition:'all .2s',cursor:'pointer'}}>
-              {recording?<IconWave size={16}/>:<IconMic size={16}/>}
-              {recording&&<span style={{position:'absolute',inset:-4,borderRadius:'50%',border:'2px solid #c0392b',animation:'ripple 1.4s infinite ease-out',pointerEvents:'none'}}/>}
-            </button>
+        </div>
+
+        {status === 'loading' && (
+          <div style={{padding:'48px 24px',textAlign:'center'}}>
+            <IconSparkle size={24} stroke="var(--brand)" style={{animation:'pulse 1s infinite'}}/>
+            <div style={{marginTop:12,fontSize:15,fontWeight:600,color:'var(--ink-1)'}}>{t('prescan_loading')}</div>
+            <div style={{marginTop:4,fontSize:12.5,color:'var(--ink-3)'}}>{t('prescan_loading_hint')}</div>
           </div>
-          {recording?(
-            <div style={{marginTop:10,display:'flex',alignItems:'center',gap:8,fontSize:12,color:'#c0392b'}}>
-              <span style={{width:8,height:8,borderRadius:'50%',background:'#c0392b',animation:'pulse 1s infinite'}}/>
-              {t('recording_timer', { time: `${String(Math.floor(recordTime/60)).padStart(2,'0')}:${String(recordTime%60).padStart(2,'0')}` })}
-              <span style={{flex:1}}/><span style={{color:'var(--ink-3)'}}>{t('mic_stop_hint')}</span>
+        )}
+
+        {(status === 'error' || (status === 'ready' && questions.length === 0) || (status !== 'loading' && status !== 'ready' && status !== 'error')) && (
+          <>
+            <div style={{padding:'32px 24px',display:'flex',gap:12,alignItems:'flex-start'}}>
+              {status === 'error' && <IconAlert size={18} stroke="var(--warn)" style={{flexShrink:0,marginTop:2}}/>}
+              <div>
+                <div style={{fontSize:14.5,fontWeight:600,color:'var(--ink-1)'}}>{status === 'error' ? t('prescan_error') : t('no_questions')}</div>
+                {status === 'error' && data?.error && <div style={{marginTop:4,fontSize:12.5,color:'var(--ink-3)'}}>{data.error}</div>}
+              </div>
             </div>
-          ):(
-            <div style={{marginTop:10,fontSize:12,color:'var(--ink-3)'}}>{t('mic_hint')}</div>
-          )}
-        </div>
-        <div style={{padding:'14px 24px',background:'var(--surface-2)',borderTop:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'space-between',gap:12}}>
-          <button className="btn btn-ghost btn-sm" onClick={onSkip}>{t('btn_skip_all')}</button>
-          <div style={{display:'flex',alignItems:'center',gap:8}}>
-            {step>0&&<button className="btn btn-ghost btn-sm" onClick={()=>setStep(step-1)}><IconArrowRight size={13}/> {t('btn_back')}</button>}
-            {!isLast?<button className="btn btn-primary" onClick={()=>setStep(step+1)}>{t('btn_next_question')} <IconArrowLeft size={14}/></button>
-              :<button className="btn btn-primary" onClick={()=>onComplete(answers)}>{t('btn_finish_draft')} <IconArrowLeft size={14}/></button>}
-          </div>
-        </div>
+            <div style={footer}>
+              <button className="btn btn-ghost btn-sm" onClick={onCancel}>{t('btn_cancel_analysis')}</button>
+              <button className="btn btn-primary" onClick={()=>onComplete([])}>{t('btn_continue_analysis')} <IconArrowLeft size={14}/></button>
+            </div>
+          </>
+        )}
+
+        {ready && (
+          <>
+            <div style={{padding:'22px 24px',overflowY:'auto',flex:1}}>
+              {step === 0 && data.limited && (
+                <div style={{display:'flex',gap:8,alignItems:'flex-start',padding:'10px 12px',marginBottom:14,background:'var(--warn-soft)',borderRadius:'var(--r-sm)',fontSize:12.5,color:'var(--ink-2)',lineHeight:1.55}}>
+                  <IconAlert size={14} stroke="var(--warn)" style={{flexShrink:0,marginTop:2}}/>
+                  <span>{t('limited_info_warning', { n: data.counts?.lessonPlans ?? 0 })}</span>
+                </div>
+              )}
+              {step === 0 && data.scanFailed && (
+                <div style={{padding:'10px 12px',marginBottom:14,background:'var(--surface-2)',borderRadius:'var(--r-sm)',fontSize:12.5,color:'var(--ink-3)',lineHeight:1.55}}>{t('prescan_failed_note')}</div>
+              )}
+              <div style={{display:'inline-flex',alignItems:'center',gap:6,padding:'4px 10px',background:tone.bg,color:tone.fg,borderRadius:100,fontSize:11.5,fontWeight:500,marginBottom:12}}>
+                {Q.codes?.length > 0 && <span dir="ltr" style={{fontFamily:'var(--font-mono)',fontWeight:600}}>{Q.codes.join('–')}</span>}
+                {Q.codes?.length > 0 && <span aria-hidden="true">·</span>}
+                <span>{Q.topic}</span>
+              </div>
+              {Q.context && (
+                <div style={{padding:'12px 14px',background:'var(--surface-2)',borderInlineStart:`3px solid ${tone.fg}`,borderRadius:6,fontSize:13,color:'var(--ink-2)',lineHeight:1.6,marginBottom:16,whiteSpace:'pre-line'}}>
+                  <div style={{fontSize:11,color:tone.fg,fontWeight:600,letterSpacing:'0.06em',marginBottom:4}}>{t('system_detected_label')}</div>
+                  {Q.context}
+                </div>
+              )}
+              <div style={{fontFamily:'var(--font-serif)',fontSize:19,fontWeight:600,color:'var(--ink-1)',lineHeight:1.45,marginBottom:16,letterSpacing:'-0.005em'}}>{Q.question}</div>
+
+              {Array.isArray(Q.options) && Q.options.length > 0 && (
+                <div role="radiogroup" style={{display:'flex',flexDirection:'column',gap:8,marginBottom:14}}>
+                  {Q.options.map(opt=>{
+                    const sel = a.value === opt.value;
+                    return (
+                      <button key={opt.value} role="radio" aria-checked={sel} onClick={()=>update({value:opt.value})} style={{textAlign:'start',padding:'11px 14px',border:`1px solid ${sel?tone.fg:'var(--border)'}`,background:sel?`color-mix(in srgb, ${tone.bg} 55%, var(--surface))`:'var(--surface)',borderRadius:'var(--r-sm)',display:'flex',alignItems:'center',gap:12,transition:'all .15s',width:'100%',cursor:'pointer'}}>
+                        <div style={{width:16,height:16,borderRadius:'50%',flexShrink:0,border:`1.5px solid ${sel?tone.fg:'var(--border-strong)'}`,background:sel?tone.fg:'transparent',display:'grid',placeItems:'center'}}>
+                          {sel&&<span style={{width:6,height:6,borderRadius:'50%',background:'#fff'}}/>}
+                        </div>
+                        <div style={{fontSize:14,fontWeight:sel?600:500,color:'var(--ink-1)'}}>{opt.label}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {Array.isArray(Q.items) && Q.items.length > 0 && (
+                <div style={{display:'flex',flexDirection:'column',gap:10,marginBottom:14}}>
+                  {Q.items.map(it=>(
+                    <div key={it.key} style={{padding:'12px 14px',border:'1px solid var(--border)',borderRadius:'var(--r-sm)'}}>
+                      <div style={{fontSize:13.5,fontWeight:600,color:'var(--ink-1)',marginBottom:8}}>{it.label}</div>
+                      <div role="radiogroup" style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                        {it.options.map(o=>{
+                          const sel = a.items?.[it.key] === o.value;
+                          return <button key={o.value} role="radio" aria-checked={sel} onClick={()=>setItem(it.key, sel ? null : o.value)} style={{padding:'7px 12px',fontSize:13,border:`1px solid ${sel?tone.fg:'var(--border)'}`,background:sel?tone.bg:'var(--surface)',color:sel?tone.fg:'var(--ink-2)',fontWeight:sel?600:500,borderRadius:'var(--r-sm)',cursor:'pointer'}}>{o.label}</button>;
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {Q.hint && <div style={{fontSize:12,color:'var(--ink-3)',lineHeight:1.5,margin:'-4px 0 14px'}}>{Q.hint}</div>}
+
+              {Array.isArray(Q.indicatorOptions) && Q.indicatorOptions.length > 0 && (
+                <div style={{marginBottom:12}}>
+                  <label className="label" htmlFor="hn-indicator">{t('strength_indicator_label')}</label>
+                  <select id="hn-indicator" className="input" value={a.indicatorId || ''} onChange={e=>update({indicatorId:e.target.value||null})}>
+                    <option value="">{t('strength_indicator_none')}</option>
+                    {Q.indicatorOptions.map(i=><option key={i.id} value={i.id}>{i.id} · {i.name}</option>)}
+                  </select>
+                </div>
+              )}
+
+              <label className="label" htmlFor="hn-note">{Q.note?.primary ? t('answer_label') : noteRequired ? t('note_required_label') : t('note_optional_label')}</label>
+              <textarea id="hn-note" className="textarea" value={a.note || ''} onChange={e=>update({note:e.target.value})} placeholder={Q.note?.placeholder || ''} aria-invalid={missing || undefined} style={{minHeight:Q.note?.primary?100:64,borderColor:missing?'var(--warn)':undefined}}/>
+              {missing && <div role="alert" style={{marginTop:6,fontSize:12,color:'var(--warn)'}}>{t('note_required_msg')}</div>}
+            </div>
+            <div style={footer}>
+              <button className="btn btn-ghost btn-sm" onClick={()=>finish(answers, true)}>{t('btn_skip_all')}</button>
+              <div style={{display:'flex',alignItems:'center',gap:8}}>
+                {step>0&&<button className="btn btn-ghost btn-sm" onClick={()=>{setShowRequired(false);setStep(step-1);}}><IconArrowRight size={13}/> {t('btn_back')}</button>}
+                <button className="btn btn-ghost btn-sm" onClick={skipQuestion}>{t('btn_skip_question')}</button>
+                <button className="btn btn-primary" onClick={goNext}>{isLast ? t('btn_finish_draft') : t('btn_next_question')} <IconArrowLeft size={14}/></button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -587,7 +712,7 @@ function SplitEditor({ student, instructorAnswers, aiTone, onBack, onExport, eva
         </div>
         <div style={{display:'flex',flexDirection:'column',minHeight:0,background:'var(--bg)'}}>
           <div className="scroll" style={{flex:1,overflowY:'auto',padding:'28px 36px 80px'}}>
-            <DraftHeader student={student} rubricName={rubricName} answersCount={instructorAnswers?Object.keys(instructorAnswers).length:0}/>
+            <DraftHeader student={student} rubricName={rubricName} answersCount={Array.isArray(instructorAnswers)?instructorAnswers.filter(x=>!x.skipped).length:0}/>
             {activeCategories.map((cat,idx)=>(
               <CategoryCard key={cat.id} cat={cat} index={idx} aiTone={aiTone} instructorAnswers={instructorAnswers} activeEvidence={activeEvidence} onEvidenceClick={setActiveEvidence} editing={editing===cat.id} onEdit={()=>setEditing(editing===cat.id?null:cat.id)} onEditSave={(newText)=>handleUpdateCategoryText(cat.id, newText)} onScoreChange={(v)=>handleScoreChange(cat.id, v)} onIndicatorChange={(indId, patch)=>handleIndicatorChange(cat.id, indId, patch)} onRefine={()=>handleRefine(cat.id)} refining={refining===cat.id} isActive={activeCat===cat.id} onSelect={()=>setActiveCat(cat.id)}/>
             ))}

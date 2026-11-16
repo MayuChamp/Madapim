@@ -1,8 +1,22 @@
 const express = require('express');
 const router = express.Router();
 const { q } = require('../db');
-const { analyzePortfolio, generateSmartQuestions, chatPortfolio } = require('../services/ai');
+const { analyzePortfolio, prescanPortfolio, chatPortfolio } = require('../services/ai');
 const { levelLabel: rubricLevelLabel } = require('../rubrics/mainRubric');
+const {
+  LIMITED_LESSON_PLANS, PLAN_VS_EXECUTION, portfolioCounts, buildQuestions,
+  sanitizeAnswers, answersPromptSection, insufficientEvidenceCodes, markInsufficientEvidence,
+} = require('../services/questions');
+
+// Criteria the instructor chose in the workspace (all of them by default).
+function withSelectedCriteria(rubric, dateRange) {
+  const selected = dateRange?.selectedCriteriaIndices;
+  if (!Array.isArray(selected) || selected.length === 0) return rubric;
+  return { ...rubric, criteria: (rubric.criteria || []).filter((_, i) => selected.includes(i)) };
+}
+
+const planVsExecutionOf = user =>
+  (PLAN_VS_EXECUTION[user?.plan_vs_execution] ? user.plan_vs_execution : 'balanced');
 
 // GET /api/evaluations — list all evaluations with student info
 router.get('/', async (req, res) => {
@@ -11,6 +25,43 @@ router.get('/', async (req, res) => {
     res.json(await q.allEvaluations(req.user.id));
   } catch (e) {
     res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/evaluations/prescan — quick scan, then the "השלמת מידע" questions
+router.post('/prescan', async (req, res) => {
+  const { student_id, rubric_id, date_range } = req.body || {};
+  if (!student_id) return res.status(400).json({ error: 'student_id required' });
+  if (!rubric_id) return res.status(400).json({ error: 'rubric_id required' });
+
+  try {
+    const student = await q.student(student_id, req.user.id);
+    if (!student) return res.status(404).json({ error: 'Student not found' });
+    const fullRubric = await q.rubric(rubric_id);
+    if (!fullRubric) return res.status(404).json({ error: 'Rubric not found' });
+    const rubric = withSelectedCriteria(fullRubric, date_range);
+    const files = await q.studentFiles(student_id);
+
+    // Without the scan, the fixed questions and the requirements check still work.
+    let scan = null;
+    let scanFailed = false;
+    try {
+      scan = await prescanPortfolio(student, files, rubric);
+    } catch (err) {
+      console.error('Prescan error:', err);
+      scanFailed = true;
+    }
+
+    const counts = portfolioCounts(files, scan);
+    res.json({
+      questions: buildQuestions({ student, rubric, scan, counts }),
+      counts,
+      limited: counts.lessonPlans < LIMITED_LESSON_PLANS,
+      scanFailed,
+    });
+  } catch (err) {
+    console.error('Prescan route error:', err);
+    res.status(500).json({ error: err.message || 'שגיאה בסריקת התיק' });
   }
 });
 
@@ -23,24 +74,33 @@ router.post('/analyze', async (req, res) => {
   const student = await q.student(student_id);
   if (!student) return res.status(404).json({ error: 'Student not found' });
 
-  let rubric = await q.rubric(rubric_id);
-  if (!rubric) return res.status(404).json({ error: 'Rubric not found' });
-
-  // Criteria the instructor chose in the workspace (all of them by default).
-  const selected = date_range?.selectedCriteriaIndices;
-  if (Array.isArray(selected) && selected.length > 0) {
-    rubric = { ...rubric, criteria: (rubric.criteria || []).filter((_, i) => selected.includes(i)) };
-  }
-
-  const files = await q.studentFiles(student_id);
+  const fullRubric = await q.rubric(rubric_id);
+  if (!fullRubric) return res.status(404).json({ error: 'Rubric not found' });
+  const rubric = withSelectedCriteria(fullRubric, date_range);
 
   try {
-    const draft = await analyzePortfolio(student.name, files, instructor_answers || {}, student.gender || 'female', rubric);
-    const ev = await q.upsertEvaluation(student_id, draft, draft.score ?? null, rubric_id);
-    const smartQuestions = await generateSmartQuestions(draft, student.name, student.gender || 'female');
+    const [files, user] = await Promise.all([q.studentFiles(student_id), q.userById(req.user.id)]);
+    const answers = sanitizeAnswers(instructor_answers);
+    const instructorSection = answersPromptSection({
+      answers,
+      planVsExecution: planVsExecutionOf(user),
+      hasCriterion3: (rubric.criteria || []).some(c => (c.indicators || []).some(i => String(i.id).startsWith('3.'))),
+      counts: portfolioCounts(files),
+    });
+
+    let draft = await analyzePortfolio({
+      studentName: student.name,
+      files,
+      gender: student.gender || 'female',
+      rubric,
+      instructorSection,
+    });
+    draft = markInsufficientEvidence(draft, insufficientEvidenceCodes(answers));
+
+    const ev = await q.upsertEvaluation(student_id, draft, draft.score ?? null, rubric_id, answers);
     await q.updateStudentStatus(student_id, 'in_progress');
 
-    res.json({ evaluation_id: ev.id, draft, smart_questions: smartQuestions });
+    res.json({ evaluation_id: ev.id, draft });
   } catch (err) {
     console.error('Analysis error:', err);
     res.status(500).json({ error: err.message || 'שגיאה בניתוח ה-AI' });

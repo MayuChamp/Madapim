@@ -39,11 +39,6 @@ const CYCLE_STATUS = {
   awaiting_revision:{label:'ממתין לסטודנט',cls:'badge-info'},
   not_started:{label:'טרם הוגש',cls:'badge-neutral'},
 };
-const SMART_QUESTIONS = [
-  {id:'q1',icon:'⚖',gap:'lessonPlan',badge:'📘 מול 🎯 · שליטה במיומנויות הוראה',context:'במערכי השיעור הבניה בסיסית (שאלת מוקד ופעולת דריכה חלשות), אך בתצפית נצפה ביצוע מרשים ואלתור בשיעור. פער של שתי רמות בין התכנון לביצוע.',question:'כיצד לשקלל את שליטת המיומנויות — לפי איכות התכנון הכתוב, או לפי ההוראה החיה בכיתה?',type:'decision',options:[{value:'observation',label:'להעדיף את ההוראה בפועל',detail:'הביצוע משקף את היכולת האמיתית'},{value:'balanced',label:'איזון בין השניים',detail:'לשקלל את שני הערוצים שווה בשווה'},{value:'lesson',label:'להעדיף את התכנון',detail:'התכנון מעיד על שיטתיות'}],placeholder:'נימוק ההחלטה (אופציונלי)...'},
-  {id:'q2',icon:'◉',gap:'observation',badge:'🎯 תקשורת עם תלמידים',context:'מהתצפית עולה יחס קשוב, אך לא תועד תיעוד מפורט של מענה לצרכים שונים.',question:'כיצד היית מתאר את איכות התקשורת עם התלמידים ומענה לצרכיהם השונים?',type:'text',placeholder:'תיאור האינטראקציה עם התלמידים...'},
-  {id:'q3',icon:'✦',gap:'general',badge:'⚠ חסר תיעוד · עמידה בדרישות הקורס',context:'נדרש לוודא עמידה בדרישות: לפחות 5 מערכי שיעור עם תיקונים ורפלקציה לאחר שיחת משוב.',question:'האם הסטודנטית עמדה בדרישות הקורס — הגישה 5+ מערכים עם תיקונים וביצעה רפלקציה לאחר שיחת משוב?',type:'text',placeholder:'תיאור עמידה בדרישות הקורס...'},
-];
 const RUBRICS = [
   {id:'r1',name:'מחוון כלי מדפים',desc:'מחוון להערכת סטודנטים מורים, 6 קריטריונים'},
 ];
@@ -113,4 +108,4 @@ const RUBRIC_DETAILS = {
 
 export { ARCHIVED, RUBRIC_DETAILS };
 export { LEVEL_KEYS, hasScore, levelFromScore, weightedScore };
-export {  STUDENTS, STATUS_META, RUBRICS, LEVELS, EVAL_CATEGORIES, EVIDENCES, QA_SUGGESTIONS, LEVEL_SCORE, LESSON_PLAN_CYCLES, OBSERVATION_CYCLES, STAGE_LABELS, CYCLE_STATUS, SMART_QUESTIONS  };
+export {  STUDENTS, STATUS_META, RUBRICS, LEVELS, EVAL_CATEGORIES, EVIDENCES, QA_SUGGESTIONS, LEVEL_SCORE, LESSON_PLAN_CYCLES, OBSERVATION_CYCLES, STAGE_LABELS, CYCLE_STATUS  };

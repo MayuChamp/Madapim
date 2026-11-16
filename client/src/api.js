@@ -108,10 +108,10 @@ export async function getProgramSettings() {
   return apiFetch('/auth/program-settings');
 }
 
-export async function updateProgramSettings({ maxLessonPlans, maxObservations }) {
+export async function updateProgramSettings({ maxLessonPlans, maxObservations, planVsExecution }) {
   return apiFetch('/auth/program-settings', {
     method: 'PUT',
-    body: JSON.stringify({ maxLessonPlans, maxObservations }),
+    body: JSON.stringify({ maxLessonPlans, maxObservations, planVsExecution }),
   });
 }
 
@@ -189,6 +189,14 @@ export async function getFiles(studentId) {
 }
 
 // ─── Evaluations ──────────────────────────────────────────────────────────────
+// Quick scan before the analysis → the "השלמת מידע" questions for this portfolio.
+export async function prescan(studentId, rubricId, evalDateRange) {
+  return apiFetch('/evaluations/prescan', {
+    method: 'POST',
+    body: JSON.stringify({ student_id: studentId, rubric_id: rubricId, date_range: evalDateRange }),
+  });
+}
+
 export async function analyze(studentId, instructorAnswers, rubricId, evalDateRange) {
   return apiFetch('/evaluations/analyze', {
     method: 'POST',

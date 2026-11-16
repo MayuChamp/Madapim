@@ -271,6 +271,7 @@ function ProgramSettings() {
   const { t } = useLanguage();
   const [maxLessonPlans, setMaxLessonPlans] = useState(5);
   const [maxObservations, setMaxObservations] = useState(3);
+  const [planVsExecution, setPlanVsExecution] = useState('balanced');
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState(null);
 
@@ -279,6 +280,7 @@ function ProgramSettings() {
       .then(data => {
         setMaxLessonPlans(data.maxLessonPlans);
         setMaxObservations(data.maxObservations);
+        if (data.planVsExecution) setPlanVsExecution(data.planVsExecution);
       })
       .catch(() => {});
   }, []);
@@ -287,7 +289,7 @@ function ProgramSettings() {
     setSaving(true);
     setStatus(null);
     try {
-      await API.updateProgramSettings({ maxLessonPlans, maxObservations });
+      await API.updateProgramSettings({ maxLessonPlans, maxObservations, planVsExecution });
       setStatus({ type: 'ok', msg: t('program_settings_saved') });
     } catch (err) {
       setStatus({ type: 'error', msg: err.message });
@@ -337,6 +339,27 @@ function ProgramSettings() {
 
       <div style={{ marginTop: 24, padding: '12px 16px', background: 'var(--surface-2)', borderRadius: 'var(--r-md)', fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.5 }}>
         ⚠ {t('program_settings_note')}
+      </div>
+
+      <div style={{ marginTop: 32, paddingTop: 24, borderTop: '1px solid var(--border-soft)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0, color: 'var(--ink-1)' }}>{t('plan_weighting_title')}</h3>
+          <span style={{ fontSize: 11.5, padding: '2px 8px', borderRadius: 100, background: 'var(--lp-soft)', color: 'var(--lp)', fontWeight: 500 }}>{t('plan_weighting_badge')}</span>
+        </div>
+        <p style={{ fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.5, margin: '0 0 14px' }}>{t('plan_weighting_desc')}</p>
+        <div role="radiogroup" aria-label={t('plan_weighting_title')} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {['execution', 'balanced', 'planning'].map(value => {
+            const sel = planVsExecution === value;
+            return (
+              <button key={value} role="radio" aria-checked={sel} onClick={() => setPlanVsExecution(value)} style={{ textAlign: 'start', padding: '11px 14px', border: `1px solid ${sel ? 'var(--brand)' : 'var(--border)'}`, background: sel ? 'var(--brand-softer)' : 'var(--surface)', borderRadius: 'var(--r-sm)', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', width: '100%' }}>
+                <span style={{ width: 16, height: 16, borderRadius: '50%', flexShrink: 0, border: `1.5px solid ${sel ? 'var(--brand)' : 'var(--border-strong)'}`, background: sel ? 'var(--brand)' : 'transparent', display: 'grid', placeItems: 'center' }}>
+                  {sel && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#fff' }} />}
+                </span>
+                <span style={{ fontSize: 14, fontWeight: sel ? 600 : 500, color: 'var(--ink-1)' }}>{t('plan_weighting_' + value)}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 24 }}>

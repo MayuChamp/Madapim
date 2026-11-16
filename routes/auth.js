@@ -3,6 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const { q } = require('../db');
 const { signSession, publicUser, isPending, resolveSetPasswordLink, forgetUser } = require('../services/auth');
+const { PLAN_VS_EXECUTION } = require('../services/questions');
 
 const MIN_PASSWORD = 6;
 
@@ -70,24 +71,37 @@ router.get('/program-settings', async (req, res) => {
   if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
   try {
     const user = await q.userById(req.user.id);
-    res.json({ maxLessonPlans: user?.max_lesson_plans ?? 5, maxObservations: user?.max_observations ?? 3 });
+    res.json({
+      maxLessonPlans: user?.max_lesson_plans ?? 5,
+      maxObservations: user?.max_observations ?? 3,
+      planVsExecution: PLAN_VS_EXECUTION[user?.plan_vs_execution] ? user.plan_vs_execution : 'balanced',
+    });
   } catch {
-    res.json({ maxLessonPlans: 5, maxObservations: 3 });
+    res.json({ maxLessonPlans: 5, maxObservations: 3, planVsExecution: 'balanced' });
   }
 });
 
 // PUT /api/auth/program-settings
 router.put('/program-settings', async (req, res) => {
   if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
-  const { maxLessonPlans, maxObservations } = req.body;
+  const { maxLessonPlans, maxObservations, planVsExecution } = req.body;
   if (!Number.isInteger(maxLessonPlans) || maxLessonPlans < 1 || maxLessonPlans > 20)
     return res.status(400).json({ error: 'maxLessonPlans חייב להיות בין 1 ל-20' });
   if (!Number.isInteger(maxObservations) || maxObservations < 1 || maxObservations > 20)
     return res.status(400).json({ error: 'maxObservations חייב להיות בין 1 ל-20' });
+  if (planVsExecution !== undefined && !PLAN_VS_EXECUTION[planVsExecution])
+    return res.status(400).json({ error: 'planVsExecution must be execution, balanced or planning' });
   try {
     await q.updateUserQuota(req.user.id, maxLessonPlans, maxObservations);
   } catch {
     return res.status(503).json({ error: 'שדות ההגדרות טרם נוצרו. יש להריץ את ה-migration ב-Supabase.' });
+  }
+  if (planVsExecution !== undefined) {
+    try {
+      await q.updatePlanVsExecution(req.user.id, planVsExecution);
+    } catch {
+      return res.status(503).json({ error: 'הגדרת השקלול טרם נוצרה במסד הנתונים. יש להריץ ב-Supabase את ה-migration 20261116_add_plan_vs_execution.sql.' });
+    }
   }
   res.json({ ok: true });
 });

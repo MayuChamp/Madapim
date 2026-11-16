@@ -313,6 +313,9 @@ function StudentsList({ students = STUDENTS, onOpen, onDelete }) {
   );
 }
 
+// Below this many lesson plans the instructor is told the picture is narrow (services/questions.js).
+const LIMITED_LESSON_PLANS = 5;
+
 const TRACK_COLORS = { lp:{fg:'var(--lp)',bg:'var(--lp-soft)',name:'מערכי שיעור',Icon:IconDoc}, ob:{fg:'var(--ob)',bg:'var(--ob-soft)',name:'צפיות',Icon:IconEye} };
 
 // Format ISO date string or "DD.MM" to display as "DD.MM.YY"
@@ -793,6 +796,12 @@ function Workspace({ student, onBack, onAnalyze, onFileUploaded, onCycleAdded })
   };
 
   const studentCycles = (student.cycles || []).map(transformApiCycle);
+  // Lesson plans / observations with at least one uploaded file. Unknown until the
+  // full student (with cycles) has loaded.
+  const materialCounts = Array.isArray(student.cycles) ? {
+    lp: student.cycles.filter(c => c.track_type === 'lesson_plan' && (c.files || []).length > 0).length,
+    ob: student.cycles.filter(c => c.track_type === 'observation' && (c.files || []).length > 0).length,
+  } : null;
   const lpCycles = studentCycles.filter(c => c.track_type === 'lesson_plan');
   const obCycles = studentCycles.filter(c => c.track_type === 'observation');
   const hasActivity = c => c.status === 'complete' || Object.values(c.stages).some(s => s.done);
@@ -885,10 +894,19 @@ function Workspace({ student, onBack, onAnalyze, onFileUploaded, onCycleAdded })
               <input type="date" className="input" value={evalStartDate} onChange={e=>setEvalStartDate(e.target.value)} placeholder="מ-" style={{direction:'ltr'}} />
               <input type="date" className="input" value={evalEndDate} onChange={e=>setEvalEndDate(e.target.value)} placeholder="עד-" style={{direction:'ltr'}} />
             </div>
-            <div style={{padding:'10px 12px',background:'var(--surface-2)',borderRadius:'var(--r-sm)',fontSize:12,color:'var(--ink-2)',lineHeight:1.6,marginBottom:16,display:'flex',alignItems:'flex-start',gap:8}}>
+            <div style={{padding:'10px 12px',background:'var(--surface-2)',borderRadius:'var(--r-sm)',fontSize:12,color:'var(--ink-2)',lineHeight:1.6,marginBottom:materialCounts&&materialCounts.lp<LIMITED_LESSON_PLANS?8:16,display:'flex',alignItems:'flex-start',gap:8}}>
               <IconSparkle size={13} stroke="var(--brand)" style={{marginTop:2,flexShrink:0}}/>
-              <span>המערכת זיהתה <b style={{color:'var(--warn)'}}>2 פערים</b> בין מערך לצפייה, וקריטריון אחד <b style={{color:'var(--warn)'}}>ללא תיעוד</b>. תישאלי <b>3 שאלות</b> השלמה.</span>
+              <span>
+                {materialCounts && <>{t('analyze_prep_counts', materialCounts)} </>}
+                {t('analyze_prep_note')}
+              </span>
             </div>
+            {materialCounts && materialCounts.lp < LIMITED_LESSON_PLANS && (
+              <div style={{padding:'10px 12px',background:'var(--warn-soft)',borderRadius:'var(--r-sm)',fontSize:12,color:'var(--ink-2)',lineHeight:1.6,marginBottom:16,display:'flex',alignItems:'flex-start',gap:8}}>
+                <IconAlert size={13} stroke="var(--warn)" style={{marginTop:2,flexShrink:0}}/>
+                <span>{t('limited_info_warning', { n: materialCounts.lp })}</span>
+              </div>
+            )}
             <button className="btn btn-magic btn-lg" style={{width:'100%'}} disabled={!selectedRubricId} onClick={()=>onAnalyze(selectedRubricId, { startDate: evalStartDate, endDate: evalEndDate, selectedCriteriaIndices })}><IconSparkle size={16}/> {t('btn_analyze')}</button>
             <p style={{fontSize:11.5,color:'var(--ink-3)',textAlign:'center',margin:'10px 0 0',lineHeight:1.5}}>{t('analyze_note')}</p>
           </div>
