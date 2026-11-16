@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { login } from './api';
 import { IconArrowLeft } from './icons';
 import { useLanguage } from './i18n';
+import { MapaiLogo } from './MapaiLogo';
 
 export function Login({ onLogin }) {
   const { t, isRTL } = useLanguage();
@@ -26,12 +27,17 @@ export function Login({ onLogin }) {
 
   return (
     <div className="login-page" style={{ direction: isRTL ? 'rtl' : 'ltr' }}>
-      <div className="topstrip"><span className="topstrip-title">{t('college_name')}</span></div>
+      <div className="topstrip">
+        <span className="topstrip-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <img className="topstrip-emblem" src="/dyellin-emblem.png" alt="" />
+          {t('college_name')}
+        </span>
+      </div>
       <div className="login-body">
       <div className="corner-frame fade-in">
       <div className="card" style={{ width: 400, maxWidth: 'calc(100vw - 50px)', padding: '36px 32px', boxShadow: 'var(--shadow-2)' }}>
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <img src="/dyellin-emblem.png" alt={t('college_name')} width={76} height={76} style={{ display: 'block', margin: '0 auto 16px', objectFit: 'contain' }} />
+          <MapaiLogo height={116} alt={t('app_logo_alt')} style={{ display: 'flex', width: 'fit-content', margin: '0 auto 22px' }} />
           <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 28, fontWeight: 700, color: 'var(--ink-1)', margin: '0 0 8px' }}>{t('login_title')}</h1>
           <p style={{ fontSize: 14, color: 'var(--ink-3)', margin: 0 }}>{t('login_subtitle')}</p>
         </div>

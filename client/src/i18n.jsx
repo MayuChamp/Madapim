@@ -72,6 +72,7 @@ const translations = {
     // Topbar
     brand_tagline: 'כלי הדרכה פדגוגית',
     college_name: 'המכללה האקדמית לחינוך ע״ש דוד ילין',
+    app_logo_alt: 'מפAI – העוזר החכם למד״פ',
     nav_my_students: 'הסטודנטים שלי',
     nav_archive: 'ארכיון',
     nav_rubrics: 'מחוונים',
@@ -519,6 +520,7 @@ const translations = {
     // Topbar
     brand_tagline: 'Pedagogical guidance tool',
     college_name: 'David Yellin Academic College of Education',
+    app_logo_alt: 'MapAI – the smart assistant for pedagogical instructors',
     nav_my_students: 'My Students',
     nav_archive: 'Archive',
     nav_rubrics: 'Rubrics',
@@ -966,6 +968,7 @@ const translations = {
     // Topbar
     brand_tagline: 'أداة التوجيه التربوي',
     college_name: 'الكلية الأكاديمية للتربية على اسم دافيد يلين',
+    app_logo_alt: 'MapAI – المساعد الذكي للمرشد التربوي',
     nav_my_students: 'طلابي',
     nav_archive: 'الأرشيف',
     nav_rubrics: 'معايير التقييم',

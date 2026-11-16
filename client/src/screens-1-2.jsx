@@ -4,6 +4,7 @@ import { Icon, IconHome, IconUsers, IconArchive, IconSettings, IconFolder, IconF
 import { STUDENTS, STAGE_LABELS, CYCLE_STATUS, STATUS_META } from './data';
 import { useLanguage } from './i18n';
 import * as API from './api';
+import { MapaiLogo } from './MapaiLogo';
 
 
 
@@ -24,7 +25,7 @@ function TopbarNav({ activeScreen, onNav, instructorName, onLogout, studentCount
         <div className="brand-mark">
           <img className="brand-emblem" src="/dyellin-emblem.png" alt={t('college_name')} />
           <span className="brand-divider" aria-hidden="true" />
-          <div className="brand-text"><b>הערכה</b><span>{t('brand_tagline')}</span></div>
+          <MapaiLogo variant="mark" height={42} alt={t('app_logo_alt')} />
         </div>
         <div className="topnav-pills">
           <button className={`topnav-pill ${activeScreen === 'dashboard' ? 'active' : ''}`} onClick={() => onNav('dashboard')}>

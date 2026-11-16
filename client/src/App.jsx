@@ -9,6 +9,7 @@ import { ExportScreen, AnalyzingScreen, Toast } from './screens-5-app';
 import { STUDENTS, EVAL_CATEGORIES, SMART_QUESTIONS } from './data';
 import { IconMenu } from './icons';
 import { Login } from './Login';
+import { MapaiLogo } from './MapaiLogo';
 import * as API from './api';
 import { useLanguage } from './i18n';
 import { IconCheck } from './icons';
@@ -287,7 +288,8 @@ function App() {
       {!privacyAccepted && user && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div className="card fade-in" style={{ width: 500, padding: 32, background: 'var(--surface-1)' }}>
-            <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 24, fontWeight: 600, margin: '0 0 16px', color: 'var(--ink-1)' }}>ברוכים הבאים למדפים</h2>
+            <MapaiLogo height={84} alt="מפAI – העוזר החכם למד״פ" style={{ display: 'flex', width: 'fit-content', marginBottom: 16 }} />
+            <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 24, fontWeight: 600, margin: '0 0 16px', color: 'var(--ink-1)' }}>ברוכים הבאים למפAI</h2>
             <div style={{ fontSize: 15, color: 'var(--ink-2)', lineHeight: 1.6, marginBottom: 24 }}>
               <p style={{ marginBottom: 12 }}><strong>פרטיות מעל הכל:</strong> אנא הקפידו להזין אך ורק <b>שם פרטי</b> של הסטודנטים או המעורבים בשיעור. אין להזין פרטים מזהים כגון תעודת זהות, אימייל, טלפון או שם משפחה.</p>
               <p style={{ marginBottom: 12 }}><strong>איך זה עובד?</strong> המערכת מאפשרת להעלות חומרים מתצפיות ומערכי שיעור (או טקסט ותמלולים). לאחר מכן, מתבצע ניתוח ראשוני מבוסס מחוונים. באפשרותך לערוך את הניתוח, לאשר אותו, ולייצר משוב מנוסח המיועד ישירות לסטודנט/ית.</p>
