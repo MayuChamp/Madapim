@@ -6,3 +6,5 @@ madapim.db
 madapim.db-shm
 madapim.db-wal
 ~$*
+__pycache__/
+*.pyc

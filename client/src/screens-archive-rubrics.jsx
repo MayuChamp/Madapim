@@ -447,7 +447,7 @@ export function RubricsScreen() {
 
         <div style={{display:'flex',flexDirection:'column',gap:16}}>
           <div className="card" style={{padding:'16px 20px',background:'var(--info-soft)',border:'1px solid var(--info)',borderRadius:8}}>
-            <h3 style={{fontSize:14,fontWeight:600,color:'var(--info)',margin:'0 0 8px'}}>איך לכתוב מחוון אישי? (הנחיות קרן)</h3>
+            <h3 style={{fontSize:14,fontWeight:600,color:'var(--info)',margin:'0 0 8px'}}>איך לכתוב מחוון אישי?</h3>
             <ul style={{fontSize:13,color:'var(--ink-2)',margin:0,paddingInlineStart:18,lineHeight:1.6}}>
               <li>הגדירו במדויק את המיומנות או התחום שברצונכם להעריך.</li>
               <li>נסחו קריטריונים ברורים וניתנים למדידה.</li>
