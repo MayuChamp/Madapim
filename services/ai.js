@@ -15,16 +15,18 @@ function getClient() {
 // ─── Helper: call Claude and return text ─────────────────────────────────────
 // Streams (long Hebrew portfolios can produce long JSON drafts) and returns only
 // the text blocks. If the model declines, the API retries on a fallback model.
-async function callClaude(prompt, { effort = 'high' } = {}) {
+async function callClaude(prompt, { effort = 'high', system, maxTokens = 64000 } = {}) {
+  const messages = Array.isArray(prompt) ? prompt : [{ role: 'user', content: prompt }];
   let message;
   try {
     message = await getClient().beta.messages.stream({
       model: MODEL,
-      max_tokens: 64000,
+      max_tokens: maxTokens,
       output_config: { effort },
       betas: ['server-side-fallback-2026-07-01'],
       fallbacks: 'default',
-      messages: [{ role: 'user', content: prompt }],
+      ...(system ? { system } : {}),
+      messages,
     }).finalMessage();
   } catch (err) {
     if (err instanceof Anthropic.AuthenticationError) {
@@ -239,6 +241,65 @@ function normalizeDraft(draft, rubric) {
   };
 }
 
+// ─── Portfolio chat ───────────────────────────────────────────────────────────
+// Answers the instructor's questions about the student, grounded in the uploaded
+// evidence and the current draft. Can also rewrite draft texts on request, in
+// which case `updates` carries the new texts for the client to apply.
+function buildDraftContext(draft) {
+  if (!draft || !Array.isArray(draft.categories) || draft.categories.length === 0) {
+    return 'אין עדיין טיוטת הערכה.';
+  }
+  const cats = draft.categories.map((c, i) => {
+    const parts = [`${i + 1}. [${c.id}] ${c.name} (${c.weight}%)`];
+    if (c.score !== null && c.score !== undefined && c.score !== '') parts.push(`ציון: ${c.score}`);
+    if (c.overallLevel) parts.push(`רמה: ${c.overallLevel}`);
+    return `${parts.join(' | ')}\n   ${c.balance || '(ללא טקסט)'}`;
+  }).join('\n');
+  return `${cats}\n\nסיכום: ${draft.summary || '(ללא סיכום)'}\nציון מסכם: ${draft.score ?? '—'}`;
+}
+
+async function chatPortfolio({ student, files, draft, history = [], message }) {
+  const isMale = (student.gender || 'female') === 'male';
+  const studentTitle = isMale ? 'הסטודנט' : 'הסטודנטית';
+
+  const system = `אתה העוזר החכם של מפAI — מערכת הערכה פדגוגית לסטודנטים להוראה. אתה משוחח עם המדריך/ה הפדגוגי/ת של ${studentTitle} ${student.name}.
+השתמש בלשון ${isMale ? 'זכר' : 'נקבה'} כשאתה מתייחס ל${studentTitle}.
+
+## חומרי התיק שהועלו (הראיות)
+${buildDocContext(files)}
+
+## טיוטת ההערכה הנוכחית
+${buildDraftContext(draft)}
+
+## כללים
+- ענה בעברית, בקצרה ולעניין (2–5 משפטים), בטון מקצועי.
+- בסס כל טענה על הראיות: ציין באיזה מסמך ראית אותה (שם הקובץ או "מסמך N"). אל תמציא עובדות שאינן בחומרים.
+- אם אין בחומרים תשובה לשאלה — אמור זאת במפורש והצע מה כדאי לתעד.
+- אם המדריך מבקש לשכתב טקסט בטיוטה (למשל: נסח חיובי יותר, קצר יותר, שנה את הסיכום) — כתוב את הנוסח החדש המלא ב-updates, ושמור על עובדות הטיוטה המקוריות.
+
+החזר תמיד JSON גולמי בלבד (ללא markdown) במבנה:
+{"reply": "<התשובה למדריך>", "updates": {"summary": "<סיכום חדש או null>", "categories": [{"id": "c1", "balance": "<נוסח חדש>"}]} או null}
+כש-updates הוא null אם לא התבקש שינוי בטיוטה.`;
+
+  const messages = [
+    ...history
+      .filter(m => m && typeof m.text === 'string' && m.text.trim())
+      .slice(-12)
+      .map(m => ({ role: m.role === 'assistant' || m.role === 'ai' ? 'assistant' : 'user', content: m.text })),
+    { role: 'user', content: message },
+  ];
+
+  const raw = await callClaude(messages, { effort: 'low', system, maxTokens: 4096 });
+
+  try {
+    const parsed = parseJson(raw, '{', '}');
+    if (parsed && typeof parsed.reply === 'string') {
+      return { reply: parsed.reply, updates: parsed.updates || null };
+    }
+  } catch { /* fall through — treat the whole answer as plain text */ }
+  return { reply: raw, updates: null };
+}
+
 // ─── Smart gap questions ──────────────────────────────────────────────────────
 async function generateSmartQuestions(analysisResult, studentName, gender = 'female') {
   const gaps    = (analysisResult.categories || []).filter(c => c.hasGap);
@@ -272,4 +333,4 @@ ${missing.map(c => `- חסר תיעוד: ${c.name}`).join('\n')}
   }
 }
 
-module.exports = { analyzePortfolio, generateSmartQuestions, normalizeDraft };
+module.exports = { analyzePortfolio, generateSmartQuestions, normalizeDraft, chatPortfolio };

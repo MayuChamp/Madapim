@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { q } = require('../db');
-const { analyzePortfolio, generateSmartQuestions } = require('../services/ai');
+const { analyzePortfolio, generateSmartQuestions, chatPortfolio } = require('../services/ai');
 const { levelLabel: rubricLevelLabel } = require('../rubrics/mainRubric');
 
 // GET /api/evaluations — list all evaluations with student info
@@ -44,6 +44,30 @@ router.post('/analyze', async (req, res) => {
   } catch (err) {
     console.error('Analysis error:', err);
     res.status(500).json({ error: err.message || 'שגיאה בניתוח ה-AI' });
+  }
+});
+
+// POST /api/evaluations/:studentId/chat — grounded chat over the student's evidence
+router.post('/:studentId/chat', async (req, res) => {
+  const { message, history, draft } = req.body || {};
+  if (!message || !message.trim()) return res.status(400).json({ error: 'message required' });
+
+  const student = await q.student(req.params.studentId);
+  if (!student) return res.status(404).json({ error: 'Student not found' });
+
+  try {
+    const files = await q.studentFiles(req.params.studentId);
+    const result = await chatPortfolio({
+      student,
+      files,
+      draft: draft || null,
+      history: Array.isArray(history) ? history : [],
+      message: message.trim(),
+    });
+    res.json(result);
+  } catch (err) {
+    console.error('Chat error:', err);
+    res.status(500).json({ error: err.message || 'שגיאה בצ׳אט ה-AI' });
   }
 });
 

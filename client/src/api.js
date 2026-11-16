@@ -165,6 +165,13 @@ export async function analyze(studentId, instructorAnswers, rubricId, evalDateRa
   });
 }
 
+export async function chatEvaluation(studentId, message, history, draft) {
+  return apiFetch(`/evaluations/${studentId}/chat`, {
+    method: 'POST',
+    body: JSON.stringify({ message, history, draft }),
+  });
+}
+
 export async function getEvaluation(studentId) {
   return apiFetch(`/evaluations/${studentId}`).catch(() => null);
 }

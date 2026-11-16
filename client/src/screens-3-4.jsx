@@ -22,6 +22,7 @@ class EditorErrorBoundary extends Component {
 import * as Icons from './icons';
 import { Icon, IconHome, IconUsers, IconArchive, IconSettings, IconFolder, IconFile, IconUpload, IconPlus, IconArrowLeft, IconArrowRight, IconChevron, IconPencil, IconMagic, IconMic, IconSearch, IconClose, IconCheck, IconDownload, IconSave, IconSend, IconSparkle, IconBookmark, IconDoc, IconWave, IconGrid, IconList, IconClock, IconArchiveBox, IconAlert, IconGraduationCap, IconEye } from './icons';
 import { SMART_QUESTIONS, EVAL_CATEGORIES, EVIDENCES, LEVELS, LEVEL_KEYS, QA_SUGGESTIONS, levelFromScore, weightedScore } from './data';
+import { chatEvaluation } from './api';
 
 
 
@@ -500,38 +501,35 @@ function SplitEditor({ student, instructorAnswers, aiTone, onBack, onExport, eva
   const handleUpdateSummary = (newText) => {
     setCurrentSummary(prev => ({...prev, text: newText}));
   };
-  const sendChat = (msg) => {
-    if(!msg.trim())return;
+  const sendChat = async (msg) => {
+    if(!msg.trim()||chatThinking)return;
+    const history = chatMessages.map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', text: m.text }));
     setChatMessages(prev=>[...prev,{role:'user',text:msg}]); setChatInput(''); setChatThinking(true);
-    setTimeout(()=>{
-      const responses={
-        default:'על-בסיס הראיות שהועלו, נראה שמ. מגלה רגישות גבוהה לתלמידים מתקשים. בתיעוד ההתמודדות עם ל. היא בחרה בגישה חמלתית במקום עונשית.',
-        משמעת:'בנושא משמעת — ב-3 מתוך 5 הרפלקציות מ. מציינת רגעי הפרת משמעת. הגישה שלה: שיחה אישית במקום ענישה כיתתית.',
-        תלמידים:'מ. מפגינה רגישות גבוהה לתלמידים מתקשים. בתיעוד ההתמודדות עם ל. בחרה בגישה חמלתית.',
-        תכנון:'התכנון מערכי השיעור הוא תחום צמיחה. ראיה 2 מציגה תכנון בסיסי בלבד. ראיה 1 מראה שהביצוע בפועל עולה על התכנון.',
-        חיובי:'עדכנתי את הניסוחים שיהיו חיוביים ומעודדים יותר כבקשתך.',
-        קצר:'קיצרתי את הטקסטים והשארתי רק את העיקר.'
+    try {
+      const draft = {
+        categories: activeCategories.map(c => ({ id: c.id, name: c.name, weight: c.weight, score: c.score, overallLevel: c.overallLevel, balance: c.balance })),
+        summary: currentSummary?.text,
+        score: currentSummary?.score,
       };
-      
-      let resp=responses.default; 
-      let isRewrite = false;
-      
-      for(const k of Object.keys(responses)){
-        if(msg.includes(k)){
-          resp=responses[k];
-          if(k === 'חיובי' || k === 'קצר') isRewrite = true;
-          break;
+      const res = await chatEvaluation(student.id, msg, history, draft);
+      // The model may return rewritten draft texts — apply them to the editor.
+      if (res.updates) {
+        if (Array.isArray(res.updates.categories) && res.updates.categories.length > 0) {
+          setActiveCategories(prev => prev.map(c => {
+            const u = res.updates.categories.find(x => x && x.id === c.id && typeof x.balance === 'string' && x.balance.trim());
+            return u ? { ...c, balance: u.balance } : c;
+          }));
+        }
+        if (typeof res.updates.summary === 'string' && res.updates.summary.trim()) {
+          setCurrentSummary(prev => ({ ...prev, text: res.updates.summary }));
         }
       }
-      
-      if (isRewrite) {
-         // Mock update text
-         setActiveCategories(prev => prev.map(c => ({...c, balance: c.balance + (msg.includes('חיובי') ? ' ניכר כי קיימת התקדמות יפה.' : '')})));
-         setCurrentSummary(prev => ({...prev, text: prev.text + (msg.includes('חיובי') ? ' הסטודנטית מגלה מוטיבציה גבוהה ללמידה.' : '')}));
-      }
-
-      setChatMessages(prev=>[...prev,{role:'ai',text:resp}]); setChatThinking(false);
-    },1100);
+      setChatMessages(prev=>[...prev,{role:'ai',text:res.reply || t('chat_error')}]);
+    } catch (err) {
+      setChatMessages(prev=>[...prev,{role:'ai',text:`${t('chat_error')} (${err.message})`}]);
+    } finally {
+      setChatThinking(false);
+    }
   };
   return (
     <div className="fade-in" style={{display:'flex',flexDirection:'column',height:'100vh'}}>
