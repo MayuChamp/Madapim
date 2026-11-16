@@ -136,6 +136,14 @@ export async function deleteStudent(id) {
   return apiFetch(`/students/${id}`, { method: 'DELETE' });
 }
 
+// The questions and the evaluation are phrased by the student's gender.
+export async function updateStudentGender(studentId, gender) {
+  return apiFetch(`/students/${studentId}/gender`, {
+    method: 'PUT',
+    body: JSON.stringify({ gender }),
+  });
+}
+
 export async function createStudent({ name, school, grade, subjectTrack, gender }) {
   return apiFetch('/students', {
     method: 'POST',

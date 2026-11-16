@@ -265,7 +265,7 @@ function App() {
               try {
                 const result = await API.importStudentsCSV(csvText);
                 await refreshStudents();
-                setToast(t('students_imported', { n: result.imported }));
+                setToast(t('students_imported', { n: result.imported }) + (result.noGender ? ' · ' + t('students_imported_no_gender', { n: result.noGender }) : ''));
               } catch (err) {
                 setToast(`${t('error_import')}: ${err.message}`);
               }
@@ -291,6 +291,7 @@ function App() {
             onAnalyze={onAnalyze}
             onFileUploaded={() => API.getStudent(student.id).then(s => setStudent(s)).catch(() => {})}
             onCycleAdded={() => API.getStudent(student.id).then(s => setStudent(s)).catch(() => {})}
+            onStudentUpdated={() => Promise.all([API.getStudent(student.id).then(s => setStudent(s)), refreshStudents()]).catch(() => {})}
           />
         )}
         {screen === 'analyzing' && <AnalyzingScreen />}

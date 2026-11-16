@@ -2,6 +2,14 @@ const express = require('express');
 const router = express.Router();
 const { q, supabase } = require('../db');
 
+// CSV gender cell → 'male' | 'female' | null (unrecognised or empty).
+function parseGender(raw) {
+  const v = String(raw || '').trim().toLowerCase();
+  if (['male', 'm', 'זכר', 'ז', 'בן'].includes(v)) return 'male';
+  if (['female', 'f', 'נקבה', 'נ', 'בת'].includes(v)) return 'female';
+  return null;
+}
+
 function requireAuth(req, res, next) {
   if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
   next();
@@ -49,6 +57,20 @@ router.delete('/:id/cycles/:cycleId', requireAuth, async (req, res) => {
     if (!student) return res.status(404).json({ error: 'Student not found' });
     await q.deleteCycle(req.params.cycleId);
     res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// PUT /api/students/:id/gender — the questions and the evaluation are phrased by it
+router.put('/:id/gender', requireAuth, async (req, res) => {
+  try {
+    const { gender } = req.body || {};
+    if (!['male', 'female'].includes(gender)) return res.status(400).json({ error: 'gender must be male or female' });
+    const student = await q.student(req.params.id, req.user.id);
+    if (!student) return res.status(404).json({ error: 'Student not found' });
+    await q.updateStudentGender(req.params.id, gender);
+    res.json({ success: true, gender });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -130,6 +152,7 @@ router.post('/import', requireAuth, async (req, res) => {
 
     const rows = [];
     const skipped = [];
+    let noGender = 0;
 
     for (let i = 1; i < lines.length; i++) {
       const cols = lines[i].split(',').map(c => c.trim());
@@ -137,8 +160,8 @@ router.post('/import', requireAuth, async (req, res) => {
       if (!name) { skipped.push(i + 1); continue; }
 
       const initials = name.replace(/[^א-תa-zA-Z]/g, '').slice(0, 2) || name.slice(0, 2);
-      const rawGender = genderCol >= 0 ? (cols[genderCol] || '') : '';
-      const gender = rawGender === 'male' || rawGender === 'זכר' ? 'male' : 'female';
+      const gender = parseGender(genderCol >= 0 ? cols[genderCol] : '');
+      if (!gender) noGender++;
       rows.push({
         id: 's_' + Date.now() + '_' + i,
         name,
@@ -147,14 +170,14 @@ router.post('/import', requireAuth, async (req, res) => {
         subject_track: trackCol  >= 0 ? (cols[trackCol]  || '') : '',
         status: 'not_started',
         initials,
-        gender,
+        gender: gender || 'female',
       });
     }
 
     if (rows.length === 0) return res.status(400).json({ error: 'No valid rows found' });
 
     await q.bulkInsertStudents(rows, req.user.id);
-    res.json({ imported: rows.length, skipped: skipped.length, students: rows });
+    res.json({ imported: rows.length, skipped: skipped.length, noGender, students: rows });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

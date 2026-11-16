@@ -166,6 +166,10 @@ const translations = {
     field_gender: 'מגדר',
     gender_female: 'נקבה',
     gender_male: 'זכר',
+    gender_required: 'יש לבחור מגדר — לפיו מנוסחות השאלות וההערכה',
+    gender_switch_hint: 'לפי המגדר מנוסחות שאלות ההשלמה וההערכה',
+    error_update_gender: 'שגיאה בעדכון המגדר',
+    students_imported_no_gender: 'ל-{n} לא צוין מגדר בקובץ ולכן נשמרו בלשון נקבה — אפשר לשנות במסך הסטודנט/ית',
 
     // CSV import modal
     csv_import_title: 'ייבוא רשימת סטודנטים',
@@ -657,6 +661,10 @@ const translations = {
     field_gender: 'Gender',
     gender_female: 'Female',
     gender_male: 'Male',
+    gender_required: 'Choose a gender — the questions and the evaluation are phrased by it',
+    gender_switch_hint: 'The follow-up questions and the evaluation are phrased by this',
+    error_update_gender: 'Could not update the gender',
+    students_imported_no_gender: '{n} had no gender in the file and were saved as female — you can change it on the student page',
 
     // CSV import modal
     csv_import_title: 'Import Students List',
@@ -1148,6 +1156,10 @@ const translations = {
     field_gender: 'الجنس',
     gender_female: 'أنثى',
     gender_male: 'ذكر',
+    gender_required: 'اختر الجنس — تُصاغ الأسئلة والتقييم وفقه',
+    gender_switch_hint: 'تُصاغ أسئلة الاستكمال والتقييم وفق الجنس',
+    error_update_gender: 'خطأ في تحديث الجنس',
+    students_imported_no_gender: 'لم يُذكر الجنس لـ {n} في الملف فحُفظوا بصيغة المؤنث — يمكن التغيير في صفحة الطالب',
 
     // CSV import modal
     csv_import_title: 'استيراد قائمة الطلاب',

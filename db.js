@@ -202,6 +202,11 @@ const q = {
     });
   },
 
+  updateStudentGender: async (id, gender) => {
+    const { error } = await supabase.from('students').update({ gender }).eq('id', id);
+    if (error) throw error;
+  },
+
   updateStudentStatus: async (id, status) => {
     await supabase.from('students').update({ status }).eq('id', id);
   },

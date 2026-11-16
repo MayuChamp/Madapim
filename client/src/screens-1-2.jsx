@@ -58,7 +58,8 @@ function Dashboard({ students = STUDENTS, onOpenStudent, cardLayout, onCreateStu
   const { t } = useLanguage();
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
-  const [newStudent, setNewStudent] = useState({ name: '', school: '', grade: '', subjectTrack: '', gender: 'female' });
+  // No preselected gender: a silent default saved male students as female.
+  const [newStudent, setNewStudent] = useState({ name: '', school: '', grade: '', subjectTrack: '', gender: '' });
   const [csvText, setCsvText] = useState('');
   const [importing, setImporting] = useState(false);
   const [confirmDeleteStudent, setConfirmDeleteStudent] = useState(null);
@@ -66,10 +67,11 @@ function Dashboard({ students = STUDENTS, onOpenStudent, cardLayout, onCreateStu
 
   const handleCreate = async (e) => {
     e.preventDefault();
+    if (!newStudent.gender) return;
     if (onCreateStudent) {
       await onCreateStudent(newStudent);
       setShowAddModal(false);
-      setNewStudent({ name: '', school: '', grade: '', subjectTrack: '', gender: 'female' });
+      setNewStudent({ name: '', school: '', grade: '', subjectTrack: '', gender: '' });
     }
   };
 
@@ -165,8 +167,8 @@ function Dashboard({ students = STUDENTS, onOpenStudent, cardLayout, onCreateStu
                 </div>
               </div>
               <div>
-                <label className="label">{t('field_gender')}</label>
-                <div style={{display:'flex',gap:8,marginTop:4}}>
+                <label className="label">{t('field_gender')} *</label>
+                <div role="radiogroup" aria-label={t('field_gender')} style={{display:'flex',gap:8,marginTop:4}}>
                   {[{value:'female',labelKey:'gender_female'},{value:'male',labelKey:'gender_male'}].map(opt=>(
                     <label key={opt.value} style={{display:'flex',alignItems:'center',gap:6,padding:'7px 16px',borderRadius:'var(--r-sm)',border:`1.5px solid ${newStudent.gender===opt.value?'var(--accent)':'var(--border)'}`,background:newStudent.gender===opt.value?'var(--accent-soft)':'transparent',cursor:'pointer',fontSize:14,fontWeight:newStudent.gender===opt.value?500:400,transition:'all .12s'}}>
                       <input type="radio" name="gender" value={opt.value} checked={newStudent.gender===opt.value} onChange={()=>setNewStudent({...newStudent,gender:opt.value})} style={{display:'none'}}/>
@@ -177,7 +179,7 @@ function Dashboard({ students = STUDENTS, onOpenStudent, cardLayout, onCreateStu
               </div>
               <div style={{display:'flex',justifyContent:'flex-end',gap:8,marginTop:16}}>
                 <button type="button" className="btn btn-ghost" onClick={()=>setShowAddModal(false)}>{t('cancel')}</button>
-                <button type="submit" className="btn btn-primary"><IconCheck size={14}/> {t('save')}</button>
+                <button type="submit" className="btn btn-primary" disabled={!newStudent.gender} title={!newStudent.gender ? t('gender_required') : undefined}><IconCheck size={14}/> {t('save')}</button>
               </div>
             </form>
           </div>
@@ -752,9 +754,22 @@ function YearTimeline({ studentCycles, extraFiles }) {
   );
 }
 
-function Workspace({ student, onBack, onAnalyze, onFileUploaded, onCycleAdded }) {
+function Workspace({ student, onBack, onAnalyze, onFileUploaded, onCycleAdded, onStudentUpdated }) {
   const { t } = useLanguage();
   const [openCycle, setOpenCycle] = useState(null);
+  const [savingGender, setSavingGender] = useState(false);
+  const changeGender = async (gender) => {
+    if (gender === student.gender || savingGender) return;
+    setSavingGender(true);
+    try {
+      await API.updateStudentGender(student.id, gender);
+      if (onStudentUpdated) await onStudentUpdated();
+    } catch (err) {
+      alert(t('error_update_gender') + ': ' + err.message);
+    } finally {
+      setSavingGender(false);
+    }
+  };
   const [rubrics, setRubrics] = useState([]);
   const [rubricsLoaded, setRubricsLoaded] = useState(false);
   const [selectedRubricId, setSelectedRubricId] = useState(null);
@@ -819,6 +834,15 @@ function Workspace({ student, onBack, onAnalyze, onFileUploaded, onCycleAdded })
         <div>
           <div style={{fontSize:13,color:'var(--ink-3)',marginBottom:6,display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
             <span>{student.school} · {student.grade}</span>
+            <span style={{display:'inline-flex',alignItems:'center',gap:6}} title={t('gender_switch_hint')}>
+              · {t('field_gender')}:
+              <span role="radiogroup" aria-label={t('field_gender')} style={{display:'inline-flex',border:'1px solid var(--border)',borderRadius:100,overflow:'hidden',opacity:savingGender?0.6:1}}>
+                {['female','male'].map(g=>{
+                  const sel = student.gender===g;
+                  return <button key={g} type="button" role="radio" aria-checked={sel} disabled={savingGender} onClick={()=>changeGender(g)} style={{padding:'2px 10px',fontSize:11.5,border:'none',background:sel?'var(--accent-soft)':'transparent',color:sel?'var(--accent)':'var(--ink-3)',fontWeight:sel?600:400,cursor:savingGender?'wait':'pointer'}}>{t('gender_'+g)}</button>;
+                })}
+              </span>
+            </span>
             {student.subjectTrack&&<span style={{display:'inline-flex',alignItems:'center',gap:5,padding:'2px 9px',borderRadius:100,background:'var(--accent-soft)',color:'var(--accent)',fontSize:11.5,fontWeight:500}}><IconGraduationCap size={12}/> {t('subject_track_label', { track: student.subjectTrack })}</span>}
             <span>· {t('docs_in_portfolio', { n: totalDocs })}</span>
           </div>
