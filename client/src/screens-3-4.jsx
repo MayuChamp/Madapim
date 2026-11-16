@@ -21,7 +21,7 @@ class EditorErrorBoundary extends Component {
 }
 import * as Icons from './icons';
 import { Icon, IconHome, IconUsers, IconArchive, IconSettings, IconFolder, IconFile, IconUpload, IconPlus, IconArrowLeft, IconArrowRight, IconChevron, IconPencil, IconMagic, IconMic, IconSearch, IconClose, IconCheck, IconDownload, IconSave, IconSend, IconSparkle, IconBookmark, IconDoc, IconWave, IconGrid, IconList, IconClock, IconArchiveBox, IconAlert, IconGraduationCap, IconEye } from './icons';
-import { SMART_QUESTIONS, EVAL_CATEGORIES, EVIDENCES, LEVELS, QA_SUGGESTIONS, levelFromScore, weightedScore } from './data';
+import { SMART_QUESTIONS, EVAL_CATEGORIES, EVIDENCES, LEVELS, LEVEL_KEYS, QA_SUGGESTIONS, levelFromScore, weightedScore } from './data';
 
 
 
@@ -187,7 +187,70 @@ function GapInsight({ cat, answered }) {
   );
 }
 
-function CategoryCard({ cat, index, aiTone, instructorAnswers, activeEvidence, onEvidenceClick, editing, onEdit, onEditSave, onScoreChange, onRefine, refining, isActive, onSelect }) {
+// One rubric indicator inside a criterion card: the level is a dropdown styled as the
+// level pill, and the rationale is edited in place (blur or ⌘/Ctrl+Enter saves, Esc cancels).
+function IndicatorRow({ ind, onChange }) {
+  const { t } = useLanguage();
+  const [editingNote, setEditingNote] = useState(false);
+  const il = LEVELS[ind.level];
+  const levelText = il ? il.label : t('indicator_no_evidence');
+  const finishNote = (value, save) => {
+    setEditingNote(false);
+    const next = (value || '').trim();
+    if (save && next !== (ind.note || '')) onChange({ note: next });
+  };
+  return (
+    <div style={{display:'grid',gridTemplateColumns:'1fr auto',gap:'4px 10px',alignItems:'center'}}>
+      <div style={{fontSize:13,color:'var(--ink-1)',fontWeight:500}}><span style={{color:'var(--ink-3)',fontFamily:'var(--font-mono)',fontSize:11.5,marginInlineEnd:6}}>{ind.id}</span>{ind.name}</div>
+      {onChange ? (
+        <label className={`badge pill-select ${il ? il.cls : 'badge-neutral'}`} style={{fontSize:11.5}} title={t('indicator_level')} onClick={e=>e.stopPropagation()}>
+          {levelText}<IconChevron size={11} style={{transform:'rotate(-90deg)',opacity:.7}}/>
+          <select value={ind.level || ''} onChange={e=>onChange({ level: e.target.value || null })} aria-label={`${t('indicator_level')} ${ind.id} — ${ind.name}`}>
+            {LEVEL_KEYS.map(k=><option key={k} value={k}>{LEVELS[k].label}</option>)}
+            <option value="">{t('indicator_no_evidence')}</option>
+          </select>
+        </label>
+      ) : (
+        <span className={`badge ${il ? il.cls : 'badge-neutral'}`} style={{fontSize:11}}>{levelText}</span>
+      )}
+      <div style={{gridColumn:'1 / -1'}}>
+        {editingNote ? (
+          <textarea
+            className="textarea"
+            defaultValue={ind.note || ''}
+            autoFocus
+            aria-label={`${t('indicator_rationale')} ${ind.id}`}
+            onClick={e=>e.stopPropagation()}
+            onBlur={e=>finishNote(e.target.value, true)}
+            onKeyDown={e=>{
+              if (e.key === 'Escape') { e.preventDefault(); finishNote('', false); }
+              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); e.currentTarget.blur(); }
+            }}
+            style={{minHeight:64,fontSize:13,lineHeight:1.6}}
+          />
+        ) : (
+          <div style={{display:'flex',alignItems:'flex-start',gap:6}}>
+            {ind.note && <div style={{fontSize:12.5,color:'var(--ink-3)',lineHeight:1.55}}>{ind.note}</div>}
+            {onChange && (
+              <button
+                type="button"
+                onClick={e=>{e.stopPropagation();setEditingNote(true);}}
+                className="btn-ghost"
+                title={t('indicator_edit_rationale')}
+                aria-label={`${ind.note ? t('indicator_edit_rationale') : t('indicator_add_rationale')} ${ind.id}`}
+                style={{display:'inline-flex',alignItems:'center',gap:4,padding:'2px 6px',borderRadius:6,fontSize:12,color:'var(--ink-3)',flexShrink:0}}
+              >
+                <IconPencil size={12}/>{!ind.note && t('indicator_add_rationale')}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CategoryCard({ cat, index, aiTone, instructorAnswers, activeEvidence, onEvidenceClick, editing, onEdit, onEditSave, onScoreChange, onIndicatorChange, onRefine, refining, isActive, onSelect }) {
   const { t } = useLanguage();
   const {instructorText,decisionText} = resolveCategoryInputs(cat,instructorAnswers);
   const baseText = aiTone==='friendly'&&cat.balanceFriendly?cat.balanceFriendly:cat.balance;
@@ -237,17 +300,10 @@ function CategoryCard({ cat, index, aiTone, instructorAnswers, activeEvidence, o
       {Array.isArray(cat.indicators)&&cat.indicators.length>0&&(
         <div style={{marginTop:14,paddingTop:12,borderTop:'1px solid var(--border)'}}>
           <div style={{fontSize:11.5,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:8}}>{t('indicators_title')}</div>
-          <div style={{display:'flex',flexDirection:'column',gap:8}}>
-            {cat.indicators.map(ind=>{
-              const il=LEVELS[ind.level];
-              return (
-                <div key={ind.id} style={{display:'grid',gridTemplateColumns:'1fr auto',gap:'2px 10px',alignItems:'baseline'}}>
-                  <div style={{fontSize:13,color:'var(--ink-1)',fontWeight:500}}><span style={{color:'var(--ink-3)',fontFamily:'var(--font-mono)',fontSize:11.5,marginInlineEnd:6}}>{ind.id}</span>{ind.name}</div>
-                  {il?<span className={`badge ${il.cls}`} style={{fontSize:11}}>{il.label}</span>:<span className="badge badge-neutral" style={{fontSize:11}}>{t('no_evidence')}</span>}
-                  {ind.note&&<div style={{gridColumn:'1 / -1',fontSize:12.5,color:'var(--ink-3)',lineHeight:1.55}}>{ind.note}</div>}
-                </div>
-              );
-            })}
+          <div style={{display:'flex',flexDirection:'column',gap:10}}>
+            {cat.indicators.map(ind=>(
+              <IndicatorRow key={ind.id} ind={ind} onChange={onIndicatorChange?(patch)=>onIndicatorChange(ind.id, patch):null}/>
+            ))}
           </div>
         </div>
       )}
@@ -427,6 +483,12 @@ function SplitEditor({ student, instructorAnswers, aiTone, onBack, onExport, eva
     const total = weightedScore(next);
     if (total !== null) setCurrentSummary(prev => ({ ...prev, score: total }));
   };
+  const handleIndicatorChange = (catId, indId, patch) => {
+    setActiveCategories(prev => prev.map(c => c.id !== catId ? c : {
+      ...c,
+      indicators: (c.indicators || []).map(ind => ind.id === indId ? { ...ind, ...patch } : ind),
+    }));
+  };
   const handleExport = async () => {
     if (onSave) await handleSave();
     onExport();
@@ -529,7 +591,7 @@ function SplitEditor({ student, instructorAnswers, aiTone, onBack, onExport, eva
           <div className="scroll" style={{flex:1,overflowY:'auto',padding:'28px 36px 80px'}}>
             <DraftHeader student={student} rubricName={rubricName} answersCount={instructorAnswers?Object.keys(instructorAnswers).length:0}/>
             {activeCategories.map((cat,idx)=>(
-              <CategoryCard key={cat.id} cat={cat} index={idx} aiTone={aiTone} instructorAnswers={instructorAnswers} activeEvidence={activeEvidence} onEvidenceClick={setActiveEvidence} editing={editing===cat.id} onEdit={()=>setEditing(editing===cat.id?null:cat.id)} onEditSave={(newText)=>handleUpdateCategoryText(cat.id, newText)} onScoreChange={(v)=>handleScoreChange(cat.id, v)} onRefine={()=>handleRefine(cat.id)} refining={refining===cat.id} isActive={activeCat===cat.id} onSelect={()=>setActiveCat(cat.id)}/>
+              <CategoryCard key={cat.id} cat={cat} index={idx} aiTone={aiTone} instructorAnswers={instructorAnswers} activeEvidence={activeEvidence} onEvidenceClick={setActiveEvidence} editing={editing===cat.id} onEdit={()=>setEditing(editing===cat.id?null:cat.id)} onEditSave={(newText)=>handleUpdateCategoryText(cat.id, newText)} onScoreChange={(v)=>handleScoreChange(cat.id, v)} onIndicatorChange={(indId, patch)=>handleIndicatorChange(cat.id, indId, patch)} onRefine={()=>handleRefine(cat.id)} refining={refining===cat.id} isActive={activeCat===cat.id} onSelect={()=>setActiveCat(cat.id)}/>
             ))}
             <SummaryCard summary={currentSummary} onSummaryUpdate={handleUpdateSummary}/>
           </div>

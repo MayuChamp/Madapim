@@ -326,6 +326,10 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible {
 .badge-info { background: var(--info-soft); color: var(--info); }
 .badge-neutral { background: var(--surface-2); color: var(--ink-3); }
 .badge-accent { background: var(--accent-soft); color: var(--accent); }
+/* Badge that is also a native <select> (invisible, laid over the pill) */
+.pill-select { position: relative; cursor: pointer; }
+.pill-select select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font: inherit; }
+.pill-select:focus-within { outline: 2px solid var(--brand); outline-offset: 2px; }
 
 /* Section title — blue dot + yellow underline hook (dyellin.ac.il headings) */
 .section-title { display: flex; align-items: baseline; justify-content: space-between; margin: 0 0 var(--gap-4); }
