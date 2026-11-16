@@ -477,10 +477,9 @@ function TrackSection({ kind, title, subtitle, cycles, stageOrder, openCycle, on
   const [adding, setAdding] = useState(false);
   const c = TRACK_COLORS[kind]; const completeCount = cycles.filter(cy => cy.status === 'complete' || Object.values(cy.stages).some(s => s.done)).length;
 
-  async function handleAdd() {
+  async function handleAdd(trackType) {
     setAdding(true);
     try {
-      const trackType = 'week';
       await window.API_addCycle(studentId, trackType);
       if (onAddCycle) onAddCycle();
     } catch (err) {
@@ -504,9 +503,13 @@ function TrackSection({ kind, title, subtitle, cycles, stageOrder, openCycle, on
       </div>
       <div style={{display:'flex',flexDirection:'column',gap:8}}>
         {cycles.map((cy,i)=><CycleRow key={cy.id} kind={kind} cycle={cy} cycleIndex={i+1} stageOrder={stageOrder} open={openCycle===cy.id} onToggle={()=>onToggle(cy.id)} onUpload={(stageKey, file) => onUpload(cy.id, stageKey, file)} studentId={studentId} onFileUploaded={onFileUploaded} onDelete={()=>onAddCycle&&window.API_deleteCycle(studentId,cy.id).then(onAddCycle).catch(e=>alert(e.message))}/>)}
-        <button onClick={handleAdd} disabled={adding} style={{display:'flex',alignItems:'center',gap:8,padding:'10px 16px',border:`1.5px solid ${c.fg}`,borderRadius:'var(--r-md)',background:c.bg,color:c.fg,fontSize:13,fontWeight:600,cursor:adding?'wait':'pointer',opacity:adding?0.55:1,transition:'opacity .15s',width:'100%',justifyContent:'center',marginTop:4}}>
-          <IconPlus size={15}/>{adding ? '...' : 'הוסף שבוע / נקודת זמן'}
-        </button>
+        <div style={{display:'flex',gap:8,marginTop:4}}>
+          {[['lesson_plan', TRACK_COLORS.lp, 'add_lesson_plan'], ['observation', TRACK_COLORS.ob, 'add_observation']].map(([trackType, tc, labelKey]) => (
+            <button key={trackType} onClick={() => handleAdd(trackType)} disabled={adding} style={{flex:1,display:'flex',alignItems:'center',gap:8,padding:'10px 16px',border:`1.5px solid ${tc.fg}`,borderRadius:'var(--r-md)',background:tc.bg,color:tc.fg,fontSize:13,fontWeight:600,cursor:adding?'wait':'pointer',opacity:adding?0.55:1,transition:'opacity .15s',justifyContent:'center'}}>
+              {adding ? '...' : t(labelKey)}
+            </button>
+          ))}
+        </div>
       </div>
     </section>
   );
