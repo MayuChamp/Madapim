@@ -227,10 +227,14 @@ const q = {
     await supabase.from('users').update({ max_lesson_plans: maxLessonPlans, max_observations: maxObservations }).eq('id', id);
   },
 
+  // `pending` = invited but has not set a password yet. The hash never leaves here.
   allUsers: async () => {
     const { data } = await supabase
-      .from('users').select('id, email, name, role, created_at').order('created_at');
-    return data || [];
+      .from('users').select('id, email, name, role, created_at, password_hash').order('created_at');
+    return (data || []).map(({ password_hash, ...u }) => ({
+      ...u,
+      pending: !password_hash || password_hash.startsWith('pending:'),
+    }));
   },
 
   createUser: async ({ id, email, passwordHash, name, role }) => {

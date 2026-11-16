@@ -2,29 +2,20 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const jwt = require('jsonwebtoken');
+const { requireAuth } = require('./services/auth');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 if (!process.env.JWT_SECRET) {
-  console.warn('\n  ⚠️  JWT_SECRET env var not set — using insecure default. Set it before deploying.\n');
+  console.warn('\n  ⚠️  JWT_SECRET env var not set — falling back to SUPABASE_SERVICE_ROLE_KEY for signing sessions.\n');
 }
-const JWT_SECRET = process.env.JWT_SECRET || 'madapim-pilot-secret-2026';
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'client', 'dist'))); // Vite build
 
-// Optional JWT auth — attaches req.user if token present (non-blocking for pilot)
-app.use((req, res, next) => {
-  const header = req.headers.authorization || '';
-  const token = header.replace('Bearer ', '');
-  if (token) {
-    try { req.user = jwt.verify(token, JWT_SECRET); } catch {}
-  }
-  next();
-});
+app.use('/api', requireAuth);
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api/auth',       require('./routes/auth'));

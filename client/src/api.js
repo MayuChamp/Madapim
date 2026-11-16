@@ -20,6 +20,10 @@ function authHeaders(extra = {}) {
   };
 }
 
+// Fired when the server rejects the session (expired, or the account was
+// deleted) so the app can return to the login screen.
+export const SESSION_EXPIRED_EVENT = 'madapim:session-expired';
+
 async function apiFetch(path, opts = {}) {
   const res = await fetch(BASE + path, {
     headers: authHeaders(opts.headers || {}),
@@ -27,6 +31,10 @@ async function apiFetch(path, opts = {}) {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
+    if (res.status === 401 && getToken() && !path.startsWith('/auth/login')) {
+      setToken(null);
+      window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+    }
     throw new Error(body.error || `HTTP ${res.status}`);
   }
   return res.json();
@@ -44,6 +52,29 @@ export async function login(email, password) {
 
 export async function getMe() {
   return apiFetch('/auth/me');
+}
+
+// ─── Set-password links (invitation / reset) ──────────────────────────────────
+export function setPasswordUrl(token) {
+  return `${window.location.origin}/set-password#${token}`;
+}
+
+export function readSetPasswordToken() {
+  if (window.location.pathname !== '/set-password') return null;
+  return decodeURIComponent(window.location.hash.slice(1)) || '';
+}
+
+export async function checkSetPasswordLink(token) {
+  return apiFetch('/auth/check-link', { method: 'POST', body: JSON.stringify({ token }) });
+}
+
+export async function setPasswordWithLink(token, password) {
+  const data = await apiFetch('/auth/set-password', {
+    method: 'POST',
+    body: JSON.stringify({ token, password }),
+  });
+  setToken(data.token);
+  return data.user;
 }
 
 export async function updateProfile(name, email) {
@@ -235,8 +266,14 @@ export async function getUsers() {
   return apiFetch('/users');
 }
 
-export async function createUser({ name, email, password, role }) {
-  return apiFetch('/users', { method: 'POST', body: JSON.stringify({ name, email, password, role }) });
+// Returns { user, link: { token, expiresInHours } }.
+export async function createUser({ name, email, role }) {
+  return apiFetch('/users', { method: 'POST', body: JSON.stringify({ name, email, role }) });
+}
+
+// Returns { token, expiresInHours, pending }.
+export async function createUserLink(id) {
+  return apiFetch(`/users/${id}/link`, { method: 'POST' });
 }
 
 export async function deleteUser(id) {

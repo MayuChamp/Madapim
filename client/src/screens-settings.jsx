@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { IconUser, IconBell, IconLock, IconPalette, IconUsers, IconTrash, IconPlus, IconDoc, IconEye } from './icons';
+import { IconUser, IconBell, IconLock, IconPalette, IconUsers, IconTrash, IconPlus, IconDoc, IconEye, IconClose, IconCheck, IconLink } from './icons';
 import * as API from './api';
 import { useLanguage } from './i18n';
 
@@ -350,6 +350,41 @@ function ProgramSettings() {
   );
 }
 
+// A set-password link the admin copies and sends herself (email, WhatsApp…).
+function LinkBox({ link, onClose }) {
+  const { t } = useLanguage();
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(link.url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch { /* clipboard blocked — the field is selectable */ }
+  };
+  return (
+    <div style={{ background: 'var(--brand-soft)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)', padding: 18, marginBottom: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 10 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink-1)' }}>
+          {link.pending ? t('link_title_invite', { name: link.name }) : t('link_title_reset', { name: link.name })}
+        </div>
+        <button onClick={onClose} title={t('cancel')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-3)', padding: 2 }}>
+          <IconClose size={16} />
+        </button>
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input className="input" readOnly value={link.url} dir="ltr" onFocus={e => e.target.select()} style={{ flex: 1, fontSize: 12.5, direction: 'ltr', textAlign: 'left' }} />
+        <button className="btn btn-primary" onClick={copy} style={{ whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
+          {copied ? <IconCheck size={14} /> : <IconLink size={14} />}
+          {copied ? t('link_copied') : t('link_copy')}
+        </button>
+      </div>
+      <div style={{ fontSize: 12.5, color: 'var(--ink-3)', marginTop: 10, lineHeight: 1.6 }}>
+        {t('link_hint', { hours: link.expiresInHours })}
+      </div>
+    </div>
+  );
+}
+
 function UsersManagement({ currentUserId }) {
   const { t } = useLanguage();
   const [users,    setUsers]    = useState([]);
@@ -357,10 +392,11 @@ function UsersManagement({ currentUserId }) {
   const [showForm, setShowForm] = useState(false);
   const [status,   setStatus]   = useState(null);
   const [deleting, setDeleting] = useState(null);
+  const [linking,  setLinking]  = useState(null);
+  const [link,     setLink]     = useState(null);   // { name, url, pending, expiresInHours }
 
   const [name,     setName]     = useState('');
   const [email,    setEmail]    = useState('');
-  const [password, setPassword] = useState('');
   const [role,     setRole]     = useState('instructor');
   const [saving,   setSaving]   = useState(false);
 
@@ -373,22 +409,35 @@ function UsersManagement({ currentUserId }) {
 
   async function handleCreate(e) {
     e.preventDefault();
-    if (!name.trim() || !email.trim() || !password) {
+    if (!name.trim() || !email.trim()) {
       setStatus({ type: 'error', msg: t('error_fill_all_fields') });
       return;
     }
     setSaving(true);
     setStatus(null);
     try {
-      const newUser = await API.createUser({ name: name.trim(), email: email.trim(), password, role });
+      const { user: newUser, link: newLink } = await API.createUser({ name: name.trim(), email: email.trim(), role });
       setUsers(prev => [...prev, newUser]);
-      setName(''); setEmail(''); setPassword(''); setRole('instructor');
+      setName(''); setEmail(''); setRole('instructor');
       setShowForm(false);
-      setStatus({ type: 'ok', msg: t('user_created_msg', { name: newUser.name }) });
+      setLink({ name: newUser.name, url: API.setPasswordUrl(newLink.token), pending: true, expiresInHours: newLink.expiresInHours });
     } catch (err) {
       setStatus({ type: 'error', msg: err.message || t('error_create_user') });
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleLink(u) {
+    setLinking(u.id);
+    setStatus(null);
+    try {
+      const res = await API.createUserLink(u.id);
+      setLink({ name: u.name || u.email, url: API.setPasswordUrl(res.token), pending: res.pending, expiresInHours: res.expiresInHours });
+    } catch (err) {
+      setStatus({ type: 'error', msg: err.message });
+    } finally {
+      setLinking(null);
     }
   }
 
@@ -435,10 +484,6 @@ function UsersManagement({ currentUserId }) {
               <input className="input" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="user@example.com" dir="ltr" />
             </div>
             <div>
-              <label className="label">{t('field_password_label')}</label>
-              <input className="input" type="password" value={password} onChange={e => setPassword(e.target.value)} dir="ltr" />
-            </div>
-            <div>
               <label className="label">{t('field_role_select')}</label>
               <select className="input" value={role} onChange={e => setRole(e.target.value)}>
                 <option value="instructor">{t('opt_instructor')}</option>
@@ -446,12 +491,15 @@ function UsersManagement({ currentUserId }) {
               </select>
             </div>
           </div>
+          <div style={{ fontSize: 12.5, color: 'var(--ink-3)', marginBottom: 16 }}>{t('create_user_link_note')}</div>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
             <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>{t('cancel')}</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? t('creating') : t('btn_create_user')}</button>
           </div>
         </form>
       )}
+
+      {link && <LinkBox link={link} onClose={() => setLink(null)} />}
 
       <StatusMsg status={status} />
 
@@ -471,9 +519,23 @@ function UsersManagement({ currentUserId }) {
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                {u.pending && (
+                  <span style={{ fontSize: 12, padding: '3px 10px', borderRadius: 100, background: 'var(--gold-soft)', color: 'var(--gold)', fontWeight: 500 }}>
+                    {t('user_pending_badge')}
+                  </span>
+                )}
                 <span style={{ fontSize: 12, padding: '3px 10px', borderRadius: 100, background: u.role === 'admin' ? 'var(--brand-soft)' : 'var(--surface-2)', color: u.role === 'admin' ? 'var(--brand)' : 'var(--ink-2)', fontWeight: 500 }}>
                   {roleLabel(u.role)}
                 </span>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => handleLink(u)}
+                  disabled={linking === u.id}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5 }}
+                >
+                  <IconLink size={13} />
+                  {u.pending ? t('btn_invite_link') : t('btn_reset_link')}
+                </button>
                 {u.id !== currentUserId && (
                   <button
                     onClick={() => handleDelete(u.id, u.name || u.email)}

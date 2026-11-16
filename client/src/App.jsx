@@ -8,7 +8,7 @@ import { SettingsScreen } from './screens-settings';
 import { ExportScreen, AnalyzingScreen, Toast } from './screens-5-app';
 import { STUDENTS, EVAL_CATEGORIES, SMART_QUESTIONS } from './data';
 import { IconMenu } from './icons';
-import { Login } from './Login';
+import { Login, SetPassword } from './Login';
 import { MapaiLogo } from './MapaiLogo';
 import * as API from './api';
 import { useLanguage } from './i18n';
@@ -58,6 +58,10 @@ function App() {
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [privacyAccepted, setPrivacyAccepted] = useState(localStorage.getItem('madapim_privacy_accepted') === 'true');
 
+  // Invitation / reset link: /set-password#<token>
+  const [setPasswordToken, setSetPasswordToken] = useState(() => API.readSetPasswordToken());
+  const leaveSetPassword = () => { window.history.replaceState(null, '', '/'); setSetPasswordToken(null); };
+
   // ── Check saved token on mount ────────────────────────────────────────────
   useEffect(() => {
     if (!API.hasToken()) { setLoadingAuth(false); return; }
@@ -65,6 +69,13 @@ function App() {
       .then(({ user: u }) => setUser(u))
       .catch(() => { API.logout(); })
       .finally(() => setLoadingAuth(false));
+  }, []);
+
+  // ── Back to login when the server rejects the session ─────────────────────
+  useEffect(() => {
+    const onExpired = () => setUser(null);
+    window.addEventListener(API.SESSION_EXPIRED_EVENT, onExpired);
+    return () => window.removeEventListener(API.SESSION_EXPIRED_EVENT, onExpired);
   }, []);
 
   // ── Load students after login ─────────────────────────────────────────────
@@ -195,6 +206,9 @@ function App() {
   });
   const firstStudent = students[0] || STUDENTS[0];
 
+  if (setPasswordToken !== null) {
+    return <SetPassword token={setPasswordToken} onDone={u => { leaveSetPassword(); setUser(u); }} onCancel={leaveSetPassword} />;
+  }
   if (loadingAuth) return <div style={{ height: '100vh', display: 'grid', placeItems: 'center' }}>{t('loading')}</div>;
   if (!user) return <Login onLogin={setUser} />;
 
