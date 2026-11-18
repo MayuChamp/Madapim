@@ -225,6 +225,13 @@ const q = {
     return data || null;
   },
 
+  // Like userById, but a failed query throws instead of looking like "no such user".
+  userByIdOrThrow: async (id) => {
+    const { data, error } = await supabase.from('users').select('*').eq('id', id).maybeSingle();
+    if (error) throw error;
+    return data || null;
+  },
+
   userById: async (id) => {
     const { data } = await supabase.from('users').select('*').eq('id', id).single();
     return data || null;

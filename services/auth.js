@@ -83,7 +83,9 @@ function forgetUser(id) {
 async function activeUser(id) {
   const hit = userCache.get(id);
   if (hit && Date.now() - hit.at < USER_CACHE_MS) return hit.user;
-  const row = await q.userById(id);
+  // A failed lookup must not pass for a deleted account — that answered 401 and
+  // logged the person out for the whole cache period. Errors propagate (500).
+  const row = await q.userByIdOrThrow(id);
   const user = row ? publicUser(row) : null;
   userCache.set(id, { user, at: Date.now() });
   return user;

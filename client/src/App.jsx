@@ -68,9 +68,12 @@ function App() {
   // ── Check saved token on mount ────────────────────────────────────────────
   useEffect(() => {
     if (!API.hasToken()) { setLoadingAuth(false); return; }
-    API.getMe()
-      .then(({ user: u }) => setUser(u))
-      .catch(() => { API.logout(); })
+    // Only a rejected session (401 — apiFetch clears the token) ends it. A server
+    // or network error gets one retry instead of logging the person out.
+    const check = () => API.getMe().then(({ user: u }) => setUser(u));
+    check()
+      .catch(() => (API.hasToken() ? new Promise(r => setTimeout(r, 1500)).then(check) : undefined))
+      .catch(() => {})
       .finally(() => setLoadingAuth(false));
   }, []);
 
