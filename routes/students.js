@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { q, supabase } = require('../db');
+const { academicYearOf, isValidAcademicYear, parseAcademicYear } = require('../services/academicYear');
 
 // CSV gender cell → 'male' | 'female' | null (unrecognised or empty).
 function parseGender(raw) {
@@ -76,6 +77,20 @@ router.put('/:id/gender', requireAuth, async (req, res) => {
   }
 });
 
+// PUT /api/students/:id/academic-year — instructors filter their students by it
+router.put('/:id/academic-year', requireAuth, async (req, res) => {
+  try {
+    const year = Number((req.body || {}).academic_year);
+    if (!isValidAcademicYear(year)) return res.status(400).json({ error: 'academic_year must be a Hebrew year number, e.g. 5787' });
+    const student = await q.student(req.params.id, req.user.id);
+    if (!student) return res.status(404).json({ error: 'Student not found' });
+    await q.updateStudentAcademicYear(req.params.id, year);
+    res.json({ success: true, academic_year: year });
+  } catch (e) {
+    res.status(e.status || 500).json({ error: e.message });
+  }
+});
+
 // PUT /api/students/cycles/:cycleId/topic
 router.put('/cycles/:cycleId/topic', requireAuth, async (req, res) => {
   try {
@@ -91,14 +106,19 @@ router.put('/cycles/:cycleId/topic', requireAuth, async (req, res) => {
 // POST /api/students
 router.post('/', requireAuth, async (req, res) => {
   try {
-    const { name, school, grade, subject_track, gender } = req.body;
+    const { name, school, grade, subject_track, gender, academic_year } = req.body;
     if (!name) return res.status(400).json({ error: 'name required' });
 
     const id = 's_' + Date.now();
     const initials = name.replace(/[^א-ת]/g, '').slice(0, 2) || name.slice(0, 2);
     const resolvedGender = gender === 'male' ? 'male' : 'female';
+    const year = isValidAcademicYear(Number(academic_year)) ? Number(academic_year) : academicYearOf();
 
-    const { error: insertError } = await supabase.from('students').insert({ id, name, school: school || '', grade: grade || '', subject_track: subject_track || '', initials, gender: resolvedGender, instructor_id: req.user.id });
+    const { error: insertError } = await supabase.from('students').insert({
+      id, name, school: school || '', grade: grade || '', subject_track: subject_track || '', initials,
+      gender: resolvedGender, instructor_id: req.user.id,
+      ...((await q.hasAcademicYearColumn()) ? { academic_year: year } : {}),
+    });
     if (insertError) throw insertError;
     const instructor = await q.userById(req.user.id);
     try {
@@ -147,6 +167,8 @@ router.post('/import', requireAuth, async (req, res) => {
     const gradeCol  = header.findIndex(h => /כיתה/.test(h)    || /grade/i.test(h));
     const trackCol  = header.findIndex(h => /מסלול/.test(h)   || /track/i.test(h) || /subject/i.test(h));
     const genderCol = header.findIndex(h => /מגדר/.test(h)    || /gender/i.test(h));
+    const yearCol   = header.findIndex(h => /שנ(ה|ת)/.test(h) || /year/i.test(h));
+    const thisYear  = academicYearOf();
 
     if (nameCol === -1) return res.status(400).json({ error: 'CSV must have a "שם" column' });
 
@@ -171,6 +193,7 @@ router.post('/import', requireAuth, async (req, res) => {
         status: 'not_started',
         initials,
         gender: gender || 'female',
+        academic_year: (yearCol >= 0 && parseAcademicYear(cols[yearCol])) || thisYear,
       });
     }
 

@@ -5,6 +5,9 @@ import { STUDENTS, STAGE_LABELS, CYCLE_STATUS, STATUS_META } from './data';
 import { useLanguage } from './i18n';
 import * as API from './api';
 import { MapaiLogo } from './MapaiLogo';
+import { currentAcademicYear, hebrewYearLabel, yearOptions } from './academicYear';
+
+const YEAR_FILTER_KEY = 'students_year_filter';
 
 
 
@@ -59,7 +62,16 @@ function Dashboard({ students = STUDENTS, onOpenStudent, cardLayout, onCreateStu
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   // No preselected gender: a silent default saved male students as female.
-  const [newStudent, setNewStudent] = useState({ name: '', school: '', grade: '', subjectTrack: '', gender: '' });
+  const [newStudent, setNewStudent] = useState({ name: '', school: '', grade: '', subjectTrack: '', gender: '', academicYear: currentAcademicYear() });
+  // Year filter: 'all' or a Hebrew year number; remembered per browser.
+  const [yearFilter, setYearFilterState] = useState(() => {
+    try { const v = localStorage.getItem(YEAR_FILTER_KEY); return v && v !== 'all' ? Number(v) : 'all'; } catch { return 'all'; }
+  });
+  const setYearFilter = (v) => { setYearFilterState(v); try { localStorage.setItem(YEAR_FILTER_KEY, String(v)); } catch {} };
+  const yearsInUse = [...new Set(students.map(s => s.academic_year).filter(Number.isInteger))].sort((a, b) => b - a);
+  const activeYear = yearFilter !== 'all' && yearsInUse.includes(yearFilter) ? yearFilter : 'all';
+  const allStudents = students;
+  students = activeYear === 'all' ? allStudents : allStudents.filter(s => s.academic_year === activeYear);
   const [csvText, setCsvText] = useState('');
   const [importing, setImporting] = useState(false);
   const [confirmDeleteStudent, setConfirmDeleteStudent] = useState(null);
@@ -71,7 +83,7 @@ function Dashboard({ students = STUDENTS, onOpenStudent, cardLayout, onCreateStu
     if (onCreateStudent) {
       await onCreateStudent(newStudent);
       setShowAddModal(false);
-      setNewStudent({ name: '', school: '', grade: '', subjectTrack: '', gender: '' });
+      setNewStudent({ name: '', school: '', grade: '', subjectTrack: '', gender: '', academicYear: currentAcademicYear() });
     }
   };
 
@@ -114,7 +126,25 @@ function Dashboard({ students = STUDENTS, onOpenStudent, cardLayout, onCreateStu
         <StatTile n={counts.ready} label={t('stat_ready')} tone="ok" icon={<IconCheck size={14}/>}/>
         <StatTile n={counts.not_started} label={t('stat_not_started')} tone="neutral" icon={<IconFolder size={14}/>}/>
       </div>
-      <div className="section-title" style={{marginTop:'var(--gap-5)'}}><h2>{t('group_section')}</h2><div style={{display:'flex',alignItems:'center',gap:12}}><span className="hint">{t('students_count', { n: students.length })}</span></div></div>
+      <div className="section-title" style={{marginTop:'var(--gap-5)',flexWrap:'wrap',gap:12}}>
+        <h2>{t('group_section')}</h2>
+        <div style={{display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}}>
+          {yearsInUse.length > 0 && (
+            <div role="radiogroup" aria-label={t('filter_by_year')} style={{display:'inline-flex',border:'1px solid var(--border)',borderRadius:100,overflow:'hidden',background:'var(--surface)'}}>
+              {['all', ...yearsInUse].map(y => {
+                const sel = activeYear === y;
+                const n = y === 'all' ? allStudents.length : allStudents.filter(s => s.academic_year === y).length;
+                return (
+                  <button key={y} type="button" role="radio" aria-checked={sel} onClick={() => setYearFilter(y)} style={{padding:'5px 14px',fontSize:13,border:'none',background:sel?'var(--accent-soft)':'transparent',color:sel?'var(--accent)':'var(--ink-2)',fontWeight:sel?600:400,cursor:'pointer'}}>
+                    {y === 'all' ? t('filter_year_all') : hebrewYearLabel(y)} <span style={{opacity:.65,fontSize:12}}>({n})</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          <span className="hint">{t('students_count', { n: students.length })}</span>
+        </div>
+      </div>
       {cardLayout==='grid' ? <StudentsGrid students={students} onOpen={onOpenStudent} onDelete={setConfirmDeleteStudent}/> : <StudentsList students={students} onOpen={onOpenStudent} onDelete={setConfirmDeleteStudent}/>}
 
       {/* Confirm delete modal */}
@@ -167,6 +197,10 @@ function Dashboard({ students = STUDENTS, onOpenStudent, cardLayout, onCreateStu
                 </div>
               </div>
               <div>
+                <label className="label" htmlFor="new-student-year">{t('field_academic_year')}</label>
+                <select id="new-student-year" className="input" value={newStudent.academicYear} onChange={e=>setNewStudent({...newStudent, academicYear: Number(e.target.value)})} style={{marginBottom:12}}>
+                  {yearOptions(yearsInUse).map(y => <option key={y} value={y}>{hebrewYearLabel(y)}</option>)}
+                </select>
                 <label className="label">{t('field_gender')} *</label>
                 <div role="radiogroup" aria-label={t('field_gender')} style={{display:'flex',gap:8,marginTop:4}}>
                   {[{value:'female',labelKey:'gender_female'},{value:'male',labelKey:'gender_male'}].map(opt=>(
@@ -782,6 +816,19 @@ function Workspace({ student, onBack, onAnalyze, onFileUploaded, onCycleAdded, o
   const { t } = useLanguage();
   const [openCycle, setOpenCycle] = useState(null);
   const [savingGender, setSavingGender] = useState(false);
+  const [savingYear, setSavingYear] = useState(false);
+  const changeYear = async (year) => {
+    if (year === student.academic_year || savingYear) return;
+    setSavingYear(true);
+    try {
+      await API.updateStudentAcademicYear(student.id, year);
+      if (onStudentUpdated) await onStudentUpdated();
+    } catch (err) {
+      alert(t('error_update_year') + ': ' + err.message);
+    } finally {
+      setSavingYear(false);
+    }
+  };
   const changeGender = async (gender) => {
     if (gender === student.gender || savingGender) return;
     setSavingGender(true);
@@ -858,6 +905,14 @@ function Workspace({ student, onBack, onAnalyze, onFileUploaded, onCycleAdded, o
         <div>
           <div style={{fontSize:13,color:'var(--ink-3)',marginBottom:6,display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
             <span>{student.school} · {student.grade}</span>
+            {Number.isInteger(student.academic_year) && (
+              <span style={{display:'inline-flex',alignItems:'center',gap:6}}>
+                · <label htmlFor="student-year">{t('field_academic_year')}:</label>
+                <select id="student-year" value={student.academic_year} disabled={savingYear} onChange={e=>changeYear(Number(e.target.value))} style={{fontSize:12,padding:'1px 8px',paddingInlineEnd:22,minWidth:84,border:'1px solid var(--border)',borderRadius:100,background:'var(--surface)',color:'var(--ink-2)',cursor:savingYear?'wait':'pointer'}}>
+                  {yearOptions([student.academic_year]).map(y => <option key={y} value={y}>{hebrewYearLabel(y)}</option>)}
+                </select>
+              </span>
+            )}
             <span style={{display:'inline-flex',alignItems:'center',gap:6}} title={t('gender_switch_hint')}>
               · {t('field_gender')}:
               <span role="radiogroup" aria-label={t('field_gender')} style={{display:'inline-flex',border:'1px solid var(--border)',borderRadius:100,overflow:'hidden',opacity:savingGender?0.6:1}}>

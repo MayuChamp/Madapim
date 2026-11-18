@@ -144,10 +144,18 @@ export async function updateStudentGender(studentId, gender) {
   });
 }
 
-export async function createStudent({ name, school, grade, subjectTrack, gender }) {
+export async function createStudent({ name, school, grade, subjectTrack, gender, academicYear }) {
   return apiFetch('/students', {
     method: 'POST',
-    body: JSON.stringify({ name, school, grade, subject_track: subjectTrack, gender }),
+    body: JSON.stringify({ name, school, grade, subject_track: subjectTrack, gender, academic_year: academicYear }),
+  });
+}
+
+// academicYear: Hebrew year number, e.g. 5787 for תשפ״ז
+export async function updateStudentAcademicYear(studentId, academicYear) {
+  return apiFetch(`/students/${studentId}/academic-year`, {
+    method: 'PUT',
+    body: JSON.stringify({ academic_year: academicYear }),
   });
 }
 

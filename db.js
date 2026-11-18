@@ -8,6 +8,19 @@ const supabase = createClient(
 
 const BUCKET = 'student-files';
 const { MAIN_RUBRIC, MAIN_RUBRIC_ID, decorateRubric } = require('./rubrics/mainRubric');
+const { academicYearOf } = require('./services/academicYear');
+
+// students.academic_year comes from migration 20261118_add_student_academic_year.sql.
+// Until it has been run, the year is derived from created_at and never written.
+let academicYearColumn = false;
+async function hasAcademicYearColumn() {
+  if (!academicYearColumn) {
+    const { error } = await supabase.from('students').select('academic_year').limit(1);
+    academicYearColumn = !error;
+  }
+  return academicYearColumn;
+}
+const withAcademicYear = s => (s ? { ...s, academic_year: s.academic_year ?? academicYearOf(s.created_at) } : s);
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -83,7 +96,7 @@ const q = {
       const sCycles = (cycles || []).filter(c => c.student_id === s.id);
       const sFiles  = (files  || []).filter(f => f.student_id === s.id);
       return {
-        ...s,
+        ...withAcademicYear(s),
         lessonProgress:      progressFor(sCycles, 'lesson_plan',  sFiles),
         observationProgress: progressFor(sCycles, 'observation',  sFiles),
         docs: sFiles.length,
@@ -95,7 +108,7 @@ const q = {
     let query = supabase.from('students').select('*').eq('id', id);
     if (instructorId) query = query.eq('instructor_id', instructorId);
     const { data } = await query.single();
-    return data || null;
+    return withAcademicYear(data) || null;
   },
 
   studentWithCycles: async (id, instructorId) => {
@@ -138,7 +151,7 @@ const q = {
     student.lessonProgress      = progressFor(cycles, 'lesson_plan');
     student.observationProgress = progressFor(cycles, 'observation');
     student.extraFiles          = extraFiles || [];
-    return student;
+    return withAcademicYear(student);
   },
 
   evaluation: async (studentId) => {
@@ -200,6 +213,16 @@ const q = {
       const cycle = f.cycle_id ? byId.get(f.cycle_id) : null;
       return { ...f, track_type: cycle?.track_type || null, cycle_topic: cycle?.topic || null };
     });
+  },
+
+  hasAcademicYearColumn,
+
+  updateStudentAcademicYear: async (id, year) => {
+    if (!(await hasAcademicYearColumn())) {
+      throw Object.assign(new Error('שדה שנת הלימודים טרם נוצר במסד הנתונים. יש להריץ ב-Supabase את ה-migration 20261118_add_student_academic_year.sql.'), { status: 503 });
+    }
+    const { error } = await supabase.from('students').update({ academic_year: year }).eq('id', id);
+    if (error) throw error;
   },
 
   updateStudentGender: async (id, gender) => {
@@ -436,7 +459,10 @@ const q = {
   },
 
   bulkInsertStudents: async (students, instructorId) => {
-    const rows = students.map(s => ({ ...s, instructor_id: instructorId || null }));
+    const keepYear = await hasAcademicYearColumn();
+    const rows = students.map(({ academic_year, ...s }) => ({
+      ...s, ...(keepYear ? { academic_year } : {}), instructor_id: instructorId || null,
+    }));
     await supabase.from('students').insert(rows);
     for (const s of rows) {
       await q.seedDefaultCyclesForStudent(s.id, s.subject_track);
