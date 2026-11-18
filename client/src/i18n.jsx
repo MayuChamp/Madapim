@@ -123,6 +123,8 @@ const translations = {
 
     // Cycle status badges
     cycle_complete: 'הושלם',
+    files_count: '{n} קבצים',
+    cycle_materials: 'חומרים במחזור',
     cycle_in_progress: 'בעבודה',
     cycle_pending: 'ממתין',
     cycle_not_started: 'טרם',
@@ -618,6 +620,8 @@ const translations = {
 
     // Cycle status badges
     cycle_complete: 'Completed',
+    files_count: '{n} files',
+    cycle_materials: 'Materials in this cycle',
     cycle_in_progress: 'In progress',
     cycle_pending: 'Pending',
     cycle_not_started: 'Not started',
@@ -1113,6 +1117,8 @@ const translations = {
 
     // Cycle status badges
     cycle_complete: 'مكتمل',
+    files_count: '{n} ملفات',
+    cycle_materials: 'المواد في هذه الدورة',
     cycle_in_progress: 'قيد التنفيذ',
     cycle_pending: 'في الانتظار',
     cycle_not_started: 'لم يبدأ',

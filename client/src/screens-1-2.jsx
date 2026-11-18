@@ -422,7 +422,11 @@ function StageTimeline({ cycle, stageOrder, trackColor, studentId, onFileUploade
 
 function CycleRow({ kind, cycle, cycleIndex, stageOrder, open, onToggle, onUpload, studentId, onFileUploaded, onDelete }) {
   const { t } = useLanguage();
-  const c = TRACK_COLORS[kind]; const status = CYCLE_STATUS[cycle.status];
+  const c = TRACK_COLORS[kind];
+  // Uploads don't change cycle.status, so a cycle with files would still read "not started".
+  const fileCount = (cycle.files || []).length;
+  const statusKey = cycle.status === 'not_started' && fileCount > 0 ? 'in_progress' : cycle.status;
+  const status = CYCLE_STATUS[statusKey] || CYCLE_STATUS.not_started;
   const [isEditing, setIsEditing] = useState(false);
   const [topicDraft, setTopicDraft] = useState(cycle.topic);
 
@@ -462,16 +466,27 @@ function CycleRow({ kind, cycle, cycleIndex, stageOrder, open, onToggle, onUploa
           {cycle.subject && <div style={{fontSize:12,color:'var(--ink-3)',marginTop:2}}>{cycle.subject}</div>}
         </div>
         <StageDots cycle={cycle} stageOrder={stageOrder} trackColor={c.fg}/>
-        <span className={`badge ${status.cls}`}>{t('cycle_' + cycle.status)}</span>
+        <span className={`badge ${status.cls}`}>{t('cycle_' + statusKey)}{fileCount > 0 && ` · ${t('files_count', { n: fileCount })}`}</span>
         <button onClick={e=>{e.stopPropagation();if(window.confirm(t('confirm_delete_cycle',{topic:cycle.topic})))onDelete&&onDelete();}} style={{background:'none',border:'none',cursor:'pointer',color:'var(--ink-4)',padding:'4px',borderRadius:'var(--r-sm)',display:'grid',placeItems:'center'}} title={t('delete_cycle_title')} onMouseEnter={e=>e.currentTarget.style.color='var(--warn)'} onMouseLeave={e=>e.currentTarget.style.color='var(--ink-4)'}><IconTrash size={14}/></button>
         <IconChevron size={14} stroke="var(--ink-3)" style={{transform:open?'rotate(-90deg)':'rotate(0)',transition:'transform .2s'}}/>
       </div>
       {open&&<div style={{padding:'4px 18px 18px',borderTop:'1px solid var(--border)',background:'var(--surface-2)',animation:'fadeIn .25s'}}>
-        <StageTimeline cycle={cycle} stageOrder={stageOrder} trackColor={c.fg} studentId={studentId} onFileUploaded={onFileUploaded} />
-        <div style={{marginTop: 24, paddingTop: 16, borderTop: '1px dashed var(--border-strong)'}}>
-          <div style={{fontSize: 13.5, fontWeight: 600, color: 'var(--ink-2)', marginBottom: 12}}>{t('additional_materials_cycle')}</div>
-          <ExtraMaterials extras={cycle.extraFiles || []} studentId={studentId} cycleId={cycle.id} onFileUploaded={onFileUploaded} />
-        </div>
+        {stageOrder.length > 0 ? (
+          <>
+            <StageTimeline cycle={cycle} stageOrder={stageOrder} trackColor={c.fg} studentId={studentId} onFileUploaded={onFileUploaded} />
+            <div style={{marginTop: 24, paddingTop: 16, borderTop: '1px dashed var(--border-strong)'}}>
+              <div style={{fontSize: 13.5, fontWeight: 600, color: 'var(--ink-2)', marginBottom: 12}}>{t('additional_materials_cycle')}</div>
+              <ExtraMaterials extras={cycle.extraFiles || []} studentId={studentId} cycleId={cycle.id} onFileUploaded={onFileUploaded} />
+            </div>
+          </>
+        ) : (
+          // Weeks view has no stage columns: files uploaded to a stage (most of them)
+          // would otherwise be hidden, so list them all here, tagged with their stage.
+          <div style={{marginTop: 14}}>
+            <div style={{fontSize: 13.5, fontWeight: 600, color: 'var(--ink-2)', marginBottom: 12}}>{t('cycle_materials')}</div>
+            <ExtraMaterials extras={sortByStage(cycle.files || [])} studentId={studentId} cycleId={cycle.id} onFileUploaded={onFileUploaded} showStage />
+          </div>
+        )}
       </div>}
     </div>
   );
@@ -531,7 +546,13 @@ function transformApiCycle(c) {
   return { ...c, stages, extraFiles: files.filter(f => !f.stage_key) };
 }
 
-function ExtraMaterials({ extras, studentId, cycleId, stageKey, onFileUploaded, buttonLabel }) {
+const STAGE_SEQUENCE = ['submission', 'instructorNotes', 'revision', 'observation', 'feedback', 'reflection'];
+function sortByStage(files) {
+  const rank = f => (f.stage_key ? STAGE_SEQUENCE.indexOf(f.stage_key) : STAGE_SEQUENCE.length);
+  return [...files].sort((a, b) => (rank(a) - rank(b)) || String(a.uploaded_at || '').localeCompare(String(b.uploaded_at || '')));
+}
+
+function ExtraMaterials({ extras, studentId, cycleId, stageKey, onFileUploaded, buttonLabel, showStage }) {
   const { t } = useLanguage();
   const resolvedButtonLabel = buttonLabel !== undefined ? buttonLabel : t('add_extra_material');
   const [extraDesc, setExtraDesc] = useState('');
@@ -583,7 +604,10 @@ function ExtraMaterials({ extras, studentId, cycleId, stageKey, onFileUploaded, 
           <div key={ex.id} className="card" style={{padding:'12px 16px',display:'flex',alignItems:'center',gap:12}}>
             <div style={{width:30,height:36,borderRadius:3,flexShrink:0,background:'var(--accent-soft)',color:'var(--accent)',fontSize:9,fontWeight:700,display:'grid',placeItems:'center'}}>{ex.original_name ? (ex.original_name.split('.').pop() || 'DOC').toUpperCase().slice(0,3) : 'TXT'}</div>
             <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:14,fontWeight:500,color:'var(--ink-1)'}}>{ex.description || t('no_description')}</div>
+              <div style={{fontSize:14,fontWeight:500,color:'var(--ink-1)',display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+                {showStage && ex.stage_key && <span className="tag" style={{fontSize:11,padding:'1px 8px',borderRadius:100,background:'var(--surface-2)',color:'var(--ink-2)',fontWeight:500}}>{t('stage_' + ex.stage_key)}</span>}
+                {ex.description || t('no_description')}
+              </div>
               <div style={{fontSize:11.5,color:'var(--ink-3)',marginTop:1}}>{ex.original_name}</div>
               {displayDate && (
                 <div style={{display:'flex',alignItems:'center',gap:3,fontSize:11,color:'var(--ink-4)',marginTop:2}}>
@@ -822,7 +846,7 @@ function Workspace({ student, onBack, onAnalyze, onFileUploaded, onCycleAdded, o
   const hasActivity = c => c.status === 'complete' || Object.values(c.stages).some(s => s.done);
   const lpComplete = lpCycles.filter(hasActivity).length;
   const obComplete = obCycles.filter(hasActivity).length;
-  const totalDocs = studentCycles.reduce((acc,c)=>acc+Object.values(c.stages).filter(s=>s.done).length,0);
+  const totalDocs = (student.cycles || []).reduce((acc,c)=>acc+(c.files||[]).length,0);
   return (
     <div className="main-inner fade-in" style={{paddingTop:28}}>
       <div style={{display:'flex',alignItems:'center',gap:8,fontSize:13,marginBottom:18}}>
